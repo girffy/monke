@@ -1,5 +1,6 @@
 using System;
 using UnityEngine;
+using GorillaSurvivors.Core;
 
 namespace GorillaSurvivors.Player
 {
@@ -45,6 +46,7 @@ namespace GorillaSurvivors.Player
 
             CurrentHP -= amount;
             OnHealthChanged?.Invoke(CurrentHP, MaxHP);
+            DamagePopup.Spawn(transform.position, amount);
 
             if (CurrentHP <= 0f)
             {

@@ -207,6 +207,10 @@ namespace GorillaSurvivors.UI
             fillRect.offsetMin = new Vector2(2, 2);
             fillRect.offsetMax = new Vector2(-2, -2);
             var fillImage = fillGO.AddComponent<Image>();
+            // Image.Type.Filled only actually clips geometry when a sprite is
+            // assigned — with sprite == null it silently falls back to
+            // rendering a plain full quad regardless of fillAmount.
+            fillImage.sprite = PlaceholderSprites.Square(Color.white, 4);
             fillImage.color = color;
             fillImage.type = Image.Type.Filled;
             fillImage.fillMethod = Image.FillMethod.Horizontal;
