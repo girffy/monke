@@ -57,8 +57,7 @@ namespace GorillaSurvivors.Player
 
             if (_health != null)
             {
-                _health.SetMaxHP(_health.MaxHP + 10f, healToFull: false);
-                _health.Heal(15f);
+                _health.SetMaxHP(_health.MaxHP + 10f, healToFull: true);
             }
 
             OnLevelUp?.Invoke(Level);

@@ -22,8 +22,8 @@ namespace GorillaSurvivors.Core
             AddPrimitive(root.transform, "Face", PrimitiveType.Sphere, new Vector3(0, 1.05f, 0.28f), new Vector3(0.32f, 0.28f, 0.2f), skin);
             AddPrimitive(root.transform, "EyeL", PrimitiveType.Sphere, new Vector3(-0.1f, 1.12f, 0.38f), Vector3.one * 0.06f, Color.black);
             AddPrimitive(root.transform, "EyeR", PrimitiveType.Sphere, new Vector3(0.1f, 1.12f, 0.38f), Vector3.one * 0.06f, Color.black);
-            AddCapsule(root.transform, "ArmL", new Vector3(-0.62f, 0.55f, 0f), 0.15f, 0.55f, fur);
-            AddCapsule(root.transform, "ArmR", new Vector3(0.62f, 0.55f, 0f), 0.15f, 0.55f, fur);
+            AddArm(root.transform, "ArmL", new Vector3(-0.62f, 0.82f, 0f), 0.15f, 0.55f, fur);
+            AddArm(root.transform, "ArmR", new Vector3(0.62f, 0.82f, 0f), 0.15f, 0.55f, fur);
 
             return root;
         }
@@ -133,6 +133,20 @@ namespace GorillaSurvivors.Core
         static GameObject AddCapsule(Transform parent, string name, Vector3 localPos, float radius, float height, Color color)
         {
             return AddPrimitive(parent, name, PrimitiveType.Capsule, localPos, new Vector3(radius * 2f, height / 2f, radius * 2f), color);
+        }
+
+        // An arm as a shoulder pivot (named `name`, positioned at the shoulder)
+        // with the actual capsule as a child hanging below it — rotating the
+        // pivot swings the arm naturally instead of spinning it around its
+        // own center.
+        static GameObject AddArm(Transform parent, string name, Vector3 shoulderLocalPos, float radius, float height, Color color)
+        {
+            var pivot = new GameObject(name);
+            pivot.transform.SetParent(parent, false);
+            pivot.transform.localPosition = shoulderLocalPos;
+
+            AddCapsule(pivot.transform, "Visual", new Vector3(0f, -height / 2f, 0f), radius, height, color);
+            return pivot;
         }
     }
 }

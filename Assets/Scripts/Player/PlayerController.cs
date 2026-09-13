@@ -23,6 +23,11 @@ namespace GorillaSurvivors.Player
         public Vector3 FacingDirection { get; private set; } = Vector3.forward;
         public bool IsDashing { get; private set; }
 
+        // Set by PlayerAttack while the slam animation plays — root motion
+        // stops (can't move/dash) but input is still read so nothing feels
+        // stuck once it releases.
+        public bool MovementLocked { get; set; }
+
         Rigidbody _rb;
         PlayerHealth _health;
         PlayerStats _stats;
@@ -54,7 +59,11 @@ namespace GorillaSurvivors.Player
         {
             ReadInput();
 
-            if (WasDashPressed() && Time.time >= _dashReadyTime && _moveInput.sqrMagnitude > 0.01f)
+            if (MovementLocked)
+            {
+                _moveInput = Vector3.zero;
+            }
+            else if (WasDashPressed() && Time.time >= _dashReadyTime && _moveInput.sqrMagnitude > 0.01f)
             {
                 StartDash();
             }
@@ -64,7 +73,7 @@ namespace GorillaSurvivors.Player
                 IsDashing = false;
             }
 
-            if (_model != null && _moveInput.sqrMagnitude > 0.01f)
+            if (_model != null && !MovementLocked && _moveInput.sqrMagnitude > 0.01f)
             {
                 _model.rotation = Quaternion.LookRotation(_moveInput.normalized, Vector3.up);
             }
