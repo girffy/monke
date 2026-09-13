@@ -1,6 +1,7 @@
 using UnityEngine;
 using GorillaSurvivors.Core;
 using GorillaSurvivors.Player;
+using GorillaSurvivors.UI;
 
 namespace GorillaSurvivors.Pickups
 {
@@ -18,11 +19,17 @@ namespace GorillaSurvivors.Pickups
 
         Transform _player;
 
-        static readonly Color[] Colors =
+        struct Info
         {
-            new Color(0.95f, 0.85f, 0.2f),  // Banana - yellow
-            new Color(0.3f, 0.85f, 0.95f),  // Adrenaline - cyan
-            new Color(0.85f, 0.2f, 0.85f),  // Rampage - magenta
+            public string Label;
+            public string ToastText;
+        }
+
+        static readonly System.Collections.Generic.Dictionary<PowerupType, Info> InfoTable = new System.Collections.Generic.Dictionary<PowerupType, Info>
+        {
+            { PowerupType.Banana, new Info { Label = "Banana", ToastText = "Banana! +30 HP" } },
+            { PowerupType.Adrenaline, new Info { Label = "Adrenaline", ToastText = "Adrenaline! Move & attack speed up (8s)" } },
+            { PowerupType.Rampage, new Info { Label = "Rampage", ToastText = "Rampage! Damage up (8s)" } },
         };
 
         public static PowerupPickup SpawnRandom(Vector3 position)
@@ -37,8 +44,27 @@ namespace GorillaSurvivors.Pickups
             go.transform.position = position;
 
             var renderer = go.AddComponent<SpriteRenderer>();
-            renderer.sprite = PlaceholderSprites.Circle(Colors[(int)type], 20);
+            renderer.sprite = type switch
+            {
+                PowerupType.Banana => CreatureArt.Banana(),
+                PowerupType.Adrenaline => CreatureArt.Adrenaline(),
+                PowerupType.Rampage => CreatureArt.Rampage(),
+                _ => CreatureArt.Banana(),
+            };
             renderer.sortingOrder = 4;
+
+            var labelGO = new GameObject("Label");
+            labelGO.transform.SetParent(go.transform, false);
+            labelGO.transform.localPosition = new Vector3(0f, 0.45f, 0f);
+            var textMesh = labelGO.AddComponent<TextMesh>();
+            textMesh.text = InfoTable[type].Label;
+            textMesh.fontSize = 24;
+            textMesh.characterSize = 0.08f;
+            textMesh.anchor = TextAnchor.LowerCenter;
+            textMesh.alignment = TextAlignment.Center;
+            textMesh.color = Color.white;
+            var labelRenderer = labelGO.GetComponent<MeshRenderer>();
+            labelRenderer.sortingOrder = 6;
 
             var pickup = go.AddComponent<PowerupPickup>();
             pickup.Type = type;
@@ -83,6 +109,8 @@ namespace GorillaSurvivors.Pickups
                     stats?.ApplyTemporaryDamageBuff(1f, 8f);
                     break;
             }
+
+            HUDController.Instance?.ShowToast(InfoTable[Type].ToastText);
         }
     }
 }

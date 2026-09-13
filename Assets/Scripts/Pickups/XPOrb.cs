@@ -19,7 +19,7 @@ namespace GorillaSurvivors.Pickups
             go.transform.position = position;
 
             var renderer = go.AddComponent<SpriteRenderer>();
-            renderer.sprite = PlaceholderSprites.Circle(new Color(0.95f, 0.85f, 0.15f), 14);
+            renderer.sprite = CreatureArt.Gem();
             renderer.sortingOrder = 3;
 
             var orb = go.AddComponent<XPOrb>();

@@ -35,7 +35,7 @@ namespace GorillaSurvivors.Core
             go.transform.position = Vector3.zero;
 
             var renderer = go.AddComponent<SpriteRenderer>();
-            renderer.sprite = PlaceholderSprites.Square(new Color(0.25f, 0.7f, 0.3f), 40);
+            renderer.sprite = CreatureArt.Gorilla();
             renderer.sortingOrder = 10;
 
             var rb = go.AddComponent<Rigidbody2D>();

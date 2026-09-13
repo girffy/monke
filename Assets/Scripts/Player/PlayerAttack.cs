@@ -1,91 +1,110 @@
 using System.Collections;
 using UnityEngine;
+using UnityEngine.InputSystem;
 using GorillaSurvivors.Core;
 using GorillaSurvivors.Enemies;
 
 namespace GorillaSurvivors.Player
 {
-    // Basic attack: a periodic ground-pound AoE centered on the gorilla. No aiming
-    // needed — everything within range gets hit, Vampire-Survivors style.
+    // Active attack: press J/Enter (or click, or the gamepad attack button) to
+    // swing at whatever's in a cone in the direction the gorilla is facing.
     [RequireComponent(typeof(PlayerStats))]
     public class PlayerAttack : MonoBehaviour
     {
-        public float BaseDamage = 12f;
-        public float BaseRadius = 1.6f;
-        public float BaseInterval = 0.9f;
+        public float BaseDamage = 22f;
+        public float BaseRange = 1.9f;
+        public float ArcDegrees = 80f;
+        public float BaseCooldown = 0.4f;
 
         PlayerStats _stats;
-        float _nextAttackTime;
+        PlayerController _controller;
+        float _nextAttackReadyTime;
 
         static readonly Collider2D[] HitBuffer = new Collider2D[32];
 
         void Awake()
         {
             _stats = GetComponent<PlayerStats>();
+            _controller = GetComponent<PlayerController>();
         }
 
         void Update()
         {
-            float interval = BaseInterval / Mathf.Max(0.01f, _stats.AttackSpeedMultiplier);
-            if (Time.time < _nextAttackTime) return;
+            if (Time.time < _nextAttackReadyTime) return;
+            if (!WasAttackPressed()) return;
 
-            _nextAttackTime = Time.time + interval;
-            PerformSmash();
+            float cooldown = BaseCooldown / Mathf.Max(0.01f, _stats.AttackSpeedMultiplier);
+            _nextAttackReadyTime = Time.time + cooldown;
+
+            PerformSwipe(_controller != null ? _controller.FacingDirection : Vector2.down);
         }
 
-        void PerformSmash()
+        bool WasAttackPressed()
+        {
+            var kb = Keyboard.current;
+            if (kb != null && (kb.jKey.wasPressedThisFrame || kb.enterKey.wasPressedThisFrame)) return true;
+
+            var mouse = Mouse.current;
+            if (mouse != null && mouse.leftButton.wasPressedThisFrame) return true;
+
+            var gp = Gamepad.current;
+            if (gp != null && (gp.buttonWest.wasPressedThisFrame || gp.rightTrigger.wasPressedThisFrame)) return true;
+
+            return false;
+        }
+
+        void PerformSwipe(Vector2 aimDirection)
         {
             float damage = BaseDamage * _stats.LevelDamageBonus * _stats.DamageMultiplier;
-            float radius = BaseRadius * _stats.LevelAttackRadiusBonus;
+            float range = BaseRange * _stats.LevelAttackRadiusBonus;
+            float cosHalfArc = Mathf.Cos(ArcDegrees * 0.5f * Mathf.Deg2Rad);
 
             var filter = new ContactFilter2D();
             filter.NoFilter();
             filter.useTriggers = true;
-            int count = Physics2D.OverlapCircle(transform.position, radius, filter, HitBuffer);
+            int count = Physics2D.OverlapCircle(transform.position, range, filter, HitBuffer);
 
             for (int i = 0; i < count; i++)
             {
                 var enemyHealth = HitBuffer[i].GetComponentInParent<EnemyHealth>();
-                if (enemyHealth != null)
+                if (enemyHealth == null) continue;
+
+                Vector2 toEnemy = (Vector2)enemyHealth.transform.position - (Vector2)transform.position;
+                if (toEnemy.sqrMagnitude < 0.0001f || Vector2.Dot(toEnemy.normalized, aimDirection) >= cosHalfArc)
                 {
                     enemyHealth.TakeDamage(damage);
                 }
             }
 
-            SpawnSmashEffect(radius);
+            SpawnSwipeEffect(aimDirection, range);
         }
 
-        void SpawnSmashEffect(float radius)
+        void SpawnSwipeEffect(Vector2 aimDirection, float range)
         {
-            var go = new GameObject("SmashEffect");
+            var go = new GameObject("SwipeEffect");
             go.transform.position = transform.position;
+            go.transform.up = aimDirection;
+            go.transform.localScale = Vector3.one * (range / 0.88f);
 
             var renderer = go.AddComponent<SpriteRenderer>();
-            renderer.sprite = PlaceholderSprites.Circle(new Color(1f, 1f, 1f, 0.6f), 64);
-            renderer.sortingOrder = 2;
-            go.transform.localScale = Vector3.one * 0.05f;
+            renderer.sprite = CreatureArt.SwipeWedge(64, ArcDegrees);
+            renderer.sortingOrder = 11;
 
-            StartCoroutine(AnimateSmash(go, radius));
+            StartCoroutine(FadeAndDestroy(go, renderer));
         }
 
-        IEnumerator AnimateSmash(GameObject go, float radius)
+        IEnumerator FadeAndDestroy(GameObject go, SpriteRenderer renderer)
         {
-            var renderer = go.GetComponent<SpriteRenderer>();
-            float duration = 0.22f;
+            float duration = 0.14f;
             float t = 0f;
-            float targetScale = radius * 2f; // sprite's base diameter is 1 world unit at scale 1
+            var baseColor = renderer.color;
 
             while (t < duration)
             {
                 t += Time.deltaTime;
-                float p = t / duration;
-                float scale = Mathf.Lerp(0.05f, targetScale, p);
-                go.transform.localScale = new Vector3(scale, scale, 1f);
-
-                var c = renderer.color;
-                c.a = Mathf.Lerp(0.55f, 0f, p);
+                var c = baseColor;
+                c.a = Mathf.Lerp(baseColor.a, 0f, t / duration);
                 renderer.color = c;
-
                 yield return null;
             }
 

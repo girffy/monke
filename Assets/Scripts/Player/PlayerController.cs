@@ -114,7 +114,7 @@ namespace GorillaSurvivors.Player
             bool kbDash = kb != null && (kb.spaceKey.wasPressedThisFrame || kb.leftShiftKey.wasPressedThisFrame);
 
             var gp = Gamepad.current;
-            bool gpDash = gp != null && (gp.buttonSouth.wasPressedThisFrame || gp.rightTrigger.wasPressedThisFrame);
+            bool gpDash = gp != null && gp.buttonSouth.wasPressedThisFrame;
 
             return kbDash || gpDash;
         }

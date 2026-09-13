@@ -1,3 +1,4 @@
+using System.Collections;
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.EventSystems;
@@ -9,12 +10,16 @@ namespace GorillaSurvivors.UI
 {
     public class HUDController : MonoBehaviour
     {
+        public static HUDController Instance { get; private set; }
+
         Image _hpFill;
         Image _xpFill;
         Text _levelText;
         Text _timerText;
         GameObject _gameOverPanel;
         Text _gameOverText;
+        Text _toastText;
+        Coroutine _toastRoutine;
 
         PlayerHealth _health;
         PlayerStats _stats;
@@ -32,6 +37,7 @@ namespace GorillaSurvivors.UI
             canvasGO.AddComponent<GraphicRaycaster>();
 
             var hud = canvasGO.AddComponent<HUDController>();
+            Instance = hud;
             hud._health = health;
             hud._stats = stats;
 
@@ -44,6 +50,9 @@ namespace GorillaSurvivors.UI
             hud._gameOverPanel = CreateGameOverPanel(canvasGO.transform, out hud._gameOverText);
             hud._gameOverPanel.SetActive(false);
 
+            hud._toastText = CreateToastText(canvasGO.transform);
+            CreateHintText(canvasGO.transform);
+
             health.OnHealthChanged += hud.HandleHealthChanged;
             stats.OnXPChanged += hud.HandleXPChanged;
             stats.OnLevelUp += hud.HandleLevelUp;
@@ -53,6 +62,83 @@ namespace GorillaSurvivors.UI
             hud.HandleLevelUp(stats.Level);
 
             return hud;
+        }
+
+        void OnDestroy()
+        {
+            if (Instance == this) Instance = null;
+        }
+
+        public void ShowToast(string message)
+        {
+            if (_toastRoutine != null) StopCoroutine(_toastRoutine);
+            _toastRoutine = StartCoroutine(ToastRoutine(message));
+        }
+
+        IEnumerator ToastRoutine(string message)
+        {
+            _toastText.text = message;
+            var color = _toastText.color;
+            color.a = 1f;
+            _toastText.color = color;
+            _toastText.gameObject.SetActive(true);
+
+            yield return new WaitForSeconds(1.6f);
+
+            float fadeDuration = 0.5f;
+            float t = 0f;
+            while (t < fadeDuration)
+            {
+                t += Time.deltaTime;
+                color.a = Mathf.Lerp(1f, 0f, t / fadeDuration);
+                _toastText.color = color;
+                yield return null;
+            }
+
+            _toastText.gameObject.SetActive(false);
+            _toastRoutine = null;
+        }
+
+        static Text CreateToastText(Transform parent)
+        {
+            var go = new GameObject("ToastText", typeof(RectTransform));
+            go.transform.SetParent(parent, false);
+            var rect = go.GetComponent<RectTransform>();
+            rect.anchorMin = new Vector2(0.5f, 1f);
+            rect.anchorMax = new Vector2(0.5f, 1f);
+            rect.pivot = new Vector2(0.5f, 1f);
+            rect.anchoredPosition = new Vector2(0f, -110f);
+            rect.sizeDelta = new Vector2(700, 50);
+
+            var text = go.AddComponent<Text>();
+            text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            text.fontSize = 26;
+            text.alignment = TextAnchor.MiddleCenter;
+            text.color = new Color(1f, 0.92f, 0.55f);
+            text.fontStyle = FontStyle.Bold;
+            text.text = string.Empty;
+
+            go.SetActive(false);
+            return text;
+        }
+
+        static void CreateHintText(Transform parent)
+        {
+            var go = new GameObject("HintText", typeof(RectTransform));
+            go.transform.SetParent(parent, false);
+            var rect = go.GetComponent<RectTransform>();
+            rect.anchorMin = new Vector2(0.5f, 0f);
+            rect.anchorMax = new Vector2(0.5f, 0f);
+            rect.pivot = new Vector2(0.5f, 0f);
+            rect.anchoredPosition = new Vector2(0f, 14f);
+            rect.sizeDelta = new Vector2(700, 30);
+
+            var text = go.AddComponent<Text>();
+            text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            text.fontSize = 18;
+            text.alignment = TextAnchor.MiddleCenter;
+            text.color = new Color(1f, 1f, 1f, 0.7f);
+            text.text = "WASD move  |  J / Click to attack  |  Space to dash";
         }
 
         static void EnsureEventSystem()

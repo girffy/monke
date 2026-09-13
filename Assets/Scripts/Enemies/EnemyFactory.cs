@@ -14,7 +14,7 @@ namespace GorillaSurvivors.Enemies
             go.layer = LayerMask.NameToLayer("Default");
 
             var renderer = go.AddComponent<SpriteRenderer>();
-            renderer.sprite = PlaceholderSprites.Square(new Color(0.85f, 0.25f, 0.2f), 28);
+            renderer.sprite = CreatureArt.Human();
             renderer.sortingOrder = 5;
 
             var rb = go.AddComponent<Rigidbody2D>();
