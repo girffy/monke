@@ -41,8 +41,8 @@ namespace GorillaSurvivors.UI
             hud._health = health;
             hud._stats = stats;
 
-            hud._hpFill = CreateBar(canvasGO.transform, "HPBar", new Vector2(20, -20), new Color(0.85f, 0.2f, 0.2f));
-            hud._xpFill = CreateBar(canvasGO.transform, "XPBar", new Vector2(20, -46), new Color(0.2f, 0.6f, 0.95f));
+            hud._hpFill = CreateBar(canvasGO.transform, "HPBar", "HP", new Vector2(20, -20), new Color(0.85f, 0.2f, 0.2f));
+            hud._xpFill = CreateBar(canvasGO.transform, "XPBar", "XP", new Vector2(20, -46), new Color(0.2f, 0.6f, 0.95f));
 
             hud._levelText = CreateText(canvasGO.transform, "LevelText", new Vector2(20, -72), "Lv.1", 22, TextAnchor.UpperLeft);
             hud._timerText = CreateText(canvasGO.transform, "TimerText", new Vector2(-20, -20), "0:00", 26, TextAnchor.UpperRight);
@@ -186,7 +186,7 @@ namespace GorillaSurvivors.UI
             _levelText.text = $"Lv.{level}";
         }
 
-        static Image CreateBar(Transform parent, string name, Vector2 anchoredPos, Color color)
+        static Image CreateBar(Transform parent, string name, string label, Vector2 anchoredPos, Color color)
         {
             var bg = new GameObject(name + "_BG", typeof(RectTransform));
             bg.transform.SetParent(parent, false);
@@ -211,6 +211,21 @@ namespace GorillaSurvivors.UI
             fillImage.type = Image.Type.Filled;
             fillImage.fillMethod = Image.FillMethod.Horizontal;
             fillImage.fillAmount = 1f;
+
+            var labelGO = new GameObject(name + "_Label", typeof(RectTransform));
+            labelGO.transform.SetParent(bg.transform, false);
+            var labelRect = labelGO.GetComponent<RectTransform>();
+            labelRect.anchorMin = Vector2.zero;
+            labelRect.anchorMax = Vector2.one;
+            labelRect.offsetMin = new Vector2(4, 0);
+            labelRect.offsetMax = new Vector2(-4, 0);
+            var labelText = labelGO.AddComponent<Text>();
+            labelText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            labelText.fontSize = 13;
+            labelText.fontStyle = FontStyle.Bold;
+            labelText.alignment = TextAnchor.MiddleLeft;
+            labelText.color = new Color(1f, 1f, 1f, 0.85f);
+            labelText.text = label;
 
             return fillImage;
         }
