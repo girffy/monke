@@ -14,7 +14,8 @@ namespace GorillaSurvivors.Core
         public static void Spawn(Vector3 worldPos, float amount)
         {
             var go = new GameObject("DamagePopup");
-            go.transform.position = worldPos + new Vector3(0f, 0.6f, 0f);
+            go.transform.position = worldPos + new Vector3(0f, 1.6f, 0f);
+            go.transform.rotation = CameraFollow.LabelRotation;
 
             var mesh = go.AddComponent<TextMesh>();
             mesh.text = $"-{Mathf.CeilToInt(amount)}";

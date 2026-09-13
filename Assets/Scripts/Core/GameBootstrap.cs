@@ -13,6 +13,8 @@ namespace GorillaSurvivors.Core
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         static void Setup()
         {
+            Blocky3DArt.Ground();
+
             var player = CreatePlayer();
             SetupCamera(player.transform);
 
@@ -34,15 +36,15 @@ namespace GorillaSurvivors.Core
             var go = new GameObject("Gorilla");
             go.transform.position = Vector3.zero;
 
-            var renderer = go.AddComponent<SpriteRenderer>();
-            renderer.sprite = CreatureArt.Gorilla();
-            renderer.sortingOrder = 10;
+            var model = Blocky3DArt.Gorilla();
+            model.transform.SetParent(go.transform, false);
 
-            var rb = go.AddComponent<Rigidbody2D>();
-            rb.bodyType = RigidbodyType2D.Dynamic;
+            go.AddComponent<Rigidbody>();
 
-            var collider = go.AddComponent<CircleCollider2D>();
-            collider.radius = 0.5f;
+            var collider = go.AddComponent<CapsuleCollider>();
+            collider.radius = 0.55f;
+            collider.height = 1.3f;
+            collider.center = new Vector3(0f, 0.65f, 0f);
 
             go.AddComponent<PlayerHealth>();
             go.AddComponent<PlayerStats>();
@@ -62,13 +64,14 @@ namespace GorillaSurvivors.Core
                 camGO.tag = "MainCamera";
             }
 
-            cam.orthographic = true;
-            cam.orthographicSize = 6f;
-            cam.transform.position = new Vector3(target.position.x, target.position.y, -10f);
+            cam.orthographic = false;
+            cam.fieldOfView = 45f;
+            cam.transform.rotation = Quaternion.Euler(CameraFollow.PitchDegrees, 0f, 0f);
 
             var follow = cam.GetComponent<CameraFollow>();
             if (follow == null) follow = cam.gameObject.AddComponent<CameraFollow>();
             follow.Target = target;
+            cam.transform.position = target.position + follow.Offset;
         }
     }
 }

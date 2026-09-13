@@ -11,17 +11,16 @@ namespace GorillaSurvivors.Enemies
         {
             var go = new GameObject("Human");
             go.transform.position = position;
-            go.layer = LayerMask.NameToLayer("Default");
 
-            var renderer = go.AddComponent<SpriteRenderer>();
-            renderer.sprite = CreatureArt.Human();
-            renderer.sortingOrder = 5;
+            var model = Blocky3DArt.Human();
+            model.transform.SetParent(go.transform, false);
 
-            var rb = go.AddComponent<Rigidbody2D>();
-            rb.bodyType = RigidbodyType2D.Dynamic;
+            go.AddComponent<Rigidbody>();
 
-            var collider = go.AddComponent<CircleCollider2D>();
-            collider.radius = 0.4f;
+            var collider = go.AddComponent<CapsuleCollider>();
+            collider.radius = 0.35f;
+            collider.height = 1.6f;
+            collider.center = new Vector3(0f, 0.8f, 0f);
 
             var health = go.AddComponent<EnemyHealth>();
             health.Init(maxHP: 15f + 8f * difficultyScale, xpReward: 3f);

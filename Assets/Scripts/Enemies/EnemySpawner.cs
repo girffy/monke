@@ -42,8 +42,9 @@ namespace GorillaSurvivors.Enemies
 
         void SpawnOne(float difficultyScale)
         {
-            Vector2 playerPos = PlayerController.Instance.transform.position;
-            Vector2 offset = Random.insideUnitCircle.normalized * SpawnRadius;
+            Vector3 playerPos = PlayerController.Instance.transform.position;
+            Vector2 offset2D = Random.insideUnitCircle.normalized * SpawnRadius;
+            var offset = new Vector3(offset2D.x, 0f, offset2D.y);
             EnemyFactory.Create(playerPos + offset, difficultyScale);
         }
     }

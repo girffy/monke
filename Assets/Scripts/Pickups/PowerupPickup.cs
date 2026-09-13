@@ -15,9 +15,10 @@ namespace GorillaSurvivors.Pickups
     public class PowerupPickup : MonoBehaviour
     {
         public PowerupType Type;
-        public float PickupRadius = 0.45f;
+        public float PickupRadius = 0.55f;
 
         Transform _player;
+        Transform _visual;
 
         struct Info
         {
@@ -40,34 +41,33 @@ namespace GorillaSurvivors.Pickups
 
         public static PowerupPickup Spawn(Vector3 position, PowerupType type)
         {
-            var go = new GameObject($"Powerup_{type}");
-            go.transform.position = position;
-
-            var renderer = go.AddComponent<SpriteRenderer>();
-            renderer.sprite = type switch
+            GameObject visual = type switch
             {
-                PowerupType.Banana => CreatureArt.Banana(),
-                PowerupType.Adrenaline => CreatureArt.Adrenaline(),
-                PowerupType.Rampage => CreatureArt.Rampage(),
-                _ => CreatureArt.Banana(),
+                PowerupType.Banana => Blocky3DArt.Banana(),
+                PowerupType.Adrenaline => Blocky3DArt.Adrenaline(),
+                PowerupType.Rampage => Blocky3DArt.Rampage(),
+                _ => Blocky3DArt.Banana(),
             };
-            renderer.sortingOrder = 4;
+
+            var root = new GameObject($"Powerup_{type}");
+            root.transform.position = position;
+            visual.transform.SetParent(root.transform, false);
 
             var labelGO = new GameObject("Label");
-            labelGO.transform.SetParent(go.transform, false);
-            labelGO.transform.localPosition = new Vector3(0f, 0.45f, 0f);
+            labelGO.transform.SetParent(root.transform, false);
+            labelGO.transform.localPosition = new Vector3(0f, 1.1f, 0f);
+            labelGO.transform.rotation = CameraFollow.LabelRotation;
             var textMesh = labelGO.AddComponent<TextMesh>();
             textMesh.text = InfoTable[type].Label;
-            textMesh.fontSize = 24;
-            textMesh.characterSize = 0.08f;
+            textMesh.fontSize = 32;
+            textMesh.characterSize = 0.12f;
             textMesh.anchor = TextAnchor.LowerCenter;
             textMesh.alignment = TextAlignment.Center;
             textMesh.color = Color.white;
-            var labelRenderer = labelGO.GetComponent<MeshRenderer>();
-            labelRenderer.sortingOrder = 6;
 
-            var pickup = go.AddComponent<PowerupPickup>();
+            var pickup = root.AddComponent<PowerupPickup>();
             pickup.Type = type;
+            pickup._visual = visual.transform;
             return pickup;
         }
 
@@ -78,13 +78,15 @@ namespace GorillaSurvivors.Pickups
 
         void Update()
         {
+            if (_visual != null) _visual.Rotate(0f, 60f * Time.deltaTime, 0f, Space.World);
+
             if (_player == null)
             {
                 if (PlayerController.Instance != null) _player = PlayerController.Instance.transform;
                 return;
             }
 
-            if (Vector2.Distance(transform.position, _player.position) <= PickupRadius)
+            if (Vector3.Distance(transform.position, _player.position) <= PickupRadius)
             {
                 Apply(_player);
                 Destroy(gameObject);

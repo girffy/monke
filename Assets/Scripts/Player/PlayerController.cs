@@ -3,7 +3,7 @@ using UnityEngine.InputSystem;
 
 namespace GorillaSurvivors.Player
 {
-    [RequireComponent(typeof(Rigidbody2D))]
+    [RequireComponent(typeof(Rigidbody))]
     [RequireComponent(typeof(PlayerHealth))]
     [RequireComponent(typeof(PlayerStats))]
     public class PlayerController : MonoBehaviour
@@ -19,28 +19,30 @@ namespace GorillaSurvivors.Player
         public float DashCooldown = 1.2f;
         public float DashInvulnerabilitySeconds = 0.25f;
 
-        public Vector2 FacingDirection { get; private set; } = Vector2.down;
+        // Movement happens on the flat XZ ground plane; Y stays constant.
+        public Vector3 FacingDirection { get; private set; } = Vector3.forward;
         public bool IsDashing { get; private set; }
 
-        Rigidbody2D _rb;
+        Rigidbody _rb;
         PlayerHealth _health;
         PlayerStats _stats;
-        SpriteRenderer _renderer;
+        Transform _model;
 
-        Vector2 _moveInput;
+        Vector3 _moveInput;
         float _dashEndTime;
         float _dashReadyTime;
-        Vector2 _dashDirection;
+        Vector3 _dashDirection;
 
         void Awake()
         {
             Instance = this;
-            _rb = GetComponent<Rigidbody2D>();
+            _rb = GetComponent<Rigidbody>();
             _health = GetComponent<PlayerHealth>();
             _stats = GetComponent<PlayerStats>();
-            _renderer = GetComponentInChildren<SpriteRenderer>();
-            _rb.gravityScale = 0f;
-            _rb.freezeRotation = true;
+            _model = transform.Find("GorillaModel");
+
+            _rb.useGravity = false;
+            _rb.constraints = RigidbodyConstraints.FreezeRotationX | RigidbodyConstraints.FreezeRotationZ | RigidbodyConstraints.FreezePositionY;
         }
 
         void OnDestroy()
@@ -62,9 +64,9 @@ namespace GorillaSurvivors.Player
                 IsDashing = false;
             }
 
-            if (_renderer != null && Mathf.Abs(_moveInput.x) > 0.01f)
+            if (_model != null && _moveInput.sqrMagnitude > 0.01f)
             {
-                _renderer.flipX = _moveInput.x < 0f;
+                _model.rotation = Quaternion.LookRotation(_moveInput.normalized, Vector3.up);
             }
         }
 
@@ -84,12 +86,12 @@ namespace GorillaSurvivors.Player
 
         void ReadInput()
         {
-            Vector2 input = Vector2.zero;
+            Vector3 input = Vector3.zero;
             var kb = Keyboard.current;
             if (kb != null)
             {
-                if (kb.wKey.isPressed || kb.upArrowKey.isPressed) input.y += 1f;
-                if (kb.sKey.isPressed || kb.downArrowKey.isPressed) input.y -= 1f;
+                if (kb.wKey.isPressed || kb.upArrowKey.isPressed) input.z += 1f;
+                if (kb.sKey.isPressed || kb.downArrowKey.isPressed) input.z -= 1f;
                 if (kb.aKey.isPressed || kb.leftArrowKey.isPressed) input.x -= 1f;
                 if (kb.dKey.isPressed || kb.rightArrowKey.isPressed) input.x += 1f;
             }
@@ -98,10 +100,10 @@ namespace GorillaSurvivors.Player
             if (gp != null)
             {
                 var stick = gp.leftStick.ReadValue();
-                if (stick.sqrMagnitude > 0.01f) input = stick;
+                if (stick.sqrMagnitude > 0.01f) input = new Vector3(stick.x, 0f, stick.y);
             }
 
-            _moveInput = Vector2.ClampMagnitude(input, 1f);
+            _moveInput = Vector3.ClampMagnitude(input, 1f);
             if (_moveInput.sqrMagnitude > 0.01f)
             {
                 FacingDirection = _moveInput.normalized;

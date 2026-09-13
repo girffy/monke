@@ -20,7 +20,7 @@ namespace GorillaSurvivors.Player
         PlayerController _controller;
         float _nextAttackReadyTime;
 
-        static readonly Collider2D[] HitBuffer = new Collider2D[32];
+        static readonly Collider[] HitBuffer = new Collider[32];
 
         void Awake()
         {
@@ -36,7 +36,7 @@ namespace GorillaSurvivors.Player
             float cooldown = BaseCooldown / Mathf.Max(0.01f, _stats.AttackSpeedMultiplier);
             _nextAttackReadyTime = Time.time + cooldown;
 
-            PerformSwipe(_controller != null ? _controller.FacingDirection : Vector2.down);
+            PerformSwipe(_controller != null ? _controller.FacingDirection : Vector3.forward);
         }
 
         bool WasAttackPressed()
@@ -53,24 +53,26 @@ namespace GorillaSurvivors.Player
             return false;
         }
 
-        void PerformSwipe(Vector2 aimDirection)
+        void PerformSwipe(Vector3 aimDirection)
         {
+            aimDirection.y = 0f;
+            aimDirection.Normalize();
+
             float damage = BaseDamage * _stats.LevelDamageBonus * _stats.DamageMultiplier;
             float range = BaseRange * _stats.LevelAttackRadiusBonus;
             float cosHalfArc = Mathf.Cos(ArcDegrees * 0.5f * Mathf.Deg2Rad);
 
-            var filter = new ContactFilter2D();
-            filter.NoFilter();
-            filter.useTriggers = true;
-            int count = Physics2D.OverlapCircle(transform.position, range, filter, HitBuffer);
+            int count = Physics.OverlapSphereNonAlloc(transform.position, range, HitBuffer);
 
             for (int i = 0; i < count; i++)
             {
                 var enemyHealth = HitBuffer[i].GetComponentInParent<EnemyHealth>();
                 if (enemyHealth == null) continue;
 
-                Vector2 toEnemy = (Vector2)enemyHealth.transform.position - (Vector2)transform.position;
-                if (toEnemy.sqrMagnitude < 0.0001f || Vector2.Dot(toEnemy.normalized, aimDirection) >= cosHalfArc)
+                Vector3 toEnemy = enemyHealth.transform.position - transform.position;
+                toEnemy.y = 0f;
+
+                if (toEnemy.sqrMagnitude < 0.0001f || Vector3.Dot(toEnemy.normalized, aimDirection) >= cosHalfArc)
                 {
                     enemyHealth.TakeDamage(damage);
                 }
@@ -79,32 +81,28 @@ namespace GorillaSurvivors.Player
             SpawnSwipeEffect(aimDirection, range);
         }
 
-        void SpawnSwipeEffect(Vector2 aimDirection, float range)
+        void SpawnSwipeEffect(Vector3 aimDirection, float range)
         {
-            var go = new GameObject("SwipeEffect");
-            go.transform.position = transform.position;
-            go.transform.up = aimDirection;
-            go.transform.localScale = Vector3.one * (range / 0.88f);
+            var go = Blocky3DArt.SwipeDisc(new Color(1f, 1f, 1f));
+            go.transform.position = transform.position + aimDirection * (range * 0.4f) + Vector3.up * 0.05f;
+            go.transform.localScale = new Vector3(0.05f, 0.02f, 0.05f);
 
-            var renderer = go.AddComponent<SpriteRenderer>();
-            renderer.sprite = CreatureArt.SwipeWedge(64, ArcDegrees);
-            renderer.sortingOrder = 11;
-
-            StartCoroutine(FadeAndDestroy(go, renderer));
+            var renderer = go.GetComponent<MeshRenderer>();
+            StartCoroutine(AnimateSwipe(go, renderer, range));
         }
 
-        IEnumerator FadeAndDestroy(GameObject go, SpriteRenderer renderer)
+        IEnumerator AnimateSwipe(GameObject go, MeshRenderer renderer, float range)
         {
             float duration = 0.14f;
             float t = 0f;
-            var baseColor = renderer.color;
+            float targetScale = range * 0.9f;
 
             while (t < duration)
             {
                 t += Time.deltaTime;
-                var c = baseColor;
-                c.a = Mathf.Lerp(baseColor.a, 0f, t / duration);
-                renderer.color = c;
+                float p = t / duration;
+                float scale = Mathf.Lerp(0.05f, targetScale, p);
+                go.transform.localScale = new Vector3(scale, 0.02f, scale);
                 yield return null;
             }
 
