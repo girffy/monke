@@ -22,6 +22,8 @@ namespace GorillaSurvivors.UI
         Text _gameOverText;
         Text _toastText;
         Coroutine _toastRoutine;
+        Text _roundBannerText;
+        Coroutine _roundBannerRoutine;
         GameObject _upgradePanel;
         Text _upgradeTitle;
         readonly List<Button> _upgradeButtons = new List<Button>();
@@ -61,6 +63,7 @@ namespace GorillaSurvivors.UI
             hud._upgradePanel.SetActive(false);
 
             hud._toastText = CreateToastText(canvasGO.transform);
+            hud._roundBannerText = CreateRoundBannerText(canvasGO.transform);
             CreateHintText(canvasGO.transform);
 
             health.OnHealthChanged += hud.HandleHealthChanged;
@@ -172,6 +175,59 @@ namespace GorillaSurvivors.UI
                 _timerText.text = $"{minutes}:{seconds:00}";
                 _roundText.text = $"Round {GameManager.Instance.CurrentRound}";
             }
+        }
+
+        public void ShowRoundBanner(int round)
+        {
+            if (_roundBannerRoutine != null) StopCoroutine(_roundBannerRoutine);
+            _roundBannerRoutine = StartCoroutine(RoundBannerRoutine(round));
+        }
+
+        IEnumerator RoundBannerRoutine(int round)
+        {
+            _roundBannerText.text = $"ROUND {round}";
+            var color = _roundBannerText.color;
+            color.a = 1f;
+            _roundBannerText.color = color;
+            _roundBannerText.gameObject.SetActive(true);
+
+            yield return new WaitForSeconds(1.2f);
+
+            float fadeDuration = 0.6f;
+            float t = 0f;
+            while (t < fadeDuration)
+            {
+                t += Time.deltaTime;
+                color.a = Mathf.Lerp(1f, 0f, t / fadeDuration);
+                _roundBannerText.color = color;
+                yield return null;
+            }
+
+            _roundBannerText.gameObject.SetActive(false);
+            _roundBannerRoutine = null;
+        }
+
+        static Text CreateRoundBannerText(Transform parent)
+        {
+            var go = new GameObject("RoundBannerText", typeof(RectTransform));
+            go.transform.SetParent(parent, false);
+            var rect = go.GetComponent<RectTransform>();
+            rect.anchorMin = new Vector2(0.5f, 0.5f);
+            rect.anchorMax = new Vector2(0.5f, 0.5f);
+            rect.pivot = new Vector2(0.5f, 0.5f);
+            rect.anchoredPosition = new Vector2(0f, 120f);
+            rect.sizeDelta = new Vector2(800, 80);
+
+            var text = go.AddComponent<Text>();
+            text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            text.fontSize = 44;
+            text.fontStyle = FontStyle.Bold;
+            text.alignment = TextAnchor.MiddleCenter;
+            text.color = Color.white;
+            text.text = string.Empty;
+
+            go.SetActive(false);
+            return text;
         }
 
         public void ShowUpgradeChoice(List<RoundReward> choices)

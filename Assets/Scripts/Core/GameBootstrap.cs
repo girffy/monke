@@ -32,6 +32,7 @@ namespace GorillaSurvivors.Core
             var hud = HUDController.Build(player.GetComponent<PlayerHealth>(), player.GetComponent<PlayerStats>());
             gameManager.OnGameOver += hud.ShowGameOver;
             gameManager.OnUpgradeChoiceReady += hud.ShowUpgradeChoice;
+            gameManager.OnRoundStarted += hud.ShowRoundBanner;
         }
 
         static GameObject CreatePlayer()

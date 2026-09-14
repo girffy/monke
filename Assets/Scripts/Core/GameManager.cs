@@ -20,6 +20,7 @@ namespace GorillaSurvivors.Core
 
         public event Action OnGameOver;
         public event Action<List<RoundReward>> OnUpgradeChoiceReady;
+        public event Action<int> OnRoundStarted;
 
         EnemySpawner _spawner;
         GameObject _player;
@@ -72,7 +73,9 @@ namespace GorillaSurvivors.Core
 
             chosen.Apply?.Invoke(_player);
             IsChoosingUpgrade = false;
-            _spawner?.StartNewRound(CurrentRound + 1);
+            int nextRound = CurrentRound + 1;
+            _spawner?.StartNewRound(nextRound);
+            OnRoundStarted?.Invoke(nextRound);
         }
 
         void HandlePlayerDeath()

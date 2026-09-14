@@ -107,23 +107,40 @@ namespace GorillaSurvivors.Core
         {
             var root = new GameObject("BananaModel");
             var yellow = new Color(0.95f, 0.82f, 0.15f);
+            var yellowDark = new Color(0.85f, 0.70f, 0.12f);
             var tip = new Color(0.45f, 0.35f, 0.12f);
 
-            var body = AddCapsule(root.transform, "Body", new Vector3(0, 0.35f, 0), 0.12f, 0.55f, yellow);
-            body.transform.localRotation = Quaternion.Euler(0f, 0f, 35f);
-            AddPrimitive(root.transform, "TipA", PrimitiveType.Sphere, new Vector3(-0.2f, 0.6f, 0f), Vector3.one * 0.08f, tip);
-            AddPrimitive(root.transform, "TipB", PrimitiveType.Sphere, new Vector3(0.2f, 0.1f, 0f), Vector3.one * 0.07f, tip);
+            AddOneBanana(root.transform, new Vector3(-0.08f, 0f, 0.05f), 20f, yellow, tip);
+            AddOneBanana(root.transform, new Vector3(0.1f, 0.05f, -0.05f), -25f, yellowDark, tip);
             AddGlowRing(root.transform, yellow);
 
             return root;
+        }
+
+        static void AddOneBanana(Transform parent, Vector3 offset, float tiltZ, Color color, Color tip)
+        {
+            var group = new GameObject("Banana");
+            group.transform.SetParent(parent, false);
+            group.transform.localPosition = offset;
+
+            var body = AddCapsule(group.transform, "Body", new Vector3(0, 0.35f, 0), 0.11f, 0.5f, color);
+            body.transform.localRotation = Quaternion.Euler(0f, 0f, 35f + tiltZ);
+            AddPrimitive(group.transform, "TipA", PrimitiveType.Sphere, new Vector3(-0.18f, 0.58f, 0f), Vector3.one * 0.07f, tip);
+            AddPrimitive(group.transform, "TipB", PrimitiveType.Sphere, new Vector3(0.18f, 0.12f, 0f), Vector3.one * 0.06f, tip);
         }
 
         public static GameObject Adrenaline()
         {
             var root = new GameObject("AdrenalineModel");
             var cyan = new Color(0.25f, 0.85f, 0.95f);
-            var shard = AddPrimitive(root.transform, "Shard", PrimitiveType.Cube, new Vector3(0, 0.35f, 0), new Vector3(0.22f, 0.4f, 0.22f), cyan);
-            shard.transform.localRotation = Quaternion.Euler(0f, 45f, 45f);
+            var cyanLight = new Color(0.55f, 0.95f, 1f);
+
+            var big = AddPrimitive(root.transform, "ShardMain", PrimitiveType.Cube, new Vector3(0, 0.42f, 0), new Vector3(0.2f, 0.5f, 0.2f), cyan);
+            big.transform.localRotation = Quaternion.Euler(0f, 45f, 45f);
+            var s1 = AddPrimitive(root.transform, "ShardA", PrimitiveType.Cube, new Vector3(0.16f, 0.22f, 0.05f), new Vector3(0.13f, 0.32f, 0.13f), cyanLight);
+            s1.transform.localRotation = Quaternion.Euler(15f, 20f, 30f);
+            var s2 = AddPrimitive(root.transform, "ShardB", PrimitiveType.Cube, new Vector3(-0.15f, 0.18f, -0.08f), new Vector3(0.11f, 0.26f, 0.11f), cyan);
+            s2.transform.localRotation = Quaternion.Euler(-10f, -25f, 60f);
             AddGlowRing(root.transform, cyan);
             return root;
         }
