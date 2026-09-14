@@ -15,6 +15,7 @@ namespace GorillaSurvivors.Core
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         static void Setup()
         {
+            Sfx.WarmUp();
             Blocky3DArt.Ground();
             SpawnObstacles();
 

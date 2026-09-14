@@ -17,6 +17,45 @@ namespace GorillaSurvivors.Core
         static AudioClip _rockExplosion;
         static bool _initialized;
 
+        // A small pool of persistent AudioSources, warmed up well before
+        // first use (see WarmUp, called from GameBootstrap). A GameObject
+        // spun up and Play()'d in the very same script call has, in this
+        // project, already shown one "not actually registered yet" gotcha
+        // (a freshly-added Collider invisible to Physics.OverlapSphere until
+        // a frame passes) — reusing pre-existing sources sidesteps that
+        // whole class of same-frame-creation issue for audio too.
+        const int PoolSize = 12;
+        static AudioSource[] _pool;
+        static int _nextVoice;
+
+        static void EnsurePool()
+        {
+            if (_pool != null) return;
+
+            var host = new GameObject("SfxPool");
+            Object.DontDestroyOnLoad(host);
+
+            _pool = new AudioSource[PoolSize];
+            for (int i = 0; i < PoolSize; i++)
+            {
+                var voice = new GameObject("SfxVoice" + i);
+                voice.transform.SetParent(host.transform);
+                var source = voice.AddComponent<AudioSource>();
+                source.playOnAwake = false;
+                source.spatialBlend = 0f;
+                _pool[i] = source;
+            }
+        }
+
+        // Called once at game start so the pool exists (and is fully
+        // initialized by Unity's audio backend) several frames before any
+        // real gameplay sound is likely to fire.
+        public static void WarmUp()
+        {
+            EnsureInit();
+            EnsurePool();
+        }
+
         static void EnsureInit()
         {
             if (_initialized) return;
@@ -44,23 +83,23 @@ namespace GorillaSurvivors.Core
             _rockExplosion = ProceduralAudio.Impact(0.5f, 0.9f);
         }
 
-        // Plays fully non-spatial (spatialBlend = 0) rather than via
-        // AudioSource.PlayClipAtPoint, which defaults to 3D with distance
-        // rolloff — for a small arena-sized game that rolloff risks making
-        // sounds too quiet to notice rather than adding useful positioning.
+        // Non-spatial (spatialBlend = 0, no distance rolloff) — for a small
+        // arena-sized game, 3D falloff risks making sounds too quiet to
+        // notice rather than adding useful positioning. Uses a pre-warmed
+        // pooled AudioSource rather than creating+playing one on the spot.
         static void Play(AudioClip clip, Vector3 position, float volume = 1f)
         {
             EnsureInit();
+            EnsurePool();
             if (clip == null) return;
 
-            var go = new GameObject("SFX_" + clip.name);
-            go.transform.position = position;
-            var source = go.AddComponent<AudioSource>();
+            var source = _pool[_nextVoice];
+            _nextVoice = (_nextVoice + 1) % _pool.Length;
+
+            source.transform.position = position;
             source.clip = clip;
             source.volume = volume;
-            source.spatialBlend = 0f;
             source.Play();
-            Object.Destroy(go, clip.length + 0.1f);
         }
 
         static Vector3 ListenerPos()

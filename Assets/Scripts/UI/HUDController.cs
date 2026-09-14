@@ -6,6 +6,7 @@ using UnityEngine.EventSystems;
 using UnityEngine.InputSystem.UI;
 using GorillaSurvivors.Core;
 using GorillaSurvivors.Player;
+using GorillaSurvivors.Player.Abilities;
 
 namespace GorillaSurvivors.UI
 {
@@ -32,6 +33,25 @@ namespace GorillaSurvivors.UI
 
         PlayerHealth _health;
         PlayerStats _stats;
+        PlayerAttack _attack;
+        PlayerController _controller;
+        RoarAbility _roarAbility;
+        ChargeAbility _chargeAbility;
+
+        struct AbilityIcon
+        {
+            public Image Background;
+            public Image CooldownMask;
+            public Text Label;
+        }
+        AbilityIcon _atkIcon, _dashIcon, _roarIcon, _chargeIcon;
+
+        static readonly Color LockedColor = new Color(0.15f, 0.15f, 0.15f);
+        static readonly Color LockedLabelColor = new Color(1f, 1f, 1f, 0.3f);
+        static readonly Color AttackColor = new Color(0.55f, 0.55f, 0.55f);
+        static readonly Color DashColor = new Color(0.25f, 0.5f, 0.85f);
+        static readonly Color RoarColor = new Color(0.85f, 0.75f, 0.25f);
+        static readonly Color ChargeColor = new Color(0.25f, 0.8f, 0.85f);
 
         public static HUDController Build(PlayerHealth health, PlayerStats stats)
         {
@@ -49,6 +69,10 @@ namespace GorillaSurvivors.UI
             Instance = hud;
             hud._health = health;
             hud._stats = stats;
+            hud._attack = health.GetComponent<PlayerAttack>();
+            hud._controller = health.GetComponent<PlayerController>();
+            hud._roarAbility = health.GetComponent<RoarAbility>();
+            hud._chargeAbility = health.GetComponent<ChargeAbility>();
 
             hud._hpFill = CreateBar(canvasGO.transform, "HPBar", "HP", new Vector2(20, -20), new Color(0.85f, 0.2f, 0.2f));
             hud._xpFill = CreateBar(canvasGO.transform, "XPBar", "XP", new Vector2(20, -46), new Color(0.2f, 0.6f, 0.95f));
@@ -66,7 +90,7 @@ namespace GorillaSurvivors.UI
 
             hud._toastText = CreateToastText(canvasGO.transform);
             hud._roundBannerText = CreateRoundBannerText(canvasGO.transform);
-            CreateHintText(canvasGO.transform);
+            hud.CreateAbilityBar(canvasGO.transform);
 
             health.OnHealthChanged += hud.HandleHealthChanged;
             stats.OnXPChanged += hud.HandleXPChanged;
@@ -137,23 +161,83 @@ namespace GorillaSurvivors.UI
             return text;
         }
 
-        static void CreateHintText(Transform parent)
+        void CreateAbilityBar(Transform parent)
         {
-            var go = new GameObject("HintText", typeof(RectTransform));
-            go.transform.SetParent(parent, false);
-            var rect = go.GetComponent<RectTransform>();
+            const float iconSize = 56f;
+            const float spacing = 14f;
+            const int count = 4;
+            float totalWidth = count * iconSize + (count - 1) * spacing;
+            float startX = -totalWidth / 2f + iconSize / 2f;
+
+            _atkIcon = CreateAbilityIcon(parent, "AbilityAttack", "LMB", AttackColor, startX + 0 * (iconSize + spacing), iconSize);
+            _dashIcon = CreateAbilityIcon(parent, "AbilityDash", "SPC", DashColor, startX + 1 * (iconSize + spacing), iconSize);
+            _roarIcon = CreateAbilityIcon(parent, "AbilityRoar", "Q", RoarColor, startX + 2 * (iconSize + spacing), iconSize);
+            _chargeIcon = CreateAbilityIcon(parent, "AbilityCharge", "E", ChargeColor, startX + 3 * (iconSize + spacing), iconSize);
+        }
+
+        static AbilityIcon CreateAbilityIcon(Transform parent, string name, string label, Color color, float xOffset, float size)
+        {
+            var root = new GameObject(name, typeof(RectTransform));
+            root.transform.SetParent(parent, false);
+            var rect = root.GetComponent<RectTransform>();
             rect.anchorMin = new Vector2(0.5f, 0f);
             rect.anchorMax = new Vector2(0.5f, 0f);
             rect.pivot = new Vector2(0.5f, 0f);
-            rect.anchoredPosition = new Vector2(0f, 14f);
-            rect.sizeDelta = new Vector2(700, 30);
+            rect.anchoredPosition = new Vector2(xOffset, 16f);
+            rect.sizeDelta = new Vector2(size, size);
 
-            var text = go.AddComponent<Text>();
-            text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            text.fontSize = 18;
-            text.alignment = TextAnchor.MiddleCenter;
-            text.color = new Color(1f, 1f, 1f, 0.7f);
-            text.text = "WASD move | Aim+Click attack | Space dash | Q Roar | E Charge (once unlocked)";
+            var background = root.AddComponent<Image>();
+            background.color = color;
+
+            var labelGO = new GameObject("Label", typeof(RectTransform));
+            labelGO.transform.SetParent(root.transform, false);
+            var labelRect = labelGO.GetComponent<RectTransform>();
+            labelRect.anchorMin = Vector2.zero;
+            labelRect.anchorMax = Vector2.one;
+            labelRect.offsetMin = Vector2.zero;
+            labelRect.offsetMax = Vector2.zero;
+            var labelText = labelGO.AddComponent<Text>();
+            labelText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            labelText.fontSize = 16;
+            labelText.fontStyle = FontStyle.Bold;
+            labelText.alignment = TextAnchor.MiddleCenter;
+            labelText.color = Color.white;
+            labelText.text = label;
+
+            // Cooldown mask on top: a Filled image that shrinks from full
+            // coverage (just used) down to none (ready). Needs a sprite —
+            // Image.Type.Filled silently ignores fillAmount without one.
+            var maskGO = new GameObject("CooldownMask", typeof(RectTransform));
+            maskGO.transform.SetParent(root.transform, false);
+            var maskRect = maskGO.GetComponent<RectTransform>();
+            maskRect.anchorMin = Vector2.zero;
+            maskRect.anchorMax = Vector2.one;
+            maskRect.offsetMin = Vector2.zero;
+            maskRect.offsetMax = Vector2.zero;
+            var mask = maskGO.AddComponent<Image>();
+            mask.sprite = PlaceholderSprites.Square(Color.white, 4);
+            mask.color = new Color(0f, 0f, 0f, 0.75f);
+            mask.type = Image.Type.Filled;
+            mask.fillMethod = Image.FillMethod.Vertical;
+            mask.fillOrigin = (int)Image.OriginVertical.Top;
+            mask.fillAmount = 0f;
+
+            return new AbilityIcon { Background = background, CooldownMask = mask, Label = labelText };
+        }
+
+        void RefreshAbilityIcon(AbilityIcon icon, Color unlockedColor, bool unlocked, float cooldownRemaining01)
+        {
+            if (!unlocked)
+            {
+                icon.Background.color = LockedColor;
+                icon.Label.color = LockedLabelColor;
+                icon.CooldownMask.fillAmount = 1f;
+                return;
+            }
+
+            icon.Background.color = unlockedColor;
+            icon.Label.color = Color.white;
+            icon.CooldownMask.fillAmount = cooldownRemaining01;
         }
 
         static void EnsureEventSystem()
@@ -178,6 +262,11 @@ namespace GorillaSurvivors.UI
                 _roundText.text = $"Round {GameManager.Instance.CurrentRound}";
                 _roundProgressText.text = $"{GameManager.Instance.KilledThisRound}/{GameManager.Instance.EnemiesPerRound}";
             }
+
+            RefreshAbilityIcon(_atkIcon, AttackColor, true, _attack != null ? _attack.AttackCooldownRemaining01() : 0f);
+            RefreshAbilityIcon(_dashIcon, DashColor, true, _controller != null ? _controller.DashCooldownRemaining01() : 0f);
+            RefreshAbilityIcon(_roarIcon, RoarColor, _roarAbility != null && _roarAbility.Unlocked, _roarAbility != null ? _roarAbility.CooldownRemaining01() : 0f);
+            RefreshAbilityIcon(_chargeIcon, ChargeColor, _chargeAbility != null && _chargeAbility.Unlocked, _chargeAbility != null ? _chargeAbility.CooldownRemaining01() : 0f);
         }
 
         public void ShowRoundBanner(int round)

@@ -31,6 +31,12 @@ namespace GorillaSurvivors.Player.Abilities
         readonly HashSet<EnemyHealth> _hitThisCharge = new HashSet<EnemyHealth>();
         static readonly Collider[] HitBuffer = new Collider[48];
 
+        public float CooldownRemaining01()
+        {
+            float remaining = Mathf.Max(0f, _nextReadyTime - Time.time);
+            return Cooldown <= 0f ? 0f : Mathf.Clamp01(remaining / Cooldown);
+        }
+
         void Awake()
         {
             _rb = GetComponent<Rigidbody>();
@@ -73,7 +79,8 @@ namespace GorillaSurvivors.Player.Abilities
             dir.Normalize();
 
             var model = transform.Find("GorillaModel");
-            if (model != null) model.rotation = Quaternion.LookRotation(dir, Vector3.up);
+            var lockedRotation = Quaternion.LookRotation(dir, Vector3.up);
+            if (model != null) model.rotation = lockedRotation;
 
             Sfx.Charge(transform.position);
 
@@ -84,6 +91,7 @@ namespace GorillaSurvivors.Player.Abilities
             {
                 t += Time.fixedDeltaTime;
                 _rb.linearVelocity = dir * speed;
+                if (model != null) model.rotation = lockedRotation;
                 CheckHits();
                 yield return new WaitForFixedUpdate();
             }
@@ -96,6 +104,7 @@ namespace GorillaSurvivors.Player.Abilities
         void CheckHits()
         {
             float damage = BaseDamage * _stats.LevelDamageBonus * _stats.DamageMultiplier;
+            Vector3 chargeDir = _rb.linearVelocity.sqrMagnitude > 0.0001f ? _rb.linearVelocity.normalized : transform.forward;
             int count = Physics.OverlapSphereNonAlloc(transform.position, HitRadius, HitBuffer);
 
             for (int i = 0; i < count; i++)
@@ -104,7 +113,7 @@ namespace GorillaSurvivors.Player.Abilities
                 if (enemyHealth == null || _hitThisCharge.Contains(enemyHealth)) continue;
 
                 _hitThisCharge.Add(enemyHealth);
-                enemyHealth.TakeDamage(damage);
+                enemyHealth.TakeDamage(damage, chargeDir, 9f);
             }
         }
     }

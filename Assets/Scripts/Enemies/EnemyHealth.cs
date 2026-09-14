@@ -30,14 +30,27 @@ namespace GorillaSurvivors.Enemies
 
         public void TakeDamage(float amount)
         {
+            TakeDamage(amount, null, 0f);
+        }
+
+        // Knockback direction/force are optional — callers that represent a
+        // directional hit (the ground-slam, Charge) pass them so a surviving
+        // enemy gets shoved back; omnidirectional damage (contact, Roar
+        // already does its own knockback, rock explosions) can skip it.
+        public void TakeDamage(float amount, Vector3? knockbackDirection, float knockbackForce)
+        {
             _currentHP -= amount;
             if (_currentHP <= 0f)
             {
                 Die();
+                return;
             }
-            else
+
+            Sfx.EnemyHit(transform.position);
+
+            if (knockbackDirection.HasValue && knockbackForce > 0f)
             {
-                Sfx.EnemyHit(transform.position);
+                GetComponent<EnemyAI>()?.ApplyKnockback(knockbackDirection.Value.normalized * knockbackForce, 0.25f);
             }
         }
 

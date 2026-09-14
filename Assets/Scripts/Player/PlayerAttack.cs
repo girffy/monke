@@ -29,6 +29,13 @@ namespace GorillaSurvivors.Player
 
         static readonly Collider[] HitBuffer = new Collider[32];
 
+        public float AttackCooldownRemaining01()
+        {
+            float total = BaseCooldown / Mathf.Max(0.01f, _stats.AttackSpeedMultiplier) + SlamDuration;
+            float remaining = Mathf.Max(0f, _nextAttackReadyTime - Time.time);
+            return total <= 0f ? 0f : Mathf.Clamp01(remaining / total);
+        }
+
         // Arm poses as local directions the hanging arm points in (relative to
         // the shoulder pivot, which itself faces the attack direction) —
         // rest hangs straight down; windup raises the arms up and forward
@@ -84,26 +91,31 @@ namespace GorillaSurvivors.Player
             _controller.MovementLocked = true;
 
             var model = transform.Find("GorillaModel");
-            if (model != null) model.rotation = Quaternion.LookRotation(aimDirection, Vector3.up);
+            var lockedRotation = Quaternion.LookRotation(aimDirection, Vector3.up);
+            if (model != null) model.rotation = lockedRotation;
 
             // Windup (arms raise), then slam down — damage lands the instant
-            // the arms hit the ground — then a slower return to rest.
+            // the arms hit the ground — then a slower return to rest. The
+            // rotation is reasserted every frame throughout (not just set
+            // once) so nothing else (e.g. PlayerController's per-frame aim
+            // tracking, if MovementLocked ever lags a frame) can drift it
+            // mid-swing.
             const float windup = 0.15f;
             const float slam = 0.1f;
             const float recover = SlamDuration - windup - slam;
 
-            yield return AnimateArms(RestDir, WindupDir, windup);
-            yield return AnimateArms(WindupDir, SlamDir, slam);
+            yield return AnimateArms(RestDir, WindupDir, windup, model, lockedRotation);
+            yield return AnimateArms(WindupDir, SlamDir, slam, model, lockedRotation);
 
             PerformSlamHit(aimDirection);
 
-            yield return AnimateArms(SlamDir, RestDir, recover);
+            yield return AnimateArms(SlamDir, RestDir, recover, model, lockedRotation);
 
             _isSlamming = false;
             _controller.MovementLocked = false;
         }
 
-        IEnumerator AnimateArms(Vector3 fromDir, Vector3 toDir, float duration)
+        IEnumerator AnimateArms(Vector3 fromDir, Vector3 toDir, float duration, Transform model, Quaternion lockedRotation)
         {
             if (duration <= 0f) yield break;
 
@@ -112,6 +124,7 @@ namespace GorillaSurvivors.Player
             {
                 t += Time.deltaTime;
                 SetArmDirection(Vector3.Slerp(fromDir, toDir, t / duration));
+                if (model != null) model.rotation = lockedRotation;
                 yield return null;
             }
             SetArmDirection(toDir);
@@ -136,7 +149,10 @@ namespace GorillaSurvivors.Player
                 var enemyHealth = HitBuffer[i].GetComponentInParent<EnemyHealth>();
                 if (enemyHealth != null)
                 {
-                    enemyHealth.TakeDamage(damage);
+                    Vector3 knockDir = enemyHealth.transform.position - hitCenter;
+                    knockDir.y = 0f;
+                    if (knockDir.sqrMagnitude < 0.0001f) knockDir = aimDirection;
+                    enemyHealth.TakeDamage(damage, knockDir, 7f);
                     continue;
                 }
 

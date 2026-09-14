@@ -27,7 +27,7 @@ namespace GorillaSurvivors.Enemies
                     collider.radius = 0.30f;
                     collider.height = 1.4f;
                     collider.center = new Vector3(0f, 0.7f, 0f);
-                    health.Init(maxHP: 8f + 4f * difficultyScale, xpReward: 2f);
+                    health.Init(maxHP: 20f + 6f * difficultyScale, xpReward: 2f);
                     ai.MoveSpeed = 3.4f + 0.4f * Mathf.Min(difficultyScale, 4f);
                     ai.ContactDamage = 4f + 1f * Mathf.Min(difficultyScale, 3f);
                     break;
@@ -36,7 +36,7 @@ namespace GorillaSurvivors.Enemies
                     collider.radius = 0.55f;
                     collider.height = 2.4f;
                     collider.center = new Vector3(0f, 1.2f, 0f);
-                    health.Init(maxHP: 45f + 16f * difficultyScale, xpReward: 7f);
+                    health.Init(maxHP: 90f + 24f * difficultyScale, xpReward: 7f);
                     ai.MoveSpeed = 1.1f + 0.2f * Mathf.Min(difficultyScale, 4f);
                     ai.ContactDamage = 13f + 3f * Mathf.Min(difficultyScale, 4f);
                     break;
@@ -45,7 +45,7 @@ namespace GorillaSurvivors.Enemies
                     collider.radius = 0.35f;
                     collider.height = 1.6f;
                     collider.center = new Vector3(0f, 0.8f, 0f);
-                    health.Init(maxHP: 10f + 5f * difficultyScale, xpReward: 4f);
+                    health.Init(maxHP: 24f + 7f * difficultyScale, xpReward: 4f);
                     ai.MoveSpeed = 1.6f;
                     ai.IsRanged = true;
                     ai.PreferredRange = 5f;
@@ -57,7 +57,7 @@ namespace GorillaSurvivors.Enemies
                     collider.radius = 0.35f;
                     collider.height = 1.6f;
                     collider.center = new Vector3(0f, 0.8f, 0f);
-                    health.Init(maxHP: 15f + 8f * difficultyScale, xpReward: 3f);
+                    health.Init(maxHP: 38f + 12f * difficultyScale, xpReward: 3f);
                     ai.MoveSpeed = 1.8f + 0.35f * Mathf.Min(difficultyScale, 4f);
                     ai.ContactDamage = 6f + 2f * Mathf.Min(difficultyScale, 3f);
                     break;

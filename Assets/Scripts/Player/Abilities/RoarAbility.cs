@@ -25,6 +25,12 @@ namespace GorillaSurvivors.Player.Abilities
 
         static readonly Collider[] HitBuffer = new Collider[48];
 
+        public float CooldownRemaining01()
+        {
+            float remaining = Mathf.Max(0f, _nextReadyTime - Time.time);
+            return Cooldown <= 0f ? 0f : Mathf.Clamp01(remaining / Cooldown);
+        }
+
         void Awake()
         {
             _stats = GetComponent<PlayerStats>();
