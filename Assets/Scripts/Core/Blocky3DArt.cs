@@ -197,6 +197,21 @@ namespace GorillaSurvivors.Core
             return root;
         }
 
+        // A low bush — decorative only (no collider), for ground-level variety
+        // between the taller Rock/Tree obstacles.
+        public static GameObject Bush()
+        {
+            var root = new GameObject("Bush");
+            var leaves = new Color(0.22f, 0.48f, 0.20f);
+            var leavesDark = new Color(0.16f, 0.36f, 0.15f);
+
+            AddPrimitive(root.transform, "Base", PrimitiveType.Sphere, new Vector3(0, 0.28f, 0), new Vector3(0.7f, 0.5f, 0.65f), leaves);
+            AddPrimitive(root.transform, "Bump", PrimitiveType.Sphere, new Vector3(0.25f, 0.4f, 0.1f), new Vector3(0.4f, 0.35f, 0.4f), leavesDark);
+            AddPrimitive(root.transform, "Bump2", PrimitiveType.Sphere, new Vector3(-0.22f, 0.35f, -0.15f), new Vector3(0.38f, 0.3f, 0.35f), leavesDark);
+
+            return root;
+        }
+
         // Flat disc used for the attack swipe VFX — opaque (no alpha fade) to
         // avoid needing URP transparency setup for an unlit material.
         public static GameObject SwipeDisc(Color color)

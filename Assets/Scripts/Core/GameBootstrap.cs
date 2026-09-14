@@ -83,6 +83,7 @@ namespace GorillaSurvivors.Core
         {
             const int rockCount = 22;
             const int treeCount = 18;
+            const int bushCount = 26;
             const float minDistanceFromSpawn = 6f;
             const float scatterRadius = 45f;
 
@@ -102,6 +103,15 @@ namespace GorillaSurvivors.Core
                 tree.transform.rotation = Quaternion.Euler(0f, Random.Range(0f, 360f), 0f);
                 float s = Random.Range(0.85f, 1.25f);
                 tree.transform.localScale = Vector3.one * s;
+            }
+
+            for (int i = 0; i < bushCount; i++)
+            {
+                var pos = RandomScatterPos(minDistanceFromSpawn * 0.6f, scatterRadius);
+                var bush = Blocky3DArt.Bush();
+                bush.transform.position = pos;
+                bush.transform.rotation = Quaternion.Euler(0f, Random.Range(0f, 360f), 0f);
+                bush.transform.localScale = Vector3.one * Random.Range(0.8f, 1.3f);
             }
         }
 
