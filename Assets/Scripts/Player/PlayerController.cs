@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
+using GorillaSurvivors.Core;
 
 namespace GorillaSurvivors.Player
 {
@@ -66,6 +67,12 @@ namespace GorillaSurvivors.Player
 
         void Update()
         {
+            if (GameManager.Instance != null && GameManager.Instance.IsPaused)
+            {
+                _moveInput = Vector3.zero;
+                return;
+            }
+
             ReadInput();
             bool dashPressed = WasDashPressed();
 
