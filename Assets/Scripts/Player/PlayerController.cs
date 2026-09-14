@@ -109,10 +109,51 @@ namespace GorillaSurvivors.Player
                 IsDashing = false;
             }
 
-            if (_model != null && !MovementLocked && _moveInput.sqrMagnitude > 0.01f)
+            if (_model != null && !MovementLocked)
             {
-                _model.rotation = Quaternion.LookRotation(_moveInput.normalized, Vector3.up);
+                // Twin-stick style: the gorilla always faces where you're
+                // aiming (mouse / right stick), independent of movement, so
+                // you can strafe while attacking in a different direction.
+                Vector3 aim = GetAimDirection();
+                if (aim.sqrMagnitude > 0.0001f)
+                {
+                    _model.rotation = Quaternion.LookRotation(aim, Vector3.up);
+                }
             }
+        }
+
+        // Mouse (raycast onto the ground plane) or gamepad right stick;
+        // falls back to last movement direction if neither gives a reading.
+        // Shared by the model-facing above and by attack/ability aiming.
+        public Vector3 GetAimDirection()
+        {
+            var gp = Gamepad.current;
+            if (gp != null)
+            {
+                var stick = gp.rightStick.ReadValue();
+                if (stick.sqrMagnitude > 0.04f)
+                {
+                    return new Vector3(stick.x, 0f, stick.y).normalized;
+                }
+            }
+
+            var mouse = Mouse.current;
+            var cam = Camera.main;
+            if (mouse != null && cam != null)
+            {
+                Vector2 screenPos = mouse.position.ReadValue();
+                var ray = cam.ScreenPointToRay(new Vector3(screenPos.x, screenPos.y, 0f));
+                var groundPlane = new Plane(Vector3.up, new Vector3(0f, transform.position.y, 0f));
+                if (groundPlane.Raycast(ray, out float dist))
+                {
+                    Vector3 hit = ray.GetPoint(dist);
+                    Vector3 dir = hit - transform.position;
+                    dir.y = 0f;
+                    if (dir.sqrMagnitude > 0.0001f) return dir.normalized;
+                }
+            }
+
+            return FacingDirection;
         }
 
         void FixedUpdate()

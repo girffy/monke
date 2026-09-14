@@ -2,6 +2,7 @@ using UnityEngine;
 using GorillaSurvivors.Player;
 using GorillaSurvivors.Player.Abilities;
 using GorillaSurvivors.Enemies;
+using GorillaSurvivors.Environment;
 using GorillaSurvivors.UI;
 
 namespace GorillaSurvivors.Core
@@ -16,6 +17,10 @@ namespace GorillaSurvivors.Core
         {
             Blocky3DArt.Ground();
             SpawnObstacles();
+
+            var rockManagerGO = new GameObject("AttackableRockManager");
+            var rockManager = rockManagerGO.AddComponent<AttackableRockManager>();
+            rockManager.SpawnInitial(10, 8f, 30f);
 
             var player = CreatePlayer();
             SetupCamera(player.transform);

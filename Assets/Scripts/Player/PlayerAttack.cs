@@ -3,6 +3,7 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 using GorillaSurvivors.Core;
 using GorillaSurvivors.Enemies;
+using GorillaSurvivors.Environment;
 
 namespace GorillaSurvivors.Player
 {
@@ -30,11 +31,12 @@ namespace GorillaSurvivors.Player
 
         // Arm poses as local directions the hanging arm points in (relative to
         // the shoulder pivot, which itself faces the attack direction) —
-        // rest hangs straight down; windup raises up-and-back; slam drives
-        // forward-and-down into the ground.
+        // rest hangs straight down; windup raises the arms up and forward
+        // (in front of the head); slam drives them forward-and-down into
+        // the ground, like a two-handed overhead smash.
         static readonly Vector3 RestDir = Vector3.down;
-        static readonly Vector3 WindupDir = new Vector3(0f, 0.55f, -0.85f).normalized;
-        static readonly Vector3 SlamDir = new Vector3(0f, -0.65f, 0.9f).normalized;
+        static readonly Vector3 WindupDir = new Vector3(0f, 0.8f, 0.5f).normalized;
+        static readonly Vector3 SlamDir = new Vector3(0f, -0.55f, 0.85f).normalized;
 
         void Awake()
         {
@@ -55,7 +57,7 @@ namespace GorillaSurvivors.Player
             float cooldown = BaseCooldown / Mathf.Max(0.01f, _stats.AttackSpeedMultiplier);
             _nextAttackReadyTime = Time.time + cooldown + SlamDuration;
 
-            Vector3 aimDirection = _controller.FacingDirection;
+            Vector3 aimDirection = _controller.GetAimDirection();
             aimDirection.y = 0f;
             aimDirection.Normalize();
 
@@ -132,7 +134,18 @@ namespace GorillaSurvivors.Player
             for (int i = 0; i < count; i++)
             {
                 var enemyHealth = HitBuffer[i].GetComponentInParent<EnemyHealth>();
-                if (enemyHealth != null) enemyHealth.TakeDamage(damage);
+                if (enemyHealth != null)
+                {
+                    enemyHealth.TakeDamage(damage);
+                    continue;
+                }
+
+                var rock = HitBuffer[i].GetComponentInParent<AttackableRock>();
+                if (rock != null && !rock.IsLaunched)
+                {
+                    float rockDashDistance = _controller.DashSpeed * _controller.DashDuration;
+                    rock.Launch(aimDirection, damage * 2f, rockDashDistance * 1.5f);
+                }
             }
 
             SpawnSlamEffect(hitCenter, radius);

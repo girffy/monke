@@ -14,6 +14,7 @@ namespace GorillaSurvivors.Core
         static AudioClip _enemyHit, _enemyDeath, _throw;
         static AudioClip _xpPickup, _powerupPickup, _levelUp;
         static AudioClip _roundClear, _roundStart;
+        static AudioClip _rockExplosion;
         static bool _initialized;
 
         static void EnsureInit()
@@ -39,6 +40,8 @@ namespace GorillaSurvivors.Core
 
             _roundClear = ProceduralAudio.Tone(440f, 0.55f, 0.5f, 220f);
             _roundStart = ProceduralAudio.Tone(300f, 0.3f, 0.5f, 160f);
+
+            _rockExplosion = ProceduralAudio.Impact(0.5f, 0.9f);
         }
 
         static void Play(AudioClip clip, Vector3 position, float volume = 1f)
@@ -72,5 +75,7 @@ namespace GorillaSurvivors.Core
 
         public static void RoundClear() { EnsureInit(); Play(_roundClear, ListenerPos()); }
         public static void RoundStart() { EnsureInit(); Play(_roundStart, ListenerPos()); }
+
+        public static void RockExplosion(Vector3 pos) { EnsureInit(); Play(_rockExplosion, pos); }
     }
 }

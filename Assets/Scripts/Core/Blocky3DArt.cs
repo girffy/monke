@@ -25,8 +25,8 @@ namespace GorillaSurvivors.Core
             AddPrimitive(root.transform, "EarR", PrimitiveType.Sphere, new Vector3(0.28f, 1.32f, 0f), Vector3.one * 0.16f, furDark);
             AddPrimitive(root.transform, "Face", PrimitiveType.Sphere, new Vector3(0, 1.05f, 0.28f), new Vector3(0.32f, 0.28f, 0.2f), skin);
             AddPrimitive(root.transform, "Snout", PrimitiveType.Sphere, new Vector3(0, 0.98f, 0.38f), new Vector3(0.24f, 0.16f, 0.16f), skin);
-            AddPrimitive(root.transform, "EyeL", PrimitiveType.Sphere, new Vector3(-0.1f, 1.12f, 0.38f), Vector3.one * 0.06f, Color.black);
-            AddPrimitive(root.transform, "EyeR", PrimitiveType.Sphere, new Vector3(0.1f, 1.12f, 0.38f), Vector3.one * 0.06f, Color.black);
+            AddPrimitive(root.transform, "EyeL", PrimitiveType.Sphere, new Vector3(-0.1f, 1.12f, 0.32f), Vector3.one * 0.06f, Color.black);
+            AddPrimitive(root.transform, "EyeR", PrimitiveType.Sphere, new Vector3(0.1f, 1.12f, 0.32f), Vector3.one * 0.06f, Color.black);
             AddPrimitive(root.transform, "NostrilL", PrimitiveType.Sphere, new Vector3(-0.05f, 0.96f, 0.46f), Vector3.one * 0.03f, furDark);
             AddPrimitive(root.transform, "NostrilR", PrimitiveType.Sphere, new Vector3(0.05f, 0.96f, 0.46f), Vector3.one * 0.03f, furDark);
             AddArm(root.transform, "ArmL", new Vector3(-0.62f, 0.82f, 0f), 0.15f, 0.55f, fur);
@@ -81,8 +81,8 @@ namespace GorillaSurvivors.Core
             AddPrimitive(root.transform, "Belt", PrimitiveType.Cube, new Vector3(0, 0.68f, 0), new Vector3(0.52f, 0.08f, 0.34f), belt);
             AddPrimitive(root.transform, "Head", PrimitiveType.Sphere, new Vector3(0, 1.42f, 0), Vector3.one * 0.34f, skin);
             AddPrimitive(root.transform, "Hair", PrimitiveType.Sphere, new Vector3(0, 1.52f, -0.02f), new Vector3(0.36f, 0.24f, 0.36f), hair);
-            AddPrimitive(root.transform, "EyeL", PrimitiveType.Sphere, new Vector3(-0.09f, 1.40f, 0.28f), Vector3.one * 0.045f, Color.black);
-            AddPrimitive(root.transform, "EyeR", PrimitiveType.Sphere, new Vector3(0.09f, 1.40f, 0.28f), Vector3.one * 0.045f, Color.black);
+            AddPrimitive(root.transform, "EyeL", PrimitiveType.Sphere, new Vector3(-0.09f, 1.40f, 0.15f), Vector3.one * 0.045f, Color.black);
+            AddPrimitive(root.transform, "EyeR", PrimitiveType.Sphere, new Vector3(0.09f, 1.40f, 0.15f), Vector3.one * 0.045f, Color.black);
 
             if (holdsWeapon)
             {

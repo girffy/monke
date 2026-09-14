@@ -151,7 +151,7 @@ namespace GorillaSurvivors.UI
             text.fontSize = 18;
             text.alignment = TextAnchor.MiddleCenter;
             text.color = new Color(1f, 1f, 1f, 0.7f);
-            text.text = "WASD move | J/Click attack | Space dash | K Roar | L Charge (once unlocked)";
+            text.text = "WASD move | Aim+Click attack | Space dash | K Roar | L Charge (once unlocked)";
         }
 
         static void EnsureEventSystem()

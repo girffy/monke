@@ -68,7 +68,7 @@ namespace GorillaSurvivors.Player.Abilities
             _controller.IsExternallyControlled = true;
             _health.GrantInvulnerability(Duration + 0.1f);
 
-            Vector3 dir = _controller.FacingDirection;
+            Vector3 dir = _controller.GetAimDirection();
             dir.y = 0f;
             dir.Normalize();
 
