@@ -28,6 +28,11 @@ namespace GorillaSurvivors.Player
         // stuck once it releases.
         public bool MovementLocked { get; set; }
 
+        // Set by abilities (e.g. Charge) that drive the Rigidbody velocity
+        // themselves for a short window — normal movement/dash velocity
+        // assignment is skipped while this is true.
+        public bool IsExternallyControlled { get; set; }
+
         Rigidbody _rb;
         PlayerHealth _health;
         PlayerStats _stats;
@@ -37,6 +42,10 @@ namespace GorillaSurvivors.Player
         float _dashEndTime;
         float _dashReadyTime;
         Vector3 _dashDirection;
+
+        bool _dashBuffered;
+        Vector3 _dashBufferedDirection;
+        bool _wasMovementLocked;
 
         void Awake()
         {
@@ -58,15 +67,35 @@ namespace GorillaSurvivors.Player
         void Update()
         {
             ReadInput();
+            bool dashPressed = WasDashPressed();
 
             if (MovementLocked)
             {
+                // Buffer a dash press during the attack animation so it fires
+                // the instant the animation releases, instead of requiring a
+                // second press timed just right.
+                if (dashPressed)
+                {
+                    _dashBuffered = true;
+                    _dashBufferedDirection = _moveInput.sqrMagnitude > 0.01f ? _moveInput.normalized : FacingDirection;
+                }
                 _moveInput = Vector3.zero;
             }
-            else if (WasDashPressed() && Time.time >= _dashReadyTime && _moveInput.sqrMagnitude > 0.01f)
+            else if (_wasMovementLocked && _dashBuffered)
+            {
+                _dashBuffered = false;
+                if (Time.time >= _dashReadyTime)
+                {
+                    _moveInput = _dashBufferedDirection;
+                    StartDash();
+                }
+            }
+            else if (dashPressed && Time.time >= _dashReadyTime && _moveInput.sqrMagnitude > 0.01f)
             {
                 StartDash();
             }
+
+            _wasMovementLocked = MovementLocked;
 
             if (IsDashing && Time.time >= _dashEndTime)
             {
@@ -81,6 +110,8 @@ namespace GorillaSurvivors.Player
 
         void FixedUpdate()
         {
+            if (IsExternallyControlled) return;
+
             float speed = MoveSpeed * (_stats != null ? _stats.MoveSpeedMultiplier : 1f);
 
             if (IsDashing)
@@ -136,7 +167,9 @@ namespace GorillaSurvivors.Player
             _dashDirection = _moveInput.normalized;
             _dashEndTime = Time.time + DashDuration;
             _dashReadyTime = Time.time + DashCooldown;
-            _health.GrantInvulnerability(DashInvulnerabilitySeconds);
+            // Always cover at least the full dash — iframes are the point of
+            // dashing through a crowd, not an accidental side effect.
+            _health.GrantInvulnerability(Mathf.Max(DashInvulnerabilitySeconds, DashDuration));
         }
 
         public float DashCooldownRemaining01()

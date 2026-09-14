@@ -1,5 +1,6 @@
 using UnityEngine;
 using GorillaSurvivors.Player;
+using GorillaSurvivors.Player.Abilities;
 using GorillaSurvivors.Enemies;
 using GorillaSurvivors.UI;
 
@@ -14,6 +15,7 @@ namespace GorillaSurvivors.Core
         static void Setup()
         {
             Blocky3DArt.Ground();
+            SpawnObstacles();
 
             var player = CreatePlayer();
             SetupCamera(player.transform);
@@ -29,6 +31,7 @@ namespace GorillaSurvivors.Core
 
             var hud = HUDController.Build(player.GetComponent<PlayerHealth>(), player.GetComponent<PlayerStats>());
             gameManager.OnGameOver += hud.ShowGameOver;
+            gameManager.OnUpgradeChoiceReady += hud.ShowUpgradeChoice;
         }
 
         static GameObject CreatePlayer()
@@ -50,6 +53,8 @@ namespace GorillaSurvivors.Core
             go.AddComponent<PlayerStats>();
             go.AddComponent<PlayerController>();
             go.AddComponent<PlayerAttack>();
+            go.AddComponent<RoarAbility>();
+            go.AddComponent<ChargeAbility>();
 
             return go;
         }
@@ -72,6 +77,39 @@ namespace GorillaSurvivors.Core
             if (follow == null) follow = cam.gameObject.AddComponent<CameraFollow>();
             follow.Target = target;
             cam.transform.position = target.position + follow.Offset;
+        }
+
+        static void SpawnObstacles()
+        {
+            const int rockCount = 22;
+            const int treeCount = 18;
+            const float minDistanceFromSpawn = 6f;
+            const float scatterRadius = 45f;
+
+            for (int i = 0; i < rockCount; i++)
+            {
+                var pos = RandomScatterPos(minDistanceFromSpawn, scatterRadius);
+                var rock = Blocky3DArt.Rock(Random.Range(0.7f, 1.4f));
+                rock.transform.position = pos;
+                rock.transform.rotation = Quaternion.Euler(0f, Random.Range(0f, 360f), 0f);
+            }
+
+            for (int i = 0; i < treeCount; i++)
+            {
+                var pos = RandomScatterPos(minDistanceFromSpawn, scatterRadius);
+                var tree = Blocky3DArt.Tree();
+                tree.transform.position = pos;
+                tree.transform.rotation = Quaternion.Euler(0f, Random.Range(0f, 360f), 0f);
+                float s = Random.Range(0.85f, 1.25f);
+                tree.transform.localScale = Vector3.one * s;
+            }
+        }
+
+        static Vector3 RandomScatterPos(float minRadius, float maxRadius)
+        {
+            var dir = Random.insideUnitCircle.normalized;
+            float dist = Random.Range(minRadius, maxRadius);
+            return new Vector3(dir.x * dist, 0f, dir.y * dist);
         }
     }
 }

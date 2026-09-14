@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.EventSystems;
@@ -15,11 +16,16 @@ namespace GorillaSurvivors.UI
         Image _hpFill;
         Image _xpFill;
         Text _levelText;
+        Text _roundText;
         Text _timerText;
         GameObject _gameOverPanel;
         Text _gameOverText;
         Text _toastText;
         Coroutine _toastRoutine;
+        GameObject _upgradePanel;
+        Text _upgradeTitle;
+        readonly List<Button> _upgradeButtons = new List<Button>();
+        readonly List<Text> _upgradeButtonLabels = new List<Text>();
 
         PlayerHealth _health;
         PlayerStats _stats;
@@ -45,10 +51,14 @@ namespace GorillaSurvivors.UI
             hud._xpFill = CreateBar(canvasGO.transform, "XPBar", "XP", new Vector2(20, -46), new Color(0.2f, 0.6f, 0.95f));
 
             hud._levelText = CreateText(canvasGO.transform, "LevelText", new Vector2(20, -72), "Lv.1", 22, TextAnchor.UpperLeft);
+            hud._roundText = CreateText(canvasGO.transform, "RoundText", new Vector2(20, -98), "Round 1", 20, TextAnchor.UpperLeft);
             hud._timerText = CreateText(canvasGO.transform, "TimerText", new Vector2(-20, -20), "0:00", 26, TextAnchor.UpperRight);
 
             hud._gameOverPanel = CreateGameOverPanel(canvasGO.transform, out hud._gameOverText);
             hud._gameOverPanel.SetActive(false);
+
+            hud._upgradePanel = CreateUpgradePanel(canvasGO.transform, hud, out hud._upgradeTitle, hud._upgradeButtons, hud._upgradeButtonLabels);
+            hud._upgradePanel.SetActive(false);
 
             hud._toastText = CreateToastText(canvasGO.transform);
             CreateHintText(canvasGO.transform);
@@ -138,7 +148,7 @@ namespace GorillaSurvivors.UI
             text.fontSize = 18;
             text.alignment = TextAnchor.MiddleCenter;
             text.color = new Color(1f, 1f, 1f, 0.7f);
-            text.text = "WASD move  |  J / Click to attack  |  Space to dash";
+            text.text = "WASD move | J/Click attack | Space dash | K Roar | L Charge (once unlocked)";
         }
 
         static void EnsureEventSystem()
@@ -160,7 +170,39 @@ namespace GorillaSurvivors.UI
                 int minutes = Mathf.FloorToInt(t / 60f);
                 int seconds = Mathf.FloorToInt(t % 60f);
                 _timerText.text = $"{minutes}:{seconds:00}";
+                _roundText.text = $"Round {GameManager.Instance.CurrentRound}";
             }
+        }
+
+        public void ShowUpgradeChoice(List<RoundReward> choices)
+        {
+            _upgradeTitle.text = $"Round {GameManager.Instance.CurrentRound} Cleared!\nChoose a reward:";
+
+            for (int i = 0; i < _upgradeButtons.Count; i++)
+            {
+                if (i < choices.Count)
+                {
+                    var choice = choices[i];
+                    _upgradeButtonLabels[i].text = $"{choice.Title}\n<size=16>{choice.Description}</size>";
+                    _upgradeButtons[i].gameObject.SetActive(true);
+
+                    var button = _upgradeButtons[i];
+                    button.onClick.RemoveAllListeners();
+                    button.onClick.AddListener(() => SelectUpgrade(choice));
+                }
+                else
+                {
+                    _upgradeButtons[i].gameObject.SetActive(false);
+                }
+            }
+
+            _upgradePanel.SetActive(true);
+        }
+
+        void SelectUpgrade(RoundReward choice)
+        {
+            _upgradePanel.SetActive(false);
+            GameManager.Instance.ResolveUpgradeChoice(choice);
         }
 
         public void ShowGameOver()
@@ -285,6 +327,85 @@ namespace GorillaSurvivors.UI
             label.alignment = TextAnchor.MiddleCenter;
             label.color = Color.white;
             label.text = "GAME OVER";
+
+            return panel;
+        }
+
+        static GameObject CreateUpgradePanel(Transform parent, HUDController hud, out Text title, List<Button> buttons, List<Text> buttonLabels)
+        {
+            var panel = new GameObject("UpgradePanel", typeof(RectTransform));
+            panel.transform.SetParent(parent, false);
+            var rect = panel.GetComponent<RectTransform>();
+            rect.anchorMin = Vector2.zero;
+            rect.anchorMax = Vector2.one;
+            rect.offsetMin = Vector2.zero;
+            rect.offsetMax = Vector2.zero;
+
+            var bg = panel.AddComponent<Image>();
+            bg.color = new Color(0f, 0f, 0f, 0.8f);
+
+            var titleGO = new GameObject("Title", typeof(RectTransform));
+            titleGO.transform.SetParent(panel.transform, false);
+            var titleRect = titleGO.GetComponent<RectTransform>();
+            titleRect.anchorMin = new Vector2(0.5f, 1f);
+            titleRect.anchorMax = new Vector2(0.5f, 1f);
+            titleRect.pivot = new Vector2(0.5f, 1f);
+            titleRect.anchoredPosition = new Vector2(0f, -70f);
+            titleRect.sizeDelta = new Vector2(900, 100);
+
+            title = titleGO.AddComponent<Text>();
+            title.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            title.fontSize = 32;
+            title.alignment = TextAnchor.MiddleCenter;
+            title.color = Color.white;
+            title.text = "Round Cleared!";
+
+            const int count = 3;
+            const float buttonWidth = 260f;
+            const float spacing = 30f;
+            float totalWidth = count * buttonWidth + (count - 1) * spacing;
+            float startX = -totalWidth / 2f + buttonWidth / 2f;
+
+            for (int i = 0; i < count; i++)
+            {
+                var buttonGO = new GameObject($"Choice{i}", typeof(RectTransform));
+                buttonGO.transform.SetParent(panel.transform, false);
+                var btnRect = buttonGO.GetComponent<RectTransform>();
+                btnRect.anchorMin = new Vector2(0.5f, 0.5f);
+                btnRect.anchorMax = new Vector2(0.5f, 0.5f);
+                btnRect.pivot = new Vector2(0.5f, 0.5f);
+                btnRect.sizeDelta = new Vector2(buttonWidth, 220);
+                btnRect.anchoredPosition = new Vector2(startX + i * (buttonWidth + spacing), 0f);
+
+                var btnImage = buttonGO.AddComponent<Image>();
+                btnImage.color = new Color(0.18f, 0.2f, 0.16f, 0.95f);
+
+                var button = buttonGO.AddComponent<Button>();
+                var colors = button.colors;
+                colors.highlightedColor = new Color(0.32f, 0.36f, 0.28f);
+                colors.pressedColor = new Color(0.12f, 0.14f, 0.10f);
+                colors.selectedColor = colors.highlightedColor;
+                button.colors = colors;
+
+                var labelGO = new GameObject("Label", typeof(RectTransform));
+                labelGO.transform.SetParent(buttonGO.transform, false);
+                var labelRect = labelGO.GetComponent<RectTransform>();
+                labelRect.anchorMin = Vector2.zero;
+                labelRect.anchorMax = Vector2.one;
+                labelRect.offsetMin = new Vector2(14, 14);
+                labelRect.offsetMax = new Vector2(-14, -14);
+
+                var label = labelGO.AddComponent<Text>();
+                label.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+                label.fontSize = 20;
+                label.alignment = TextAnchor.MiddleCenter;
+                label.color = Color.white;
+                label.supportRichText = true;
+                label.text = "";
+
+                buttons.Add(button);
+                buttonLabels.Add(label);
+            }
 
             return panel;
         }

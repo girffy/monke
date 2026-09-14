@@ -42,6 +42,7 @@ namespace GorillaSurvivors.Enemies
                 PowerupPickup.SpawnRandom(transform.position);
             }
 
+            EnemySpawner.Instance?.NotifyEnemyDied();
             Destroy(gameObject);
         }
     }

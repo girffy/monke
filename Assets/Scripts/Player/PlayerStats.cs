@@ -3,10 +3,9 @@ using UnityEngine;
 
 namespace GorillaSurvivors.Player
 {
-    // Tracks XP/leveling and temporary powerup buffs. Leveling is automatic (no
-    // upgrade-choice UI yet) — each level flatly buffs damage, attack radius,
-    // move speed and heals a bit, which is enough to feel like escalating power
-    // for a first playable pass.
+    // Tracks XP/leveling, temporary powerup buffs, and permanent round-reward
+    // bonuses (picked between rounds). Leveling itself is automatic (flat
+    // per-level scaling + a full heal); round rewards are player choices.
     public class PlayerStats : MonoBehaviour
     {
         public int Level { get; private set; } = 1;
@@ -16,6 +15,11 @@ namespace GorillaSurvivors.Player
         public float DamageMultiplier { get; private set; } = 1f;
         public float AttackSpeedMultiplier { get; private set; } = 1f;
         public float MoveSpeedMultiplier { get; private set; } = 1f;
+
+        // Permanent-for-the-run bonuses granted by round-reward choices.
+        public float PermanentDamageBonus { get; private set; }
+        public float PermanentAttackSpeedBonus { get; private set; }
+        public float PermanentMoveSpeedBonus { get; private set; }
 
         public event Action<int> OnLevelUp;
         public event Action<float, float> OnXPChanged; // current, needed
@@ -88,11 +92,34 @@ namespace GorillaSurvivors.Player
             RecomputeMultipliers();
         }
 
+        public void AddPermanentDamageBonus(float amount)
+        {
+            PermanentDamageBonus += amount;
+            RecomputeMultipliers();
+        }
+
+        public void AddPermanentAttackSpeedBonus(float amount)
+        {
+            PermanentAttackSpeedBonus += amount;
+            RecomputeMultipliers();
+        }
+
+        public void AddPermanentMoveSpeedBonus(float amount)
+        {
+            PermanentMoveSpeedBonus += amount;
+            RecomputeMultipliers();
+        }
+
+        public void AddPermanentMaxHP(float amount)
+        {
+            _health?.SetMaxHP(_health.MaxHP + amount, healToFull: true);
+        }
+
         void RecomputeMultipliers()
         {
-            DamageMultiplier = 1f + (_damageBuffUntil > 0f ? _damageBuffAmount : 0f);
-            AttackSpeedMultiplier = 1f + (_attackSpeedBuffUntil > 0f ? _attackSpeedBuffAmount : 0f);
-            MoveSpeedMultiplier = 1f + (_moveSpeedBuffUntil > 0f ? _moveSpeedBuffAmount : 0f);
+            DamageMultiplier = 1f + PermanentDamageBonus + (_damageBuffUntil > 0f ? _damageBuffAmount : 0f);
+            AttackSpeedMultiplier = 1f + PermanentAttackSpeedBonus + (_attackSpeedBuffUntil > 0f ? _attackSpeedBuffAmount : 0f);
+            MoveSpeedMultiplier = 1f + PermanentMoveSpeedBonus + (_moveSpeedBuffUntil > 0f ? _moveSpeedBuffAmount : 0f);
         }
     }
 }

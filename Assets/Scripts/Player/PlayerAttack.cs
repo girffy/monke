@@ -48,6 +48,7 @@ namespace GorillaSurvivors.Player
         void Update()
         {
             if (_isSlamming) return;
+            if (GameManager.Instance != null && GameManager.Instance.IsPaused) return;
             if (Time.time < _nextAttackReadyTime) return;
             if (!WasAttackPressed()) return;
 

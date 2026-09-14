@@ -2,6 +2,8 @@ using UnityEngine;
 
 namespace GorillaSurvivors.Core
 {
+    public enum HumanVariant { Grunt, Runner, Brute, Thrower }
+
     // Simple primitive-assembled 3D models (spheres/capsules/cubes), the 3D
     // counterpart to CreatureArt's procedural 2D sprites. No textures/lighting
     // needed — parts use unlit colored materials via MaterialCache.
@@ -16,35 +18,79 @@ namespace GorillaSurvivors.Core
             var skin = new Color(0.60f, 0.45f, 0.36f);
 
             AddPrimitive(root.transform, "Body", PrimitiveType.Sphere, new Vector3(0, 0.55f, 0), new Vector3(0.95f, 0.85f, 0.8f), fur);
+            AddPrimitive(root.transform, "Chest", PrimitiveType.Sphere, new Vector3(0, 0.62f, 0.32f), new Vector3(0.55f, 0.5f, 0.22f), skin);
             AddPrimitive(root.transform, "Head", PrimitiveType.Sphere, new Vector3(0, 1.15f, 0.05f), Vector3.one * 0.55f, fur);
+            AddPrimitive(root.transform, "Brow", PrimitiveType.Sphere, new Vector3(0, 1.22f, 0.32f), new Vector3(0.38f, 0.14f, 0.16f), furDark);
             AddPrimitive(root.transform, "EarL", PrimitiveType.Sphere, new Vector3(-0.28f, 1.32f, 0f), Vector3.one * 0.16f, furDark);
             AddPrimitive(root.transform, "EarR", PrimitiveType.Sphere, new Vector3(0.28f, 1.32f, 0f), Vector3.one * 0.16f, furDark);
             AddPrimitive(root.transform, "Face", PrimitiveType.Sphere, new Vector3(0, 1.05f, 0.28f), new Vector3(0.32f, 0.28f, 0.2f), skin);
+            AddPrimitive(root.transform, "Snout", PrimitiveType.Sphere, new Vector3(0, 0.98f, 0.38f), new Vector3(0.24f, 0.16f, 0.16f), skin);
             AddPrimitive(root.transform, "EyeL", PrimitiveType.Sphere, new Vector3(-0.1f, 1.12f, 0.38f), Vector3.one * 0.06f, Color.black);
             AddPrimitive(root.transform, "EyeR", PrimitiveType.Sphere, new Vector3(0.1f, 1.12f, 0.38f), Vector3.one * 0.06f, Color.black);
+            AddPrimitive(root.transform, "NostrilL", PrimitiveType.Sphere, new Vector3(-0.05f, 0.96f, 0.46f), Vector3.one * 0.03f, furDark);
+            AddPrimitive(root.transform, "NostrilR", PrimitiveType.Sphere, new Vector3(0.05f, 0.96f, 0.46f), Vector3.one * 0.03f, furDark);
             AddArm(root.transform, "ArmL", new Vector3(-0.62f, 0.82f, 0f), 0.15f, 0.55f, fur);
             AddArm(root.transform, "ArmR", new Vector3(0.62f, 0.82f, 0f), 0.15f, 0.55f, fur);
+            AddCapsule(root.transform, "LegL", new Vector3(-0.32f, 0.12f, 0f), 0.16f, 0.3f, fur);
+            AddCapsule(root.transform, "LegR", new Vector3(0.32f, 0.12f, 0f), 0.16f, 0.3f, fur);
 
             return root;
         }
 
-        public static GameObject Human()
+        public static GameObject Human(HumanVariant variant = HumanVariant.Grunt)
         {
             var root = new GameObject("HumanModel");
 
             var skin = new Color(0.85f, 0.68f, 0.58f);
-            var shirt = new Color(0.85f, 0.22f, 0.20f);
             var pants = new Color(0.30f, 0.30f, 0.36f);
             var hair = new Color(0.20f, 0.15f, 0.12f);
+            var shoe = new Color(0.10f, 0.10f, 0.10f);
+            var belt = new Color(0.15f, 0.12f, 0.10f);
+
+            Color shirt;
+            float scale;
+            bool holdsWeapon = false;
+            switch (variant)
+            {
+                case HumanVariant.Runner:
+                    shirt = new Color(0.30f, 0.78f, 0.38f);
+                    scale = 0.85f;
+                    break;
+                case HumanVariant.Brute:
+                    shirt = new Color(0.38f, 0.16f, 0.48f);
+                    scale = 1.55f;
+                    break;
+                case HumanVariant.Thrower:
+                    shirt = new Color(0.88f, 0.56f, 0.16f);
+                    scale = 1f;
+                    holdsWeapon = true;
+                    break;
+                default:
+                    shirt = new Color(0.85f, 0.22f, 0.20f);
+                    scale = 1f;
+                    break;
+            }
 
             AddCapsule(root.transform, "LegL", new Vector3(-0.13f, 0.32f, 0f), 0.11f, 0.6f, pants);
             AddCapsule(root.transform, "LegR", new Vector3(0.13f, 0.32f, 0f), 0.11f, 0.6f, pants);
-            AddCapsule(root.transform, "ArmL", new Vector3(-0.32f, 0.85f, 0f), 0.09f, 0.55f, skin);
-            AddCapsule(root.transform, "ArmR", new Vector3(0.32f, 0.85f, 0f), 0.09f, 0.55f, skin);
+            AddPrimitive(root.transform, "ShoeL", PrimitiveType.Sphere, new Vector3(-0.13f, 0.05f, 0.05f), new Vector3(0.16f, 0.1f, 0.22f), shoe);
+            AddPrimitive(root.transform, "ShoeR", PrimitiveType.Sphere, new Vector3(0.13f, 0.05f, 0.05f), new Vector3(0.16f, 0.1f, 0.22f), shoe);
+            AddArm(root.transform, "ArmL", new Vector3(-0.32f, 1.06f, 0f), 0.09f, 0.55f, skin);
+            AddArm(root.transform, "ArmR", new Vector3(0.32f, 1.06f, 0f), 0.09f, 0.55f, skin);
             AddPrimitive(root.transform, "Torso", PrimitiveType.Capsule, new Vector3(0, 0.85f, 0), new Vector3(0.5f, 0.4f, 0.32f), shirt);
+            AddPrimitive(root.transform, "Belt", PrimitiveType.Cube, new Vector3(0, 0.68f, 0), new Vector3(0.52f, 0.08f, 0.34f), belt);
             AddPrimitive(root.transform, "Head", PrimitiveType.Sphere, new Vector3(0, 1.42f, 0), Vector3.one * 0.34f, skin);
             AddPrimitive(root.transform, "Hair", PrimitiveType.Sphere, new Vector3(0, 1.52f, -0.02f), new Vector3(0.36f, 0.24f, 0.36f), hair);
+            AddPrimitive(root.transform, "EyeL", PrimitiveType.Sphere, new Vector3(-0.09f, 1.40f, 0.28f), Vector3.one * 0.045f, Color.black);
+            AddPrimitive(root.transform, "EyeR", PrimitiveType.Sphere, new Vector3(0.09f, 1.40f, 0.28f), Vector3.one * 0.045f, Color.black);
 
+            if (holdsWeapon)
+            {
+                var weapon = AddPrimitive(root.transform, "Weapon", PrimitiveType.Capsule, new Vector3(0.42f, 0.65f, 0.15f), new Vector3(0.08f, 0.4f, 0.08f), new Color(0.35f, 0.25f, 0.15f));
+                weapon.transform.localRotation = Quaternion.Euler(60f, 0f, 20f);
+            }
+
+            root.transform.localScale = Vector3.one * scale;
             return root;
         }
 
@@ -67,6 +113,7 @@ namespace GorillaSurvivors.Core
             body.transform.localRotation = Quaternion.Euler(0f, 0f, 35f);
             AddPrimitive(root.transform, "TipA", PrimitiveType.Sphere, new Vector3(-0.2f, 0.6f, 0f), Vector3.one * 0.08f, tip);
             AddPrimitive(root.transform, "TipB", PrimitiveType.Sphere, new Vector3(0.2f, 0.1f, 0f), Vector3.one * 0.07f, tip);
+            AddGlowRing(root.transform, yellow);
 
             return root;
         }
@@ -77,6 +124,7 @@ namespace GorillaSurvivors.Core
             var cyan = new Color(0.25f, 0.85f, 0.95f);
             var shard = AddPrimitive(root.transform, "Shard", PrimitiveType.Cube, new Vector3(0, 0.35f, 0), new Vector3(0.22f, 0.4f, 0.22f), cyan);
             shard.transform.localRotation = Quaternion.Euler(0f, 45f, 45f);
+            AddGlowRing(root.transform, cyan);
             return root;
         }
 
@@ -91,6 +139,7 @@ namespace GorillaSurvivors.Core
             AddPrimitive(root.transform, "KnuckleM", PrimitiveType.Sphere, new Vector3(0f, 0.62f, 0.1f), Vector3.one * 0.15f, magenta);
             AddPrimitive(root.transform, "KnuckleR", PrimitiveType.Sphere, new Vector3(0.14f, 0.58f, 0.1f), Vector3.one * 0.15f, magenta);
             AddPrimitive(root.transform, "Wrist", PrimitiveType.Cylinder, new Vector3(0, 0.1f, 0), new Vector3(0.24f, 0.15f, 0.24f), dark);
+            AddGlowRing(root.transform, magenta);
 
             return root;
         }
@@ -104,6 +153,48 @@ namespace GorillaSurvivors.Core
             plane.transform.localScale = Vector3.one * (size / 10f); // default Plane is 10x10 units
             plane.GetComponent<MeshRenderer>().sharedMaterial = MaterialCache.Get(new Color(0.28f, 0.42f, 0.24f));
             return plane;
+        }
+
+        // Static environment obstacles — unlike the other props these KEEP a
+        // collider on the root, since they're meant to physically block
+        // movement, not just decorate.
+        public static GameObject Rock(float scale = 1f)
+        {
+            var root = new GameObject("Rock");
+            var gray = new Color(0.45f, 0.44f, 0.42f);
+            var grayDark = new Color(0.33f, 0.32f, 0.30f);
+
+            AddPrimitive(root.transform, "Base", PrimitiveType.Sphere, new Vector3(0, 0.35f, 0), new Vector3(0.9f, 0.6f, 0.8f), gray);
+            AddPrimitive(root.transform, "Bump", PrimitiveType.Sphere, new Vector3(0.25f, 0.55f, 0.1f), new Vector3(0.5f, 0.4f, 0.45f), grayDark);
+            AddPrimitive(root.transform, "Bump2", PrimitiveType.Sphere, new Vector3(-0.3f, 0.45f, -0.15f), new Vector3(0.45f, 0.35f, 0.4f), gray);
+
+            root.transform.localScale = Vector3.one * scale;
+
+            var collider = root.AddComponent<CapsuleCollider>();
+            collider.center = new Vector3(0, 0.35f, 0);
+            collider.radius = 0.55f;
+            collider.height = 0.9f;
+
+            return root;
+        }
+
+        public static GameObject Tree()
+        {
+            var root = new GameObject("Tree");
+            var trunk = new Color(0.35f, 0.24f, 0.16f);
+            var leaves = new Color(0.18f, 0.42f, 0.20f);
+
+            AddPrimitive(root.transform, "Trunk", PrimitiveType.Cylinder, new Vector3(0, 0.9f, 0), new Vector3(0.3f, 0.9f, 0.3f), trunk);
+            AddPrimitive(root.transform, "Leaves1", PrimitiveType.Sphere, new Vector3(0, 2.1f, 0), Vector3.one * 1.1f, leaves);
+            AddPrimitive(root.transform, "Leaves2", PrimitiveType.Sphere, new Vector3(0.4f, 1.8f, 0.3f), Vector3.one * 0.7f, leaves);
+            AddPrimitive(root.transform, "Leaves3", PrimitiveType.Sphere, new Vector3(-0.4f, 1.85f, -0.25f), Vector3.one * 0.65f, leaves);
+
+            var collider = root.AddComponent<CapsuleCollider>();
+            collider.center = new Vector3(0, 0.9f, 0);
+            collider.radius = 0.35f;
+            collider.height = 1.8f;
+
+            return root;
         }
 
         // Flat disc used for the attack swipe VFX — opaque (no alpha fade) to
@@ -133,6 +224,11 @@ namespace GorillaSurvivors.Core
         static GameObject AddCapsule(Transform parent, string name, Vector3 localPos, float radius, float height, Color color)
         {
             return AddPrimitive(parent, name, PrimitiveType.Capsule, localPos, new Vector3(radius * 2f, height / 2f, radius * 2f), color);
+        }
+
+        static void AddGlowRing(Transform parent, Color color)
+        {
+            AddPrimitive(parent, "GlowRing", PrimitiveType.Cylinder, new Vector3(0f, 0.02f, 0f), new Vector3(0.5f, 0.01f, 0.5f), color);
         }
 
         // An arm as a shoulder pivot (named `name`, positioned at the shoulder)
