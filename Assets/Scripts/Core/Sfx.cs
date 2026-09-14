@@ -44,11 +44,23 @@ namespace GorillaSurvivors.Core
             _rockExplosion = ProceduralAudio.Impact(0.5f, 0.9f);
         }
 
+        // Plays fully non-spatial (spatialBlend = 0) rather than via
+        // AudioSource.PlayClipAtPoint, which defaults to 3D with distance
+        // rolloff — for a small arena-sized game that rolloff risks making
+        // sounds too quiet to notice rather than adding useful positioning.
         static void Play(AudioClip clip, Vector3 position, float volume = 1f)
         {
             EnsureInit();
             if (clip == null) return;
-            AudioSource.PlayClipAtPoint(clip, position, volume);
+
+            var go = new GameObject("SFX_" + clip.name);
+            go.transform.position = position;
+            var source = go.AddComponent<AudioSource>();
+            source.clip = clip;
+            source.volume = volume;
+            source.spatialBlend = 0f;
+            source.Play();
+            Object.Destroy(go, clip.length + 0.1f);
         }
 
         static Vector3 ListenerPos()

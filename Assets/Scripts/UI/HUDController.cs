@@ -17,6 +17,7 @@ namespace GorillaSurvivors.UI
         Image _xpFill;
         Text _levelText;
         Text _roundText;
+        Text _roundProgressText;
         Text _timerText;
         GameObject _gameOverPanel;
         Text _gameOverText;
@@ -54,6 +55,7 @@ namespace GorillaSurvivors.UI
 
             hud._levelText = CreateText(canvasGO.transform, "LevelText", new Vector2(20, -72), "Lv.1", 22, TextAnchor.UpperLeft);
             hud._roundText = CreateText(canvasGO.transform, "RoundText", new Vector2(20, -98), "Round 1", 20, TextAnchor.UpperLeft);
+            hud._roundProgressText = CreateText(canvasGO.transform, "RoundProgressText", new Vector2(20, -122), "0/100", 18, TextAnchor.UpperLeft);
             hud._timerText = CreateText(canvasGO.transform, "TimerText", new Vector2(-20, -20), "0:00", 26, TextAnchor.UpperRight);
 
             hud._gameOverPanel = CreateGameOverPanel(canvasGO.transform, out hud._gameOverText);
@@ -151,7 +153,7 @@ namespace GorillaSurvivors.UI
             text.fontSize = 18;
             text.alignment = TextAnchor.MiddleCenter;
             text.color = new Color(1f, 1f, 1f, 0.7f);
-            text.text = "WASD move | Aim+Click attack | Space dash | K Roar | L Charge (once unlocked)";
+            text.text = "WASD move | Aim+Click attack | Space dash | Q Roar | E Charge (once unlocked)";
         }
 
         static void EnsureEventSystem()
@@ -174,6 +176,7 @@ namespace GorillaSurvivors.UI
                 int seconds = Mathf.FloorToInt(t % 60f);
                 _timerText.text = $"{minutes}:{seconds:00}";
                 _roundText.text = $"Round {GameManager.Instance.CurrentRound}";
+                _roundProgressText.text = $"{GameManager.Instance.KilledThisRound}/{GameManager.Instance.EnemiesPerRound}";
             }
         }
 

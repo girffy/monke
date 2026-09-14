@@ -19,6 +19,10 @@ namespace GorillaSurvivors.Enemies
 
         public int CurrentRound { get; private set; } = 1;
 
+        // Every spawned enemy is either alive or dead, so killed-so-far is
+        // just the difference — enough for a simple "X/100" HUD readout.
+        public int KilledThisRound => _spawnedThisRound - _aliveThisRound;
+
         float _nextSpawnTime;
         int _spawnedThisRound;
         int _aliveThisRound;

@@ -46,7 +46,7 @@ namespace GorillaSurvivors.Player.Abilities
         bool WasPressed()
         {
             var kb = Keyboard.current;
-            if (kb != null && kb.kKey.wasPressedThisFrame) return true;
+            if (kb != null && kb.qKey.wasPressedThisFrame) return true;
 
             var gp = Gamepad.current;
             if (gp != null && gp.buttonNorth.wasPressedThisFrame) return true;

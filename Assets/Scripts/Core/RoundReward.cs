@@ -73,7 +73,7 @@ namespace GorillaSurvivors.Core
                 pool.Add(new RoundReward
                 {
                     Title = "Unlock: Roar",
-                    Description = "Press K — AoE damage + knockback around you",
+                    Description = "Press Q — AoE damage + knockback around you",
                     Apply = p => p.GetComponent<RoarAbility>().Unlocked = true,
                 });
             }
@@ -83,7 +83,7 @@ namespace GorillaSurvivors.Core
                 pool.Add(new RoundReward
                 {
                     Title = "Unlock: Charge",
-                    Description = "Press L — dash-attack that damages everything in your path",
+                    Description = "Press E — dash-attack that damages everything in your path",
                     Apply = p => p.GetComponent<ChargeAbility>().Unlocked = true,
                 });
             }

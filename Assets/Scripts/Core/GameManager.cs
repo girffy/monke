@@ -17,6 +17,8 @@ namespace GorillaSurvivors.Core
         public bool IsPaused => IsGameOver || IsChoosingUpgrade;
         public float SurvivalTime { get; private set; }
         public int CurrentRound => _spawner != null ? _spawner.CurrentRound : 1;
+        public int KilledThisRound => _spawner != null ? _spawner.KilledThisRound : 0;
+        public int EnemiesPerRound => _spawner != null ? _spawner.EnemiesPerRound : 100;
 
         public event Action OnGameOver;
         public event Action<List<RoundReward>> OnUpgradeChoiceReady;

@@ -20,7 +20,7 @@ namespace GorillaSurvivors.Core
 
             var rockManagerGO = new GameObject("AttackableRockManager");
             var rockManager = rockManagerGO.AddComponent<AttackableRockManager>();
-            rockManager.SpawnInitial(10, 8f, 30f);
+            rockManager.SpawnInitial(24, 6f, 45f);
 
             var player = CreatePlayer();
             SetupCamera(player.transform);
@@ -89,19 +89,13 @@ namespace GorillaSurvivors.Core
 
         static void SpawnObstacles()
         {
-            const int rockCount = 22;
+            // Rocks are no longer purely decorative — every rock in the world
+            // comes from AttackableRockManager now, so all of them can be
+            // ground-slammed into a boulder instead of some being inert.
             const int treeCount = 18;
             const int bushCount = 26;
             const float minDistanceFromSpawn = 6f;
             const float scatterRadius = 45f;
-
-            for (int i = 0; i < rockCount; i++)
-            {
-                var pos = RandomScatterPos(minDistanceFromSpawn, scatterRadius);
-                var rock = Blocky3DArt.Rock(Random.Range(0.7f, 1.4f));
-                rock.transform.position = pos;
-                rock.transform.rotation = Quaternion.Euler(0f, Random.Range(0f, 360f), 0f);
-            }
 
             for (int i = 0; i < treeCount; i++)
             {
