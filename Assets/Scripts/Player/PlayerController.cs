@@ -177,6 +177,7 @@ namespace GorillaSurvivors.Player
             // Always cover at least the full dash — iframes are the point of
             // dashing through a crowd, not an accidental side effect.
             _health.GrantInvulnerability(Mathf.Max(DashInvulnerabilitySeconds, DashDuration));
+            Sfx.Dash(transform.position);
         }
 
         public float DashCooldownRemaining01()

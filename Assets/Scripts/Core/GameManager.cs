@@ -61,6 +61,7 @@ namespace GorillaSurvivors.Core
         {
             if (IsGameOver || IsChoosingUpgrade) return;
             IsChoosingUpgrade = true;
+            Sfx.RoundClear();
 
             var choices = RoundRewardPool.RollChoices(_player);
             OnUpgradeChoiceReady?.Invoke(choices);
@@ -76,6 +77,7 @@ namespace GorillaSurvivors.Core
             int nextRound = CurrentRound + 1;
             _spawner?.StartNewRound(nextRound);
             OnRoundStarted?.Invoke(nextRound);
+            Sfx.RoundStart();
         }
 
         void HandlePlayerDeath()
@@ -83,6 +85,7 @@ namespace GorillaSurvivors.Core
             if (IsGameOver) return;
             IsGameOver = true;
             _spawner?.Pause();
+            Sfx.GameOver();
             OnGameOver?.Invoke();
         }
     }

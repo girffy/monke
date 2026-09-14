@@ -113,6 +113,7 @@ namespace GorillaSurvivors.Pickups
             }
 
             HUDController.Instance?.ShowToast(InfoTable[Type].ToastText);
+            Sfx.PowerupPickup(transform.position);
         }
     }
 }

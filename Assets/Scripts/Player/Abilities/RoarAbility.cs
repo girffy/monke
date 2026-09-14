@@ -77,6 +77,7 @@ namespace GorillaSurvivors.Player.Abilities
             }
 
             SpawnRoarEffect();
+            Sfx.Roar(transform.position);
             yield return AnimateHeadPulse();
         }
 

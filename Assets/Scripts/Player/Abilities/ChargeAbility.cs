@@ -75,6 +75,8 @@ namespace GorillaSurvivors.Player.Abilities
             var model = transform.Find("GorillaModel");
             if (model != null) model.rotation = Quaternion.LookRotation(dir, Vector3.up);
 
+            Sfx.Charge(transform.position);
+
             float speed = Distance / Duration;
             float t = 0f;
 

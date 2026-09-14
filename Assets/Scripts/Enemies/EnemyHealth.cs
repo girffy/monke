@@ -1,4 +1,5 @@
 using UnityEngine;
+using GorillaSurvivors.Core;
 using GorillaSurvivors.Pickups;
 
 namespace GorillaSurvivors.Enemies
@@ -30,7 +31,14 @@ namespace GorillaSurvivors.Enemies
         public void TakeDamage(float amount)
         {
             _currentHP -= amount;
-            if (_currentHP <= 0f) Die();
+            if (_currentHP <= 0f)
+            {
+                Die();
+            }
+            else
+            {
+                Sfx.EnemyHit(transform.position);
+            }
         }
 
         void Die()
@@ -42,6 +50,7 @@ namespace GorillaSurvivors.Enemies
                 PowerupPickup.SpawnRandom(transform.position);
             }
 
+            Sfx.EnemyDeath(transform.position);
             EnemySpawner.Instance?.NotifyEnemyDied();
             Destroy(gameObject);
         }

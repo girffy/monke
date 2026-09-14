@@ -44,6 +44,7 @@ namespace GorillaSurvivors.Pickups
             {
                 var stats = _player.GetComponent<PlayerStats>();
                 stats?.AddXP(XPAmount);
+                Sfx.XPPickup(transform.position);
                 Destroy(gameObject);
                 return;
             }

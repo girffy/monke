@@ -1,5 +1,6 @@
 using System;
 using UnityEngine;
+using GorillaSurvivors.Core;
 
 namespace GorillaSurvivors.Player
 {
@@ -63,6 +64,8 @@ namespace GorillaSurvivors.Player
             {
                 _health.SetMaxHP(_health.MaxHP + 10f, healToFull: true);
             }
+
+            Sfx.LevelUp();
 
             OnLevelUp?.Invoke(Level);
         }

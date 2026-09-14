@@ -29,6 +29,7 @@ namespace GorillaSurvivors.Enemies
             var proj = go.AddComponent<Projectile>();
             proj._direction = direction.normalized;
             proj.Damage = damage;
+            Sfx.Throw(position);
             return proj;
         }
 

@@ -47,6 +47,7 @@ namespace GorillaSurvivors.Player
             CurrentHP -= amount;
             OnHealthChanged?.Invoke(CurrentHP, MaxHP);
             DamagePopup.Spawn(transform.position, amount);
+            Sfx.Hurt(transform.position);
 
             if (CurrentHP <= 0f)
             {

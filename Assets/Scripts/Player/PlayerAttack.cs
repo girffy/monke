@@ -136,6 +136,7 @@ namespace GorillaSurvivors.Player
             }
 
             SpawnSlamEffect(hitCenter, radius);
+            Sfx.Slam(hitCenter);
         }
 
         void SpawnSlamEffect(Vector3 position, float radius)

@@ -74,6 +74,8 @@ namespace GorillaSurvivors.Core
             cam.fieldOfView = 45f;
             cam.transform.rotation = Quaternion.Euler(CameraFollow.PitchDegrees, 0f, 0f);
 
+            if (cam.GetComponent<AudioListener>() == null) cam.gameObject.AddComponent<AudioListener>();
+
             var follow = cam.GetComponent<CameraFollow>();
             if (follow == null) follow = cam.gameObject.AddComponent<CameraFollow>();
             follow.Target = target;
