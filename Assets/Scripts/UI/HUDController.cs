@@ -172,14 +172,14 @@ namespace GorillaSurvivors.UI
             float totalWidth = count * iconSize + (count - 1) * spacing;
             float startX = -totalWidth / 2f + iconSize / 2f;
 
-            _atkIcon = CreateAbilityIcon(parent, "AbilityAttack", "LMB", AttackColor, startX + 0 * (iconSize + spacing), iconSize);
-            _swipeIcon = CreateAbilityIcon(parent, "AbilitySwipe", "RMB", SwipeColor, startX + 1 * (iconSize + spacing), iconSize);
-            _dashIcon = CreateAbilityIcon(parent, "AbilityDash", "SPC", DashColor, startX + 2 * (iconSize + spacing), iconSize);
-            _roarIcon = CreateAbilityIcon(parent, "AbilityRoar", "Q", RoarColor, startX + 3 * (iconSize + spacing), iconSize);
-            _chargeIcon = CreateAbilityIcon(parent, "AbilityCharge", "E", ChargeColor, startX + 4 * (iconSize + spacing), iconSize);
+            _atkIcon = CreateAbilityIcon(parent, "AbilityAttack", "LMB", AttackColor, startX + 0 * (iconSize + spacing), iconSize, PlaceholderSprites.IconShape.Fist);
+            _swipeIcon = CreateAbilityIcon(parent, "AbilitySwipe", "RMB", SwipeColor, startX + 1 * (iconSize + spacing), iconSize, PlaceholderSprites.IconShape.Claw);
+            _dashIcon = CreateAbilityIcon(parent, "AbilityDash", "SPC", DashColor, startX + 2 * (iconSize + spacing), iconSize, PlaceholderSprites.IconShape.Chevron);
+            _roarIcon = CreateAbilityIcon(parent, "AbilityRoar", "Q", RoarColor, startX + 3 * (iconSize + spacing), iconSize, PlaceholderSprites.IconShape.Burst);
+            _chargeIcon = CreateAbilityIcon(parent, "AbilityCharge", "E", ChargeColor, startX + 4 * (iconSize + spacing), iconSize, PlaceholderSprites.IconShape.Bolt);
         }
 
-        static AbilityIcon CreateAbilityIcon(Transform parent, string name, string label, Color color, float xOffset, float size)
+        static AbilityIcon CreateAbilityIcon(Transform parent, string name, string label, Color color, float xOffset, float size, PlaceholderSprites.IconShape shape)
         {
             var root = new GameObject(name, typeof(RectTransform));
             root.transform.SetParent(parent, false);
@@ -193,16 +193,42 @@ namespace GorillaSurvivors.UI
             var background = root.AddComponent<Image>();
             background.color = color;
 
+            // A simple procedural glyph (see PlaceholderSprites.Icon) drawn
+            // over the color-coded tile, so the bar reads as ability icons
+            // rather than plain colored squares.
+            var iconGO = new GameObject("Glyph", typeof(RectTransform));
+            iconGO.transform.SetParent(root.transform, false);
+            var iconRect = iconGO.GetComponent<RectTransform>();
+            iconRect.anchorMin = new Vector2(0.5f, 0.5f);
+            iconRect.anchorMax = new Vector2(0.5f, 0.5f);
+            iconRect.pivot = new Vector2(0.5f, 0.5f);
+            iconRect.anchoredPosition = new Vector2(0f, size * 0.08f);
+            iconRect.sizeDelta = new Vector2(size * 0.62f, size * 0.62f);
+            var glyph = iconGO.AddComponent<Image>();
+            glyph.sprite = PlaceholderSprites.Icon(shape, Color.white, 48);
+
             var labelGO = new GameObject("Label", typeof(RectTransform));
             labelGO.transform.SetParent(root.transform, false);
             var labelRect = labelGO.GetComponent<RectTransform>();
-            labelRect.anchorMin = Vector2.zero;
-            labelRect.anchorMax = Vector2.one;
+            labelRect.anchorMin = new Vector2(0f, 0f);
+            labelRect.anchorMax = new Vector2(1f, 0f);
+            labelRect.pivot = new Vector2(0.5f, 0f);
             labelRect.offsetMin = Vector2.zero;
-            labelRect.offsetMax = Vector2.zero;
-            var labelText = labelGO.AddComponent<Text>();
+            labelRect.sizeDelta = new Vector2(0f, size * 0.3f);
+            labelRect.anchoredPosition = Vector2.zero;
+            var labelBg = labelGO.AddComponent<Image>();
+            labelBg.color = new Color(0f, 0f, 0f, 0.45f);
+
+            var labelTextGO = new GameObject("Text", typeof(RectTransform));
+            labelTextGO.transform.SetParent(labelGO.transform, false);
+            var labelTextRect = labelTextGO.GetComponent<RectTransform>();
+            labelTextRect.anchorMin = Vector2.zero;
+            labelTextRect.anchorMax = Vector2.one;
+            labelTextRect.offsetMin = Vector2.zero;
+            labelTextRect.offsetMax = Vector2.zero;
+            var labelText = labelTextGO.AddComponent<Text>();
             labelText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            labelText.fontSize = 16;
+            labelText.fontSize = 13;
             labelText.fontStyle = FontStyle.Bold;
             labelText.alignment = TextAnchor.MiddleCenter;
             labelText.color = Color.white;

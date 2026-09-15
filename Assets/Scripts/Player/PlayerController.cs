@@ -233,7 +233,7 @@ namespace GorillaSurvivors.Player
             IsDashing = true;
             _dashDirection = _moveInput.normalized;
             _dashEndTime = Time.time + DashDuration;
-            _dashReadyTime = Time.time + DashCooldown;
+            _dashReadyTime = Time.time + DashCooldown * (_stats != null ? _stats.AbilityCooldownMultiplier : 1f);
             // Always cover at least the full dash — iframes are the point of
             // dashing through a crowd, not an accidental side effect.
             _health.GrantInvulnerability(Mathf.Max(DashInvulnerabilitySeconds, DashDuration));
@@ -242,7 +242,7 @@ namespace GorillaSurvivors.Player
 
         public float DashCooldownRemaining01()
         {
-            float total = DashCooldown;
+            float total = DashCooldown * (_stats != null ? _stats.AbilityCooldownMultiplier : 1f);
             float remaining = Mathf.Max(0f, _dashReadyTime - Time.time);
             return total <= 0f ? 0f : remaining / total;
         }

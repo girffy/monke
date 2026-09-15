@@ -27,8 +27,9 @@ namespace GorillaSurvivors.Player.Abilities
 
         public float CooldownRemaining01()
         {
+            float total = Cooldown * _stats.AbilityCooldownMultiplier;
             float remaining = Mathf.Max(0f, _nextReadyTime - Time.time);
-            return Cooldown <= 0f ? 0f : Mathf.Clamp01(remaining / Cooldown);
+            return total <= 0f ? 0f : Mathf.Clamp01(remaining / total);
         }
 
         void Awake()
@@ -45,7 +46,7 @@ namespace GorillaSurvivors.Player.Abilities
             if (Time.time < _nextReadyTime) return;
             if (!WasPressed()) return;
 
-            _nextReadyTime = Time.time + Cooldown;
+            _nextReadyTime = Time.time + Cooldown * _stats.AbilityCooldownMultiplier;
             StartCoroutine(RoarSequence());
         }
 
@@ -63,8 +64,9 @@ namespace GorillaSurvivors.Player.Abilities
         IEnumerator RoarSequence()
         {
             float damage = BaseDamage * _stats.LevelDamageBonus * _stats.DamageMultiplier;
+            float radius = Radius * _stats.AreaMultiplier;
 
-            int count = Physics.OverlapSphereNonAlloc(transform.position, Radius, HitBuffer);
+            int count = Physics.OverlapSphereNonAlloc(transform.position, radius, HitBuffer);
             for (int i = 0; i < count; i++)
             {
                 var enemyHealth = HitBuffer[i].GetComponentInParent<EnemyHealth>();
@@ -82,24 +84,24 @@ namespace GorillaSurvivors.Player.Abilities
                 }
             }
 
-            SpawnRoarEffect();
+            SpawnRoarEffect(radius);
             Sfx.Roar(transform.position);
             yield return AnimateHeadPulse();
         }
 
-        void SpawnRoarEffect()
+        void SpawnRoarEffect(float radius)
         {
             var go = Blocky3DArt.SwipeDisc(new Color(1f, 0.95f, 0.6f));
             go.transform.position = transform.position + Vector3.up * 0.05f;
             go.transform.localScale = new Vector3(0.1f, 0.02f, 0.1f);
-            StartCoroutine(AnimateRing(go));
+            StartCoroutine(AnimateRing(go, radius));
         }
 
-        IEnumerator AnimateRing(GameObject go)
+        IEnumerator AnimateRing(GameObject go, float radius)
         {
             float duration = 0.25f;
             float t = 0f;
-            float targetScale = Radius * 1.9f;
+            float targetScale = radius * 1.9f;
 
             while (t < duration)
             {

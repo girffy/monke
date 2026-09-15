@@ -114,7 +114,7 @@ namespace GorillaSurvivors.Player
             aimDirection.Normalize();
 
             float damage = BaseDamage * _stats.LevelDamageBonus * _stats.DamageMultiplier;
-            float radius = HitRadius * _stats.LevelAttackRadiusBonus;
+            float radius = HitRadius * _stats.LevelAttackRadiusBonus * _stats.AreaMultiplier;
             Vector3 hitCenter = transform.position + aimDirection * ForwardOffset;
 
             int count = Physics.OverlapSphereNonAlloc(hitCenter, radius, HitBuffer);

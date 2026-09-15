@@ -95,7 +95,7 @@ namespace GorillaSurvivors.Enemies
             float difficultyScale = (CurrentRound - 1) * 1.4f;
             var type = ChooseEnemyType(CurrentRound);
 
-            EnemyFactory.Create(type, playerPos + offset, difficultyScale);
+            EnemyFactory.Create(type, playerPos + offset, difficultyScale, CurrentRound);
             _spawnedThisRound++;
             _aliveThisRound++;
         }

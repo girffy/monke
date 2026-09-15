@@ -9,7 +9,9 @@ namespace GorillaSurvivors.Pickups
     {
         Banana,     // instant heal
         Adrenaline, // temporary move speed + attack speed
-        Rampage     // temporary damage multiplier
+        Rampage,    // temporary damage multiplier
+        Haste,      // temporary cooldown reduction (Dash/Roar/Charge/LMB)
+        AreaBoost   // temporary AoE size increase
     }
 
     public class PowerupPickup : MonoBehaviour
@@ -31,6 +33,8 @@ namespace GorillaSurvivors.Pickups
             { PowerupType.Banana, new Info { Label = "Banana", ToastText = "Banana! +30 HP" } },
             { PowerupType.Adrenaline, new Info { Label = "Adrenaline", ToastText = "Adrenaline! Move & attack speed up (8s)" } },
             { PowerupType.Rampage, new Info { Label = "Rampage", ToastText = "Rampage! Damage up (8s)" } },
+            { PowerupType.Haste, new Info { Label = "Haste", ToastText = "Haste! Cooldowns down (10s)" } },
+            { PowerupType.AreaBoost, new Info { Label = "Area Boost", ToastText = "Area Boost! AoE size up (10s)" } },
         };
 
         public static PowerupPickup SpawnRandom(Vector3 position)
@@ -46,6 +50,8 @@ namespace GorillaSurvivors.Pickups
                 PowerupType.Banana => Blocky3DArt.Banana(),
                 PowerupType.Adrenaline => Blocky3DArt.Adrenaline(),
                 PowerupType.Rampage => Blocky3DArt.Rampage(),
+                PowerupType.Haste => Blocky3DArt.Haste(),
+                PowerupType.AreaBoost => Blocky3DArt.AreaBoost(),
                 _ => Blocky3DArt.Banana(),
             };
 
@@ -109,6 +115,12 @@ namespace GorillaSurvivors.Pickups
                     break;
                 case PowerupType.Rampage:
                     stats?.ApplyTemporaryDamageBuff(1f, 8f);
+                    break;
+                case PowerupType.Haste:
+                    stats?.ApplyTemporaryCooldownBuff(0.4f, 10f);
+                    break;
+                case PowerupType.AreaBoost:
+                    stats?.ApplyTemporaryAreaBuff(0.5f, 10f);
                     break;
             }
 

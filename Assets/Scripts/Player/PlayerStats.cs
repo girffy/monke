@@ -16,6 +16,11 @@ namespace GorillaSurvivors.Player
         public float DamageMultiplier { get; private set; } = 1f;
         public float AttackSpeedMultiplier { get; private set; } = 1f;
         public float MoveSpeedMultiplier { get; private set; } = 1f;
+        // < 1 shortens cooldowns (Dash, Roar, Charge, the LMB slam — not the
+        // RMB swipe, which has no real cooldown to reduce).
+        public float AbilityCooldownMultiplier { get; private set; } = 1f;
+        // > 1 grows AoE radii (the slam, swipe, Roar, Charge hit areas).
+        public float AreaMultiplier { get; private set; } = 1f;
 
         // Permanent-for-the-run bonuses granted by round-reward choices.
         public float PermanentDamageBonus { get; private set; }
@@ -27,8 +32,8 @@ namespace GorillaSurvivors.Player
 
         PlayerHealth _health;
 
-        float _damageBuffUntil, _attackSpeedBuffUntil, _moveSpeedBuffUntil;
-        float _damageBuffAmount, _attackSpeedBuffAmount, _moveSpeedBuffAmount;
+        float _damageBuffUntil, _attackSpeedBuffUntil, _moveSpeedBuffUntil, _cooldownBuffUntil, _areaBuffUntil;
+        float _damageBuffAmount, _attackSpeedBuffAmount, _moveSpeedBuffAmount, _cooldownBuffAmount, _areaBuffAmount;
 
         void Awake()
         {
@@ -41,6 +46,8 @@ namespace GorillaSurvivors.Player
             if (_damageBuffUntil > 0f && Time.time > _damageBuffUntil) { _damageBuffUntil = 0f; changed = true; }
             if (_attackSpeedBuffUntil > 0f && Time.time > _attackSpeedBuffUntil) { _attackSpeedBuffUntil = 0f; changed = true; }
             if (_moveSpeedBuffUntil > 0f && Time.time > _moveSpeedBuffUntil) { _moveSpeedBuffUntil = 0f; changed = true; }
+            if (_cooldownBuffUntil > 0f && Time.time > _cooldownBuffUntil) { _cooldownBuffUntil = 0f; changed = true; }
+            if (_areaBuffUntil > 0f && Time.time > _areaBuffUntil) { _areaBuffUntil = 0f; changed = true; }
             if (changed) RecomputeMultipliers();
         }
 
@@ -95,6 +102,20 @@ namespace GorillaSurvivors.Player
             RecomputeMultipliers();
         }
 
+        public void ApplyTemporaryCooldownBuff(float reductionFraction, float seconds)
+        {
+            _cooldownBuffAmount = Mathf.Max(_cooldownBuffAmount, reductionFraction);
+            _cooldownBuffUntil = Mathf.Max(_cooldownBuffUntil, Time.time + seconds);
+            RecomputeMultipliers();
+        }
+
+        public void ApplyTemporaryAreaBuff(float multiplierAdd, float seconds)
+        {
+            _areaBuffAmount = Mathf.Max(_areaBuffAmount, multiplierAdd);
+            _areaBuffUntil = Mathf.Max(_areaBuffUntil, Time.time + seconds);
+            RecomputeMultipliers();
+        }
+
         public void AddPermanentDamageBonus(float amount)
         {
             PermanentDamageBonus += amount;
@@ -123,6 +144,8 @@ namespace GorillaSurvivors.Player
             DamageMultiplier = 1f + PermanentDamageBonus + (_damageBuffUntil > 0f ? _damageBuffAmount : 0f);
             AttackSpeedMultiplier = 1f + PermanentAttackSpeedBonus + (_attackSpeedBuffUntil > 0f ? _attackSpeedBuffAmount : 0f);
             MoveSpeedMultiplier = 1f + PermanentMoveSpeedBonus + (_moveSpeedBuffUntil > 0f ? _moveSpeedBuffAmount : 0f);
+            AbilityCooldownMultiplier = Mathf.Max(0.25f, 1f - (_cooldownBuffUntil > 0f ? _cooldownBuffAmount : 0f));
+            AreaMultiplier = 1f + (_areaBuffUntil > 0f ? _areaBuffAmount : 0f);
         }
     }
 }

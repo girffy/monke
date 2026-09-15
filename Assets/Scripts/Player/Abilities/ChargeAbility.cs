@@ -33,8 +33,9 @@ namespace GorillaSurvivors.Player.Abilities
 
         public float CooldownRemaining01()
         {
+            float total = Cooldown * _stats.AbilityCooldownMultiplier;
             float remaining = Mathf.Max(0f, _nextReadyTime - Time.time);
-            return Cooldown <= 0f ? 0f : Mathf.Clamp01(remaining / Cooldown);
+            return total <= 0f ? 0f : Mathf.Clamp01(remaining / total);
         }
 
         void Awake()
@@ -52,7 +53,7 @@ namespace GorillaSurvivors.Player.Abilities
             if (Time.time < _nextReadyTime) return;
             if (!WasPressed()) return;
 
-            _nextReadyTime = Time.time + Cooldown;
+            _nextReadyTime = Time.time + Cooldown * _stats.AbilityCooldownMultiplier;
             StartCoroutine(ChargeSequence());
         }
 
@@ -105,7 +106,7 @@ namespace GorillaSurvivors.Player.Abilities
         {
             float damage = BaseDamage * _stats.LevelDamageBonus * _stats.DamageMultiplier;
             Vector3 chargeDir = _rb.linearVelocity.sqrMagnitude > 0.0001f ? _rb.linearVelocity.normalized : transform.forward;
-            int count = Physics.OverlapSphereNonAlloc(transform.position, HitRadius, HitBuffer);
+            int count = Physics.OverlapSphereNonAlloc(transform.position, HitRadius * _stats.AreaMultiplier, HitBuffer);
 
             for (int i = 0; i < count; i++)
             {

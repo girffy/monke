@@ -13,9 +13,9 @@ namespace GorillaSurvivors.Environment
     {
         public static AttackableRockManager Instance { get; private set; }
 
-        public float RespawnDelay = 7f;
-        public float MinSpawnDistance = 12f;
-        public float MaxSpawnDistance = 28f;
+        public float RespawnDelay = 4f;
+        public float MinSpawnDistance = 6f;
+        public float MaxSpawnDistance = 14f;
 
         void Awake()
         {

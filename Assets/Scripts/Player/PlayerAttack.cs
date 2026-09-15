@@ -45,7 +45,7 @@ namespace GorillaSurvivors.Player
 
         public float AttackCooldownRemaining01()
         {
-            float total = BaseCooldown / Mathf.Max(0.01f, _stats.AttackSpeedMultiplier) + SlamDuration;
+            float total = BaseCooldown * _stats.AbilityCooldownMultiplier / Mathf.Max(0.01f, _stats.AttackSpeedMultiplier) + SlamDuration;
             float remaining = Mathf.Max(0f, _nextAttackReadyTime - Time.time);
             return total <= 0f ? 0f : Mathf.Clamp01(remaining / total);
         }
@@ -92,7 +92,7 @@ namespace GorillaSurvivors.Player
             if (Time.time < _nextAttackReadyTime) return;
             if (!WasAttackPressed()) return;
 
-            float cooldown = BaseCooldown / Mathf.Max(0.01f, _stats.AttackSpeedMultiplier);
+            float cooldown = BaseCooldown * _stats.AbilityCooldownMultiplier / Mathf.Max(0.01f, _stats.AttackSpeedMultiplier);
             _nextAttackReadyTime = Time.time + cooldown + SlamDuration;
 
             Vector3 aimDirection = _controller.GetAimDirection();
@@ -207,7 +207,7 @@ namespace GorillaSurvivors.Player
         void PerformSlamHit(Vector3 aimDirection)
         {
             float damage = BaseDamage * _stats.LevelDamageBonus * _stats.DamageMultiplier;
-            float radius = HitRadius * _stats.LevelAttackRadiusBonus;
+            float radius = HitRadius * _stats.LevelAttackRadiusBonus * _stats.AreaMultiplier;
             Vector3 hitCenter = transform.position + aimDirection * ForwardOffset;
 
             int count = Physics.OverlapSphereNonAlloc(hitCenter, radius, HitBuffer);

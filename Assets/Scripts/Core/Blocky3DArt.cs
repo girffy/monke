@@ -37,7 +37,7 @@ namespace GorillaSurvivors.Core
             return root;
         }
 
-        public static GameObject Human(HumanVariant variant = HumanVariant.Grunt)
+        public static GameObject Human(HumanVariant variant = HumanVariant.Grunt, EnemyModifierRoll modifiers = default)
         {
             var root = new GameObject("HumanModel");
 
@@ -71,6 +71,16 @@ namespace GorillaSurvivors.Core
                     break;
             }
 
+            // A weapon-tier modifier reuses the Thrower's held-weapon prop
+            // (recoloring it if it already had one) instead of stacking a
+            // second prop in the same hand.
+            var weaponColor = new Color(0.35f, 0.25f, 0.15f);
+            if (modifiers.Weapon != ModifierTier.None)
+            {
+                holdsWeapon = true;
+                weaponColor = EnemyModifierRoll.TierColor(modifiers.Weapon);
+            }
+
             AddCapsule(root.transform, "LegL", new Vector3(-0.13f, 0.32f, 0f), 0.11f, 0.6f, pants);
             AddCapsule(root.transform, "LegR", new Vector3(0.13f, 0.32f, 0f), 0.11f, 0.6f, pants);
             AddPrimitive(root.transform, "ShoeL", PrimitiveType.Sphere, new Vector3(-0.13f, 0.05f, 0.05f), new Vector3(0.16f, 0.1f, 0.22f), shoe);
@@ -86,8 +96,28 @@ namespace GorillaSurvivors.Core
 
             if (holdsWeapon)
             {
-                var weapon = AddPrimitive(root.transform, "Weapon", PrimitiveType.Capsule, new Vector3(0.42f, 0.65f, 0.15f), new Vector3(0.08f, 0.4f, 0.08f), new Color(0.35f, 0.25f, 0.15f));
+                var weapon = AddPrimitive(root.transform, "Weapon", PrimitiveType.Capsule, new Vector3(0.42f, 0.65f, 0.15f), new Vector3(0.08f, 0.4f, 0.08f), weaponColor);
                 weapon.transform.localRotation = Quaternion.Euler(60f, 0f, 20f);
+            }
+
+            if (modifiers.Armor != ModifierTier.None)
+            {
+                AddPrimitive(root.transform, "Armor", PrimitiveType.Cube, new Vector3(0, 0.85f, 0.06f), new Vector3(0.56f, 0.42f, 0.36f), EnemyModifierRoll.TierColor(modifiers.Armor));
+            }
+
+            if (modifiers.HasShoes)
+            {
+                var glow = new Color(0.85f, 0.9f, 0.2f);
+                AddPrimitive(root.transform, "ShoeGlowL", PrimitiveType.Sphere, new Vector3(-0.13f, 0.05f, 0.08f), new Vector3(0.20f, 0.12f, 0.28f), glow);
+                AddPrimitive(root.transform, "ShoeGlowR", PrimitiveType.Sphere, new Vector3(0.13f, 0.05f, 0.08f), new Vector3(0.20f, 0.12f, 0.28f), glow);
+            }
+
+            if (modifiers.HasCrown)
+            {
+                var gold = new Color(1f, 0.85f, 0.2f);
+                AddPrimitive(root.transform, "Crown", PrimitiveType.Cylinder, new Vector3(0, 1.63f, 0), new Vector3(0.24f, 0.07f, 0.24f), gold);
+                var spike = AddPrimitive(root.transform, "CrownSpike", PrimitiveType.Cube, new Vector3(0, 1.72f, 0), new Vector3(0.06f, 0.1f, 0.06f), gold);
+                spike.transform.localRotation = Quaternion.Euler(0f, 45f, 0f);
             }
 
             root.transform.localScale = Vector3.one * scale;
@@ -158,6 +188,33 @@ namespace GorillaSurvivors.Core
             AddPrimitive(root.transform, "Wrist", PrimitiveType.Cylinder, new Vector3(0, 0.1f, 0), new Vector3(0.24f, 0.15f, 0.24f), dark);
             AddGlowRing(root.transform, magenta);
 
+            return root;
+        }
+
+        public static GameObject Haste()
+        {
+            var root = new GameObject("HasteModel");
+            var blue = new Color(0.25f, 0.55f, 0.95f);
+            var blueLight = new Color(0.6f, 0.8f, 1f);
+
+            AddPrimitive(root.transform, "Face", PrimitiveType.Cylinder, new Vector3(0, 0.3f, 0), new Vector3(0.32f, 0.04f, 0.32f), blueLight);
+            var handA = AddPrimitive(root.transform, "HandA", PrimitiveType.Cube, new Vector3(0, 0.32f, 0), new Vector3(0.05f, 0.05f, 0.20f), blue);
+            handA.transform.localRotation = Quaternion.Euler(0f, 30f, 0f);
+            var handB = AddPrimitive(root.transform, "HandB", PrimitiveType.Cube, new Vector3(0, 0.32f, 0), new Vector3(0.05f, 0.05f, 0.13f), blue);
+            handB.transform.localRotation = Quaternion.Euler(0f, 130f, 0f);
+            AddGlowRing(root.transform, blue);
+            return root;
+        }
+
+        public static GameObject AreaBoost()
+        {
+            var root = new GameObject("AreaBoostModel");
+            var green = new Color(0.35f, 0.85f, 0.35f);
+            var greenLight = new Color(0.65f, 0.95f, 0.55f);
+
+            AddPrimitive(root.transform, "RingOuter", PrimitiveType.Cylinder, new Vector3(0, 0.04f, 0), new Vector3(0.52f, 0.012f, 0.52f), green);
+            AddPrimitive(root.transform, "RingMid", PrimitiveType.Cylinder, new Vector3(0, 0.24f, 0), new Vector3(0.34f, 0.012f, 0.34f), greenLight);
+            AddPrimitive(root.transform, "RingInner", PrimitiveType.Cylinder, new Vector3(0, 0.44f, 0), new Vector3(0.18f, 0.012f, 0.18f), green);
             return root;
         }
 
