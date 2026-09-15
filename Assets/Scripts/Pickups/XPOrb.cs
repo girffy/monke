@@ -12,6 +12,9 @@ namespace GorillaSurvivors.Pickups
         public float PickupRadius = 0.45f;
 
         Transform _player;
+        PlayerStats _stats;
+        bool _magnetised;
+        float _magnetSpeed;
 
         public static XPOrb Spawn(Vector3 position, float xpAmount)
         {
@@ -26,7 +29,14 @@ namespace GorillaSurvivors.Pickups
 
         void Start()
         {
-            if (PlayerController.Instance != null) _player = PlayerController.Instance.transform;
+            CachePlayer();
+        }
+
+        void CachePlayer()
+        {
+            if (PlayerController.Instance == null) return;
+            _player = PlayerController.Instance.transform;
+            _stats = PlayerController.Instance.GetComponent<PlayerStats>();
         }
 
         void Update()
@@ -35,23 +45,34 @@ namespace GorillaSurvivors.Pickups
 
             if (_player == null)
             {
-                if (PlayerController.Instance != null) _player = PlayerController.Instance.transform;
+                CachePlayer();
                 return;
             }
 
             float dist = Vector3.Distance(transform.position, _player.position);
             if (dist <= PickupRadius)
             {
-                var stats = _player.GetComponent<PlayerStats>();
-                stats?.AddXP(XPAmount);
+                _stats?.AddXP(XPAmount);
                 Sfx.XPPickup(transform.position);
                 Destroy(gameObject);
                 return;
             }
 
-            if (dist <= MagnetRadius)
+            float radius = MagnetRadius * (_stats != null ? _stats.PickupRadiusMultiplier : 1f);
+
+            // Once an orb has been pulled it stays pulled and keeps
+            // accelerating, so backing off mid-collection doesn't strand a
+            // trail of half-gathered orbs behind you.
+            if (!_magnetised && dist <= radius)
             {
-                transform.position = Vector3.MoveTowards(transform.position, _player.position, MagnetSpeed * Time.deltaTime);
+                _magnetised = true;
+                _magnetSpeed = MagnetSpeed * 0.35f;
+            }
+
+            if (_magnetised)
+            {
+                _magnetSpeed = Mathf.MoveTowards(_magnetSpeed, MagnetSpeed * 2.2f, MagnetSpeed * 3f * Time.deltaTime);
+                transform.position = Vector3.MoveTowards(transform.position, _player.position, _magnetSpeed * Time.deltaTime);
             }
         }
     }

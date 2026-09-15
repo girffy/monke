@@ -238,6 +238,14 @@ namespace GorillaSurvivors.Player
             // dashing through a crowd, not an accidental side effect.
             _health.GrantInvulnerability(Mathf.Max(DashInvulnerabilitySeconds, DashDuration));
             Sfx.Dash(transform.position);
+
+            // Kick up dust where the gorilla pushed off. The lean into the
+            // dash comes for free from CharacterAnimator, which reads the
+            // (now very high) velocity.
+            var puff = Blocky3DArt.SwipeDisc(new Color(0.68f, 0.62f, 0.50f));
+            puff.transform.position = transform.position + Vector3.up * 0.05f - _dashDirection * 0.3f;
+            puff.transform.localScale = new Vector3(0.25f, 0.02f, 0.25f);
+            puff.AddComponent<GorillaSurvivors.Environment.ExpandingDisc>().Play(1.5f, 0.28f);
         }
 
         public float DashCooldownRemaining01()

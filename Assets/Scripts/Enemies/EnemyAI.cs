@@ -93,7 +93,10 @@ namespace GorillaSurvivors.Enemies
                     _rb.linearVelocity = Vector3.zero;
                 }
 
-                if (Time.time >= _nextProjectileTime && dist <= PreferredRange * 1.5f)
+                // ProjectileDamage of 0 means "ranged positioning, no attack"
+                // — the Medic keeps its distance to stay out of the AoE
+                // aimed at the crowd it's healing, but never throws.
+                if (ProjectileDamage > 0f && Time.time >= _nextProjectileTime && dist <= PreferredRange * 1.5f)
                 {
                     Projectile.Spawn(transform.position + Vector3.up * 0.8f, dir, ProjectileDamage);
                     _nextProjectileTime = Time.time + ProjectileInterval;

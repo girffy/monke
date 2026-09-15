@@ -86,6 +86,54 @@ namespace GorillaSurvivors.Enemies
                     baseProjectileInterval = Mathf.Max(0.8f, 2f - 0.1f * difficultyScale);
                     break;
 
+                case HumanVariant.Shieldman:
+                    collider.radius = 0.40f;
+                    collider.height = 1.7f;
+                    collider.center = new Vector3(0f, 0.85f, 0f);
+                    // Modest HP — the shield, not the health pool, is what
+                    // makes these awkward, so flanking is rewarded rather
+                    // than just out-damaging them.
+                    baseHP = 26f + 2.0f * difficultyScale;
+                    baseXP = 5f;
+                    baseMoveSpeed = 1.35f + 0.18f * Mathf.Min(difficultyScale, 4f);
+                    baseContactDamage = 8f + 2f * Mathf.Min(difficultyScale, 3f);
+                    // 60%, not more: EnemyAI keeps these turned toward the
+                    // player, so the front arc is where hits normally land
+                    // and a higher figure turns them into damage sponges
+                    // rather than a positioning puzzle.
+                    health.FrontalDamageReduction = 0.6f;
+                    break;
+
+                case HumanVariant.Bomber:
+                    collider.radius = 0.35f;
+                    collider.height = 1.6f;
+                    collider.center = new Vector3(0f, 0.8f, 0f);
+                    // Fragile and fast-ish: the threat is where it dies, not
+                    // how long it survives.
+                    baseHP = 10f + 0.8f * difficultyScale;
+                    baseXP = 5f;
+                    baseMoveSpeed = 2.2f + 0.3f * Mathf.Min(difficultyScale, 4f);
+                    baseContactDamage = 4f;
+                    var bomb = go.AddComponent<ExplodeOnDeath>();
+                    bomb.Damage = 26f + 2.5f * Mathf.Min(difficultyScale, 8f);
+                    break;
+
+                case HumanVariant.Medic:
+                    collider.radius = 0.35f;
+                    collider.height = 1.6f;
+                    collider.center = new Vector3(0f, 0.8f, 0f);
+                    baseHP = 20f + 1.4f * difficultyScale;
+                    baseXP = 6f;
+                    // Hangs back from the fight so it isn't trivially caught
+                    // in the AoE aimed at the crowd it's healing.
+                    baseMoveSpeed = 1.7f;
+                    isRanged = true;
+                    preferredRange = 8f;
+                    baseProjectileInterval = 999f; // never throws; it heals
+                    var healer = go.AddComponent<HealerAura>();
+                    healer.HealAmount = 8f + 0.8f * Mathf.Min(difficultyScale, 10f);
+                    break;
+
                 default: // Grunt
                     collider.radius = 0.35f;
                     collider.height = 1.6f;

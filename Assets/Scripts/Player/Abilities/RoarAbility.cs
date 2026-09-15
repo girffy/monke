@@ -20,7 +20,9 @@ namespace GorillaSurvivors.Player.Abilities
         public float KnockbackDuration = 0.35f;
 
         PlayerStats _stats;
+        CharacterAnimator _animator;
         Transform _head;
+        Transform _armL, _armR;
         float _nextReadyTime;
 
         static readonly Collider[] HitBuffer = new Collider[48];
@@ -35,8 +37,11 @@ namespace GorillaSurvivors.Player.Abilities
         void Awake()
         {
             _stats = GetComponent<PlayerStats>();
+            _animator = GetComponent<CharacterAnimator>();
             var model = transform.Find("GorillaModel");
             _head = model != null ? model.Find("Head") : null;
+            _armL = model != null ? model.Find("ArmL") : null;
+            _armR = model != null ? model.Find("ArmR") : null;
         }
 
         void Update()
@@ -66,6 +71,12 @@ namespace GorillaSurvivors.Player.Abilities
             float damage = BaseDamage * _stats.LevelDamageBonus * _stats.DamageMultiplier;
             float radius = Radius * _stats.AreaMultiplier;
 
+            // Rear back and throw the arms wide before the shout lands. It's
+            // only ~7 frames, short enough to still work as a panic button,
+            // but it gives the ability a readable anticipation beat.
+            if (_animator != null) _animator.SuppressArms = true;
+            yield return PoseArms(RestDir, ChestBeatDir, 0.12f, 0f, -16f);
+
             int count = Physics.OverlapSphereNonAlloc(transform.position, radius, HitBuffer);
             for (int i = 0; i < count; i++)
             {
@@ -86,7 +97,45 @@ namespace GorillaSurvivors.Player.Abilities
 
             SpawnRoarEffect(radius);
             Sfx.Roar(transform.position);
-            yield return AnimateHeadPulse();
+            CameraShake.Shake(0.3f, 0.28f);
+
+            // A second, faster ring behind the first sells the shockwave as
+            // having force rather than being a single expanding outline.
+            var inner = Blocky3DArt.SwipeDisc(new Color(1f, 1f, 0.85f));
+            inner.transform.position = transform.position + Vector3.up * 0.06f;
+            inner.transform.localScale = new Vector3(0.1f, 0.02f, 0.1f);
+            inner.AddComponent<GorillaSurvivors.Environment.ExpandingDisc>().Play(radius * 1.1f, 0.16f);
+
+            StartCoroutine(AnimateHeadPulse());
+            yield return PoseArms(ChestBeatDir, RestDir, 0.22f, -16f, 0f);
+
+            if (_animator != null)
+            {
+                _animator.SuppressArms = false;
+                _animator.BodyPitch = 0f;
+            }
+        }
+
+        // Arms flung up and out — the chest-beating pose that precedes the
+        // shout.
+        static readonly Vector3 RestDir = Vector3.down;
+        static readonly Vector3 ChestBeatDir = new Vector3(0.62f, 0.72f, 0.3f).normalized;
+
+        IEnumerator PoseArms(Vector3 fromDir, Vector3 toDir, float duration, float fromPitch, float toPitch)
+        {
+            float t = 0f;
+            while (t < duration)
+            {
+                t += Time.deltaTime;
+                float p = Mathf.Clamp01(t / duration);
+                var dir = Vector3.Slerp(fromDir, toDir, p);
+                // Mirrored on X so both arms splay outward rather than
+                // pointing the same way.
+                if (_armL != null) _armL.localRotation = Quaternion.FromToRotation(Vector3.down, new Vector3(-dir.x, dir.y, dir.z));
+                if (_armR != null) _armR.localRotation = Quaternion.FromToRotation(Vector3.down, dir);
+                if (_animator != null) _animator.BodyPitch = Mathf.Lerp(fromPitch, toPitch, p);
+                yield return null;
+            }
         }
 
         void SpawnRoarEffect(float radius)

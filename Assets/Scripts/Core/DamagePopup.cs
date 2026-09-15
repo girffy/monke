@@ -13,17 +13,24 @@ namespace GorillaSurvivors.Core
 
         public static void Spawn(Vector3 worldPos, float amount)
         {
+            Spawn(worldPos, amount, new Color(1f, 0.25f, 0.2f), 0.11f);
+        }
+
+        public static void Spawn(Vector3 worldPos, float amount, Color color, float size)
+        {
             var go = new GameObject("DamagePopup");
-            go.transform.position = worldPos + new Vector3(0f, 1.6f, 0f);
+            // Scatter sideways a little so several numbers in the same moment
+            // don't stack into one unreadable smear.
+            go.transform.position = worldPos + new Vector3(Random.Range(-0.25f, 0.25f), 1.6f, 0f);
             go.transform.rotation = CameraFollow.LabelRotation;
 
             var mesh = go.AddComponent<TextMesh>();
             mesh.text = $"-{Mathf.CeilToInt(amount)}";
             mesh.fontSize = 48;
-            mesh.characterSize = 0.11f;
+            mesh.characterSize = size;
             mesh.anchor = TextAnchor.LowerCenter;
             mesh.alignment = TextAlignment.Center;
-            mesh.color = new Color(1f, 0.25f, 0.2f);
+            mesh.color = color;
             mesh.fontStyle = FontStyle.Bold;
 
             var renderer = go.GetComponent<MeshRenderer>();

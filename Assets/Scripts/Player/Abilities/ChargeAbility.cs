@@ -26,6 +26,8 @@ namespace GorillaSurvivors.Player.Abilities
         PlayerStats _stats;
         PlayerController _controller;
         PlayerHealth _health;
+        CharacterAnimator _animator;
+        Transform _armL, _armR;
         float _nextReadyTime;
 
         readonly HashSet<EnemyHealth> _hitThisCharge = new HashSet<EnemyHealth>();
@@ -44,6 +46,17 @@ namespace GorillaSurvivors.Player.Abilities
             _stats = GetComponent<PlayerStats>();
             _controller = GetComponent<PlayerController>();
             _health = GetComponent<PlayerHealth>();
+            _animator = GetComponent<CharacterAnimator>();
+            var model = transform.Find("GorillaModel");
+            _armL = model != null ? model.Find("ArmL") : null;
+            _armR = model != null ? model.Find("ArmR") : null;
+        }
+
+        void SetArmDirection(Vector3 localDirection)
+        {
+            var rot = Quaternion.FromToRotation(Vector3.down, localDirection);
+            if (_armL != null) _armL.localRotation = rot;
+            if (_armR != null) _armR.localRotation = rot;
         }
 
         void Update()
@@ -84,9 +97,20 @@ namespace GorillaSurvivors.Player.Abilities
             if (model != null) model.rotation = lockedRotation;
 
             Sfx.Charge(transform.position);
+            CameraShake.Shake(0.18f, 0.2f);
+
+            // Drop into a low forward-leaning barge with the arms swept back.
+            if (_animator != null)
+            {
+                _animator.SuppressArms = true;
+                _animator.BodyPitch = 22f;
+                _animator.BodyHeightOffset = -0.1f;
+            }
+            SetArmDirection(new Vector3(0f, -0.45f, -0.89f).normalized);
 
             float speed = Distance / Duration;
             float t = 0f;
+            float nextDust = 0f;
 
             while (t < Duration)
             {
@@ -94,12 +118,31 @@ namespace GorillaSurvivors.Player.Abilities
                 _rb.linearVelocity = dir * speed;
                 if (model != null) model.rotation = lockedRotation;
                 CheckHits();
+
+                // Dust kicked up along the charge path.
+                if (t >= nextDust)
+                {
+                    nextDust = t + 0.05f;
+                    var puff = Blocky3DArt.SwipeDisc(new Color(0.66f, 0.60f, 0.48f));
+                    puff.transform.position = transform.position + Vector3.up * 0.05f - dir * 0.4f;
+                    puff.transform.localScale = new Vector3(0.25f, 0.02f, 0.25f);
+                    puff.AddComponent<GorillaSurvivors.Environment.ExpandingDisc>().Play(1.3f, 0.3f);
+                }
+
                 yield return new WaitForFixedUpdate();
             }
 
             _rb.linearVelocity = Vector3.zero;
             _controller.IsExternallyControlled = false;
             _controller.MovementLocked = false;
+
+            if (_animator != null)
+            {
+                _animator.SuppressArms = false;
+                _animator.BodyPitch = 0f;
+                _animator.BodyHeightOffset = 0f;
+            }
+            SetArmDirection(Vector3.down);
         }
 
         void CheckHits()

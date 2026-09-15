@@ -100,9 +100,22 @@ namespace GorillaSurvivors.Enemies
             _aliveThisRound++;
         }
 
+        // Each specialist enters the mix at the round where the player has
+        // plausibly unlocked a tool that answers it, then becomes steadily
+        // more common. Rarer, more disruptive types are checked first so the
+        // commoner ones can't crowd them out of the roll.
         static HumanVariant ChooseEnemyType(int round)
         {
             float roll = Random.value;
+
+            // Medics rewrite the fight (a crowd that heals), so they stay the
+            // rarest of the specialists.
+            if (round >= 6)
+            {
+                float medicChance = Mathf.Clamp01(0.03f + round * 0.004f);
+                if (roll < medicChance) return HumanVariant.Medic;
+                roll -= medicChance;
+            }
 
             // Brutes are the "takes several hits" check on the player's
             // damage output — a rare handful show up even in round 1, and
@@ -111,8 +124,22 @@ namespace GorillaSurvivors.Enemies
             if (roll < bruteChance) return HumanVariant.Brute;
             roll -= bruteChance;
 
-            if (round >= 4 && roll < 0.35f) return HumanVariant.Thrower;
-            if (round >= 2 && roll < 0.65f) return HumanVariant.Runner;
+            if (round >= 5)
+            {
+                float bomberChance = Mathf.Clamp01(0.05f + round * 0.008f);
+                if (roll < bomberChance) return HumanVariant.Bomber;
+                roll -= bomberChance;
+            }
+
+            if (round >= 3)
+            {
+                float shieldChance = Mathf.Clamp01(0.05f + round * 0.007f);
+                if (roll < shieldChance) return HumanVariant.Shieldman;
+                roll -= shieldChance;
+            }
+
+            if (round >= 4 && roll < 0.32f) return HumanVariant.Thrower;
+            if (round >= 2 && roll < 0.60f) return HumanVariant.Runner;
 
             return HumanVariant.Grunt;
         }

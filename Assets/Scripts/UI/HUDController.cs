@@ -172,14 +172,13 @@ namespace GorillaSurvivors.UI
             float totalWidth = count * iconSize + (count - 1) * spacing;
             float startX = -totalWidth / 2f + iconSize / 2f;
 
-            _atkIcon = CreateAbilityIcon(parent, "AbilityAttack", "LMB", AttackColor, startX + 0 * (iconSize + spacing), iconSize, PlaceholderSprites.Icon(PlaceholderSprites.IconShape.Fist, Color.white, 48));
-            _swipeIcon = CreateAbilityIcon(parent, "AbilitySwipe", "RMB", SwipeColor, startX + 1 * (iconSize + spacing), iconSize, PlaceholderSprites.Icon(PlaceholderSprites.IconShape.Claw, Color.white, 48));
-            _dashIcon = CreateAbilityIcon(parent, "AbilityDash", "SPC", DashColor, startX + 2 * (iconSize + spacing), iconSize, PlaceholderSprites.Icon(PlaceholderSprites.IconShape.Chevron, Color.white, 48));
-            // Roar gets a hand-drawn pixel-art gorilla mid-shout instead of
-            // the abstract burst glyph — it already carries its own colors,
-            // so no tint is applied when it's drawn below.
+            // Every slot uses hand-drawn pixel art (PixelArtIcons); the
+            // sprites carry their own palette, so no tint is applied.
+            _atkIcon = CreateAbilityIcon(parent, "AbilityAttack", "LMB", AttackColor, startX + 0 * (iconSize + spacing), iconSize, PixelArtIcons.Slam());
+            _swipeIcon = CreateAbilityIcon(parent, "AbilitySwipe", "RMB", SwipeColor, startX + 1 * (iconSize + spacing), iconSize, PixelArtIcons.Claw());
+            _dashIcon = CreateAbilityIcon(parent, "AbilityDash", "SPC", DashColor, startX + 2 * (iconSize + spacing), iconSize, PixelArtIcons.Dash());
             _roarIcon = CreateAbilityIcon(parent, "AbilityRoar", "Q", RoarColor, startX + 3 * (iconSize + spacing), iconSize, PixelArtIcons.GorillaShout());
-            _chargeIcon = CreateAbilityIcon(parent, "AbilityCharge", "E", ChargeColor, startX + 4 * (iconSize + spacing), iconSize, PlaceholderSprites.Icon(PlaceholderSprites.IconShape.Bolt, Color.white, 48));
+            _chargeIcon = CreateAbilityIcon(parent, "AbilityCharge", "E", ChargeColor, startX + 4 * (iconSize + spacing), iconSize, PixelArtIcons.Charge());
         }
 
         static AbilityIcon CreateAbilityIcon(Transform parent, string name, string label, Color color, float xOffset, float size, Sprite glyphSprite)
@@ -205,8 +204,8 @@ namespace GorillaSurvivors.UI
             iconRect.anchorMin = new Vector2(0.5f, 0.5f);
             iconRect.anchorMax = new Vector2(0.5f, 0.5f);
             iconRect.pivot = new Vector2(0.5f, 0.5f);
-            iconRect.anchoredPosition = new Vector2(0f, size * 0.08f);
-            iconRect.sizeDelta = new Vector2(size * 0.62f, size * 0.62f);
+            iconRect.anchoredPosition = new Vector2(0f, size * 0.09f);
+            iconRect.sizeDelta = new Vector2(size * 0.74f, size * 0.74f);
             var glyph = iconGO.AddComponent<Image>();
             glyph.sprite = glyphSprite;
 

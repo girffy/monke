@@ -78,6 +78,12 @@ namespace GorillaSurvivors.Core
                     Description = "+20% attack area size",
                     Apply = p => p.GetComponent<PlayerStats>().AddPermanentAreaBonus(0.2f),
                 },
+                new RoundReward
+                {
+                    Title = "Scavenger",
+                    Description = "+40% XP pickup range",
+                    Apply = p => p.GetComponent<PlayerStats>().AddPermanentPickupRadiusBonus(0.4f),
+                },
             };
 
             if (roar != null && !roar.Unlocked)
