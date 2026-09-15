@@ -61,6 +61,7 @@ namespace GorillaSurvivors.Core
             go.AddComponent<PlayerStats>();
             go.AddComponent<PlayerController>();
             go.AddComponent<PlayerAttack>();
+            go.AddComponent<QuickSwipeAttack>();
             go.AddComponent<RoarAbility>();
             go.AddComponent<ChargeAbility>();
 

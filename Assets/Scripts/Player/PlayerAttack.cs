@@ -26,6 +26,9 @@ namespace GorillaSurvivors.Player
         Transform _armR;
         float _nextAttackReadyTime;
         bool _isSlamming;
+        bool _hitLanded;
+        Vector3 _pendingAimDirection;
+        Coroutine _slamCoroutine;
 
         static readonly Collider[] HitBuffer = new Collider[32];
 
@@ -68,7 +71,29 @@ namespace GorillaSurvivors.Player
             aimDirection.y = 0f;
             aimDirection.Normalize();
 
-            StartCoroutine(SlamSequence(aimDirection));
+            _slamCoroutine = StartCoroutine(SlamSequence(aimDirection));
+        }
+
+        // Called by PlayerController when a dash is pressed mid-attack.
+        // Cuts the animation short — but the hit still lands right away if
+        // it hasn't already, so canceling never costs the player the damage,
+        // just the recovery time.
+        public bool TryCancelWithDash()
+        {
+            if (!_isSlamming) return false;
+
+            if (_slamCoroutine != null) StopCoroutine(_slamCoroutine);
+
+            if (!_hitLanded)
+            {
+                PerformSlamHit(_pendingAimDirection);
+            }
+
+            SetArmDirection(RestDir);
+            _isSlamming = false;
+            _hitLanded = false;
+            _controller.MovementLocked = false;
+            return true;
         }
 
         bool WasAttackPressed()
@@ -88,6 +113,8 @@ namespace GorillaSurvivors.Player
         IEnumerator SlamSequence(Vector3 aimDirection)
         {
             _isSlamming = true;
+            _hitLanded = false;
+            _pendingAimDirection = aimDirection;
             _controller.MovementLocked = true;
 
             var model = transform.Find("GorillaModel");
@@ -108,10 +135,12 @@ namespace GorillaSurvivors.Player
             yield return AnimateArms(WindupDir, SlamDir, slam, model, lockedRotation);
 
             PerformSlamHit(aimDirection);
+            _hitLanded = true;
 
             yield return AnimateArms(SlamDir, RestDir, recover, model, lockedRotation);
 
             _isSlamming = false;
+            _hitLanded = false;
             _controller.MovementLocked = false;
         }
 
@@ -161,6 +190,18 @@ namespace GorillaSurvivors.Player
                 {
                     float rockDashDistance = _controller.DashSpeed * _controller.DashDuration;
                     rock.Launch(aimDirection, damage * 2f, rockDashDistance * 1.5f);
+                }
+            }
+
+            // Projectiles have no Collider (see Projectile.Spawn), so they
+            // never show up in the OverlapSphere pass above — check the
+            // registry directly instead.
+            foreach (var projectile in Projectile.Active)
+            {
+                if (projectile == null) continue;
+                if (Vector3.Distance(projectile.transform.position, hitCenter) <= radius)
+                {
+                    projectile.Deflect(aimDirection);
                 }
             }
 

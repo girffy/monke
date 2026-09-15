@@ -104,9 +104,15 @@ namespace GorillaSurvivors.Enemies
         {
             float roll = Random.value;
 
-            if (round >= 7 && roll < 0.15f) return HumanVariant.Brute;
-            if (round >= 5 && roll < 0.35f) return HumanVariant.Thrower;
-            if (round >= 3 && roll < 0.60f) return HumanVariant.Runner;
+            // Brutes are the "takes several hits" check on the player's
+            // damage output — a rare handful show up even in round 1, and
+            // they get more common as rounds go on.
+            float bruteChance = Mathf.Clamp01(0.05f + round * 0.015f);
+            if (roll < bruteChance) return HumanVariant.Brute;
+            roll -= bruteChance;
+
+            if (round >= 4 && roll < 0.35f) return HumanVariant.Thrower;
+            if (round >= 2 && roll < 0.65f) return HumanVariant.Runner;
 
             return HumanVariant.Grunt;
         }

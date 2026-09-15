@@ -17,7 +17,7 @@ namespace GorillaSurvivors.Player
         [Header("Dash")]
         public float DashSpeed = 16f;
         public float DashDuration = 0.18f;
-        public float DashCooldown = 1.2f;
+        public float DashCooldown = 2.4f;
         public float DashInvulnerabilitySeconds = 0.25f;
 
         // Movement happens on the flat XZ ground plane; Y stays constant.
@@ -37,6 +37,7 @@ namespace GorillaSurvivors.Player
         Rigidbody _rb;
         PlayerHealth _health;
         PlayerStats _stats;
+        PlayerAttack _attack;
         Transform _model;
 
         Vector3 _moveInput;
@@ -54,6 +55,7 @@ namespace GorillaSurvivors.Player
             _rb = GetComponent<Rigidbody>();
             _health = GetComponent<PlayerHealth>();
             _stats = GetComponent<PlayerStats>();
+            _attack = GetComponent<PlayerAttack>();
             _model = transform.Find("GorillaModel");
 
             _rb.useGravity = false;
@@ -76,16 +78,27 @@ namespace GorillaSurvivors.Player
             ReadInput();
             bool dashPressed = WasDashPressed();
 
-            if (MovementLocked)
+            if (MovementLocked && dashPressed)
             {
-                // Buffer a dash press during the attack animation so it fires
-                // the instant the animation releases, instead of requiring a
-                // second press timed just right.
-                if (dashPressed)
+                // A dash press cuts the ground-slam animation short (the
+                // damage still lands right away instead of being lost) and
+                // fires the dash immediately, rather than only buffering it
+                // for when the animation would have ended on its own.
+                if (_attack != null && _attack.TryCancelWithDash())
+                {
+                    Vector3 dashDir = _moveInput.sqrMagnitude > 0.01f ? _moveInput.normalized : FacingDirection;
+                    _moveInput = dashDir;
+                    if (Time.time >= _dashReadyTime) StartDash();
+                }
+                else
                 {
                     _dashBuffered = true;
                     _dashBufferedDirection = _moveInput.sqrMagnitude > 0.01f ? _moveInput.normalized : FacingDirection;
                 }
+            }
+
+            if (MovementLocked)
+            {
                 _moveInput = Vector3.zero;
             }
             else if (_wasMovementLocked && _dashBuffered)

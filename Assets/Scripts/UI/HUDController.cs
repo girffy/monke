@@ -34,6 +34,7 @@ namespace GorillaSurvivors.UI
         PlayerHealth _health;
         PlayerStats _stats;
         PlayerAttack _attack;
+        QuickSwipeAttack _swipeAttack;
         PlayerController _controller;
         RoarAbility _roarAbility;
         ChargeAbility _chargeAbility;
@@ -44,11 +45,12 @@ namespace GorillaSurvivors.UI
             public Image CooldownMask;
             public Text Label;
         }
-        AbilityIcon _atkIcon, _dashIcon, _roarIcon, _chargeIcon;
+        AbilityIcon _atkIcon, _swipeIcon, _dashIcon, _roarIcon, _chargeIcon;
 
         static readonly Color LockedColor = new Color(0.15f, 0.15f, 0.15f);
         static readonly Color LockedLabelColor = new Color(1f, 1f, 1f, 0.3f);
         static readonly Color AttackColor = new Color(0.55f, 0.55f, 0.55f);
+        static readonly Color SwipeColor = new Color(0.75f, 0.7f, 0.35f);
         static readonly Color DashColor = new Color(0.25f, 0.5f, 0.85f);
         static readonly Color RoarColor = new Color(0.85f, 0.75f, 0.25f);
         static readonly Color ChargeColor = new Color(0.25f, 0.8f, 0.85f);
@@ -70,6 +72,7 @@ namespace GorillaSurvivors.UI
             hud._health = health;
             hud._stats = stats;
             hud._attack = health.GetComponent<PlayerAttack>();
+            hud._swipeAttack = health.GetComponent<QuickSwipeAttack>();
             hud._controller = health.GetComponent<PlayerController>();
             hud._roarAbility = health.GetComponent<RoarAbility>();
             hud._chargeAbility = health.GetComponent<ChargeAbility>();
@@ -165,14 +168,15 @@ namespace GorillaSurvivors.UI
         {
             const float iconSize = 56f;
             const float spacing = 14f;
-            const int count = 4;
+            const int count = 5;
             float totalWidth = count * iconSize + (count - 1) * spacing;
             float startX = -totalWidth / 2f + iconSize / 2f;
 
             _atkIcon = CreateAbilityIcon(parent, "AbilityAttack", "LMB", AttackColor, startX + 0 * (iconSize + spacing), iconSize);
-            _dashIcon = CreateAbilityIcon(parent, "AbilityDash", "SPC", DashColor, startX + 1 * (iconSize + spacing), iconSize);
-            _roarIcon = CreateAbilityIcon(parent, "AbilityRoar", "Q", RoarColor, startX + 2 * (iconSize + spacing), iconSize);
-            _chargeIcon = CreateAbilityIcon(parent, "AbilityCharge", "E", ChargeColor, startX + 3 * (iconSize + spacing), iconSize);
+            _swipeIcon = CreateAbilityIcon(parent, "AbilitySwipe", "RMB", SwipeColor, startX + 1 * (iconSize + spacing), iconSize);
+            _dashIcon = CreateAbilityIcon(parent, "AbilityDash", "SPC", DashColor, startX + 2 * (iconSize + spacing), iconSize);
+            _roarIcon = CreateAbilityIcon(parent, "AbilityRoar", "Q", RoarColor, startX + 3 * (iconSize + spacing), iconSize);
+            _chargeIcon = CreateAbilityIcon(parent, "AbilityCharge", "E", ChargeColor, startX + 4 * (iconSize + spacing), iconSize);
         }
 
         static AbilityIcon CreateAbilityIcon(Transform parent, string name, string label, Color color, float xOffset, float size)
@@ -264,6 +268,7 @@ namespace GorillaSurvivors.UI
             }
 
             RefreshAbilityIcon(_atkIcon, AttackColor, true, _attack != null ? _attack.AttackCooldownRemaining01() : 0f);
+            RefreshAbilityIcon(_swipeIcon, SwipeColor, true, _swipeAttack != null ? _swipeAttack.SwipeCooldownRemaining01() : 0f);
             RefreshAbilityIcon(_dashIcon, DashColor, true, _controller != null ? _controller.DashCooldownRemaining01() : 0f);
             RefreshAbilityIcon(_roarIcon, RoarColor, _roarAbility != null && _roarAbility.Unlocked, _roarAbility != null ? _roarAbility.CooldownRemaining01() : 0f);
             RefreshAbilityIcon(_chargeIcon, ChargeColor, _chargeAbility != null && _chargeAbility.Unlocked, _chargeAbility != null ? _chargeAbility.CooldownRemaining01() : 0f);

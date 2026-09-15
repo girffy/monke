@@ -9,7 +9,7 @@ namespace GorillaSurvivors.Core
     // Requires an AudioListener in the scene (added to the main camera).
     public static class Sfx
     {
-        static AudioClip _slam, _roar, _charge, _dash;
+        static AudioClip _slam, _roar, _charge, _dash, _swipe;
         static AudioClip _hurt, _gameOver;
         static AudioClip _enemyHit, _enemyDeath, _throw;
         static AudioClip _xpPickup, _powerupPickup, _levelUp;
@@ -80,6 +80,7 @@ namespace GorillaSurvivors.Core
             _roar = ProceduralAudio.Impact(0.42f, 0.75f);
             _charge = ProceduralAudio.Impact(0.28f, 0.75f);
             _dash = ProceduralAudio.Noise(0.14f, 0.35f, 0.6f);
+            _swipe = ProceduralAudio.Noise(0.1f, 0.4f, 0.8f);
 
             _hurt = ProceduralAudio.Tone(220f, 0.14f, 0.5f, -100f);
             _gameOver = ProceduralAudio.Tone(200f, 0.9f, 0.55f, -120f);
@@ -127,6 +128,7 @@ namespace GorillaSurvivors.Core
         public static void Roar(Vector3 pos) { EnsureInit(); Play(_roar, pos); }
         public static void Charge(Vector3 pos) { EnsureInit(); Play(_charge, pos); }
         public static void Dash(Vector3 pos) { EnsureInit(); Play(_dash, pos, 0.7f); }
+        public static void Swipe(Vector3 pos) { EnsureInit(); Play(_swipe, pos, 0.6f); }
 
         public static void Hurt(Vector3 pos) { EnsureInit(); Play(_hurt, pos); }
         public static void GameOver() { EnsureInit(); Play(_gameOver, ListenerPos()); }
