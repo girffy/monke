@@ -56,6 +56,21 @@ namespace GorillaSurvivors.Core
             EnsurePool();
         }
 
+        // Static fields survive a Stop -> Play cycle (only a script
+        // recompile resets them via domain reload) — but every scene object
+        // from the previous session, including our pooled AudioSources and
+        // the generated AudioClips, gets destroyed when Play mode stops.
+        // Without this, EnsurePool()/EnsureInit()'s "already initialized"
+        // guards would skip recreating them and silently hand out stale
+        // references to destroyed objects on the next Play. Must be called
+        // at the very start of every session (GameBootstrap.Setup does this).
+        public static void ResetForNewSession()
+        {
+            _initialized = false;
+            _pool = null;
+            _nextVoice = 0;
+        }
+
         static void EnsureInit()
         {
             if (_initialized) return;
