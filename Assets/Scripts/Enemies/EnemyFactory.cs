@@ -32,6 +32,14 @@ namespace GorillaSurvivors.Enemies
             var health = go.AddComponent<EnemyHealth>();
             var ai = go.AddComponent<EnemyAI>();
 
+            var anim = go.AddComponent<CharacterAnimator>();
+            anim.ReferenceSpeed = 2.4f;
+            anim.StrideFrequency = 3.4f;
+            anim.LegSwing = 42f;
+            anim.ArmSwing = 34f;
+            anim.BobHeight = 0.05f;
+            anim.LeanDegrees = 8f;
+
             float baseHP, baseXP, baseMoveSpeed;
             float baseContactDamage = 0f, baseProjectileDamage = 0f, baseProjectileInterval = 0f, preferredRange = 0f;
             bool isRanged = false;

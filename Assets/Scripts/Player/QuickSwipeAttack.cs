@@ -23,6 +23,7 @@ namespace GorillaSurvivors.Player
 
         PlayerStats _stats;
         PlayerController _controller;
+        CharacterAnimator _animator;
         PlayerAttack _attackCache;
         Transform _armR;
         bool _isSwiping;
@@ -44,6 +45,7 @@ namespace GorillaSurvivors.Player
         {
             _stats = GetComponent<PlayerStats>();
             _controller = GetComponent<PlayerController>();
+            _animator = GetComponent<CharacterAnimator>();
             var model = transform.Find("GorillaModel");
             _armR = model != null ? model.Find("ArmR") : null;
         }
@@ -72,22 +74,32 @@ namespace GorillaSurvivors.Player
         IEnumerator SwipeSequence()
         {
             _isSwiping = true;
+            if (_animator != null) _animator.SuppressArms = true;
 
             const float outT = SwipeDuration * 0.4f;
             const float hitT = SwipeDuration * 0.15f;
             const float backT = SwipeDuration - outT - hitT;
 
-            yield return AnimateArm(RestDir, SwipeStartDir, outT);
-            yield return AnimateArm(SwipeStartDir, SwipeEndDir, hitT);
+            // The body counter-rotates into the swing and unwinds out of it,
+            // so a fast poke still reads as a whole-body motion rather than
+            // one arm flapping.
+            yield return AnimateArm(RestDir, SwipeStartDir, outT, 0f, -14f);
+            yield return AnimateArm(SwipeStartDir, SwipeEndDir, hitT, -14f, 16f);
 
             PerformSwipeHit();
+            CameraShake.Shake(0.08f, 0.12f);
 
-            yield return AnimateArm(SwipeEndDir, RestDir, backT);
+            yield return AnimateArm(SwipeEndDir, RestDir, backT, 16f, 0f);
 
+            if (_animator != null)
+            {
+                _animator.SuppressArms = false;
+                _animator.BodyYaw = 0f;
+            }
             _isSwiping = false;
         }
 
-        IEnumerator AnimateArm(Vector3 fromDir, Vector3 toDir, float duration)
+        IEnumerator AnimateArm(Vector3 fromDir, Vector3 toDir, float duration, float fromYaw = 0f, float toYaw = 0f)
         {
             if (duration <= 0f) yield break;
 
@@ -95,7 +107,9 @@ namespace GorillaSurvivors.Player
             while (t < duration)
             {
                 t += Time.deltaTime;
-                SetArmDirection(Vector3.Slerp(fromDir, toDir, t / duration));
+                float p = Mathf.Clamp01(t / duration);
+                SetArmDirection(Vector3.Slerp(fromDir, toDir, p));
+                if (_animator != null) _animator.BodyYaw = Mathf.Lerp(fromYaw, toYaw, p);
                 yield return null;
             }
             SetArmDirection(toDir);
@@ -135,6 +149,13 @@ namespace GorillaSurvivors.Player
                 {
                     float rockDashDistance = _controller.DashSpeed * _controller.DashDuration;
                     rock.Launch(aimDirection, damage * 2f, rockDashDistance);
+                    continue;
+                }
+
+                var tree = HitBuffer[i].GetComponentInParent<FellableTree>();
+                if (tree != null && !tree.IsFelled)
+                {
+                    tree.Fell(aimDirection, damage * 4f);
                 }
             }
 

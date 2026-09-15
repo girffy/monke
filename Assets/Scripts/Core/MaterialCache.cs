@@ -17,6 +17,7 @@ namespace GorillaSurvivors.Core
         static readonly Dictionary<Color, Material> LitCache = new Dictionary<Color, Material>();
         static readonly Dictionary<(Color, float, float), Material> MetalCache = new Dictionary<(Color, float, float), Material>();
         static readonly Dictionary<Color, Material> UnlitCache = new Dictionary<Color, Material>();
+        static readonly Dictionary<string, Material> TexturedCache = new Dictionary<string, Material>();
 
         static Shader _litShader;
         static Shader _unlitShader;
@@ -47,6 +48,24 @@ namespace GorillaSurvivors.Core
             mat.SetFloat("_Smoothness", smoothness);
             mat.SetFloat("_Metallic", metallic);
             MetalCache[key] = mat;
+            return mat;
+        }
+
+        // Textured lit material (the ground). Tiling is baked into the
+        // material rather than the mesh so one shared plane can repeat a
+        // small generated texture across the whole arena.
+        public static Material GetTextured(Texture2D texture, Color tint, Vector2 tiling)
+        {
+            string key = $"{texture.GetInstanceID()}_{tint}_{tiling}";
+            if (TexturedCache.TryGetValue(key, out var mat) && mat != null) return mat;
+
+            mat = new Material(LitShader());
+            ApplyBaseColor(mat, tint);
+            mat.SetTexture("_BaseMap", texture);
+            mat.SetTextureScale("_BaseMap", tiling);
+            mat.SetFloat("_Smoothness", 0.04f);
+            mat.SetFloat("_Metallic", 0f);
+            TexturedCache[key] = mat;
             return mat;
         }
 

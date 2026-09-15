@@ -15,6 +15,7 @@ namespace GorillaSurvivors.Core
         static AudioClip _xpPickup, _powerupPickup, _levelUp;
         static AudioClip _roundClear, _roundStart;
         static AudioClip _rockExplosion;
+        static AudioClip _treeCrack, _treeFall, _shieldBlock, _bomberFuse, _heal;
         static bool _initialized;
 
         // A small pool of persistent AudioSources, warmed up well before
@@ -97,6 +98,12 @@ namespace GorillaSurvivors.Core
             _roundStart = ProceduralAudio.Tone(300f, 0.3f, 0.5f, 160f);
 
             _rockExplosion = ProceduralAudio.Impact(0.5f, 0.9f);
+
+            _treeCrack = ProceduralAudio.Noise(0.18f, 0.45f, 0.85f);
+            _treeFall = ProceduralAudio.Impact(0.8f, 1f);
+            _shieldBlock = ProceduralAudio.Tone(180f, 0.12f, 0.45f, -60f);
+            _bomberFuse = ProceduralAudio.Tone(140f, 0.5f, 0.4f, 260f);
+            _heal = ProceduralAudio.Tone(700f, 0.22f, 0.32f, 240f);
         }
 
         // Non-spatial (spatialBlend = 0, no distance rolloff) — for a small
@@ -145,5 +152,11 @@ namespace GorillaSurvivors.Core
         public static void RoundStart() { EnsureInit(); Play(_roundStart, ListenerPos()); }
 
         public static void RockExplosion(Vector3 pos) { EnsureInit(); Play(_rockExplosion, pos); }
+
+        public static void TreeCrack(Vector3 pos) { EnsureInit(); Play(_treeCrack, pos, 0.8f); }
+        public static void TreeFall(Vector3 pos) { EnsureInit(); Play(_treeFall, pos); }
+        public static void ShieldBlock(Vector3 pos) { EnsureInit(); Play(_shieldBlock, pos, 0.55f); }
+        public static void BomberFuse(Vector3 pos) { EnsureInit(); Play(_bomberFuse, pos, 0.5f); }
+        public static void Heal(Vector3 pos) { EnsureInit(); Play(_heal, pos, 0.45f); }
     }
 }

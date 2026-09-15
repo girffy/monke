@@ -116,6 +116,14 @@ namespace GorillaSurvivors.Player.Abilities
                 _hitThisCharge.Add(enemyHealth);
                 enemyHealth.TakeDamage(damage, chargeDir, 9f);
             }
+
+            // Charging through a tree bowls it over in the direction you're
+            // already travelling.
+            for (int i = 0; i < count; i++)
+            {
+                var tree = HitBuffer[i].GetComponentInParent<GorillaSurvivors.Environment.FellableTree>();
+                if (tree != null && !tree.IsFelled) tree.Fell(chargeDir, damage * 4f);
+            }
         }
     }
 }

@@ -19,13 +19,25 @@ namespace GorillaSurvivors.Core
         public float SmoothTime = 0.15f;
 
         Vector3 _velocity;
+        Vector3 _followPosition;
 
         void LateUpdate()
         {
             if (Target == null) return;
 
             var targetPos = Target.position + Offset;
-            transform.position = Vector3.SmoothDamp(transform.position, targetPos, ref _velocity, SmoothTime);
+            _followPosition = Vector3.SmoothDamp(_followPosition, targetPos, ref _velocity, SmoothTime);
+            // Shake is added on top of the smoothed follow position rather
+            // than fed back into it, so a shake can't drag the camera off
+            // target or get smoothed away before it's visible.
+            transform.position = _followPosition + CameraShake.Advance(Time.deltaTime);
+        }
+
+        public void SnapTo(Vector3 position)
+        {
+            _followPosition = position;
+            _velocity = Vector3.zero;
+            transform.position = position;
         }
     }
 }

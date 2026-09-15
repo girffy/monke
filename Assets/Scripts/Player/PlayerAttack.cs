@@ -22,6 +22,7 @@ namespace GorillaSurvivors.Player
 
         PlayerStats _stats;
         PlayerController _controller;
+        CharacterAnimator _animator;
         QuickSwipeAttack _swipeCache;
         Transform _armL;
         Transform _armR;
@@ -63,6 +64,7 @@ namespace GorillaSurvivors.Player
         {
             _stats = GetComponent<PlayerStats>();
             _controller = GetComponent<PlayerController>();
+            _animator = GetComponent<CharacterAnimator>();
             var model = transform.Find("GorillaModel");
             _armL = model != null ? model.Find("ArmL") : null;
             _armR = model != null ? model.Find("ArmR") : null;
@@ -130,6 +132,12 @@ namespace GorillaSurvivors.Player
             SetArmDirection(RestDir);
             _isSlamming = false;
             _hitLanded = false;
+            if (_animator != null)
+            {
+                _animator.SuppressArms = false;
+                _animator.BodyHeightOffset = 0f;
+                _animator.BodyPitch = 0f;
+            }
             _controller.MovementLocked = false;
             return true;
         }
@@ -154,35 +162,45 @@ namespace GorillaSurvivors.Player
             _hitLanded = false;
             _pendingAimDirection = aimDirection;
             _controller.MovementLocked = true;
+            if (_animator != null) _animator.SuppressArms = true;
 
             var model = transform.Find("GorillaModel");
             var lockedRotation = Quaternion.LookRotation(aimDirection, Vector3.up);
             if (model != null) model.rotation = lockedRotation;
 
-            // Windup (arms raise), then slam down — damage lands the instant
-            // the arms hit the ground — then a slower return to rest. The
-            // rotation is reasserted every frame throughout (not just set
-            // once) so nothing else (e.g. PlayerController's per-frame aim
-            // tracking, if MovementLocked ever lags a frame) can drift it
-            // mid-swing.
-            const float windup = 0.15f;
-            const float slam = 0.1f;
+            // Three beats: rear up and back (anticipation), drive down fast
+            // (the hit lands on the frame the arms bottom out), then a slower
+            // settle. The body rears with the arms and drops with them, which
+            // is what sells the weight — arms alone read as a wave.
+            // The rotation is reasserted every frame throughout so nothing
+            // else (e.g. PlayerController's aim tracking, if MovementLocked
+            // ever lags a frame) can drift it mid-swing.
+            const float windup = 0.17f;
+            const float slam = 0.07f;
             const float recover = SlamDuration - windup - slam;
 
-            yield return AnimateArms(RestDir, WindupDir, windup, model, lockedRotation);
-            yield return AnimateArms(WindupDir, SlamDir, slam, model, lockedRotation);
+            yield return AnimateArms(RestDir, WindupDir, windup, model, lockedRotation, 0f, 0.13f, 0f, -9f);
+            yield return AnimateArms(WindupDir, SlamDir, slam, model, lockedRotation, 0.13f, -0.16f, -9f, 14f);
 
             PerformSlamHit(aimDirection);
             _hitLanded = true;
+            CameraShake.Shake(0.22f, 0.22f);
 
-            yield return AnimateArms(SlamDir, RestDir, recover, model, lockedRotation);
+            yield return AnimateArms(SlamDir, RestDir, recover, model, lockedRotation, -0.16f, 0f, 14f, 0f);
 
             _isSlamming = false;
             _hitLanded = false;
+            if (_animator != null)
+            {
+                _animator.SuppressArms = false;
+                _animator.BodyHeightOffset = 0f;
+                _animator.BodyPitch = 0f;
+            }
             _controller.MovementLocked = false;
         }
 
-        IEnumerator AnimateArms(Vector3 fromDir, Vector3 toDir, float duration, Transform model, Quaternion lockedRotation)
+        IEnumerator AnimateArms(Vector3 fromDir, Vector3 toDir, float duration, Transform model, Quaternion lockedRotation,
+            float fromHeight = 0f, float toHeight = 0f, float fromPitch = 0f, float toPitch = 0f)
         {
             if (duration <= 0f) yield break;
 
@@ -190,7 +208,13 @@ namespace GorillaSurvivors.Player
             while (t < duration)
             {
                 t += Time.deltaTime;
-                SetArmDirection(Vector3.Slerp(fromDir, toDir, t / duration));
+                float p = Mathf.Clamp01(t / duration);
+                SetArmDirection(Vector3.Slerp(fromDir, toDir, p));
+                if (_animator != null)
+                {
+                    _animator.BodyHeightOffset = Mathf.Lerp(fromHeight, toHeight, p);
+                    _animator.BodyPitch = Mathf.Lerp(fromPitch, toPitch, p);
+                }
                 if (model != null) model.rotation = lockedRotation;
                 yield return null;
             }
@@ -228,6 +252,17 @@ namespace GorillaSurvivors.Player
                 {
                     float rockDashDistance = _controller.DashSpeed * _controller.DashDuration;
                     rock.Launch(aimDirection, damage * 2f, rockDashDistance * 1.5f);
+                    continue;
+                }
+
+                // Felling a tree is the biggest single hit available — it
+                // costs positioning (you have to fight next to one and line
+                // the fall up), so it pays out several times a normal slam
+                // to everything caught underneath.
+                var tree = HitBuffer[i].GetComponentInParent<FellableTree>();
+                if (tree != null && !tree.IsFelled)
+                {
+                    tree.Fell(aimDirection, damage * 4f);
                 }
             }
 

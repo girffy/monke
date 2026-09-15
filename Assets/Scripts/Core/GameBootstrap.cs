@@ -17,6 +17,7 @@ namespace GorillaSurvivors.Core
         {
             Sfx.ResetForNewSession();
             Sfx.WarmUp();
+            CameraShake.Reset();
             SetupLighting();
             Blocky3DArt.Ground();
             SpawnObstacles();
@@ -57,6 +58,14 @@ namespace GorillaSurvivors.Core
             collider.radius = 0.55f;
             collider.height = 1.3f;
             collider.center = new Vector3(0f, 0.65f, 0f);
+
+            var anim = go.AddComponent<CharacterAnimator>();
+            // A knuckle-walker: big arm swing, heavy body bob, modest lean.
+            anim.StrideFrequency = 2.9f;
+            anim.LegSwing = 30f;
+            anim.ArmSwing = 42f;
+            anim.BobHeight = 0.09f;
+            anim.LeanDegrees = 10f;
 
             go.AddComponent<PlayerHealth>();
             go.AddComponent<PlayerStats>();
@@ -122,7 +131,7 @@ namespace GorillaSurvivors.Core
             var follow = cam.GetComponent<CameraFollow>();
             if (follow == null) follow = cam.gameObject.AddComponent<CameraFollow>();
             follow.Target = target;
-            cam.transform.position = target.position + follow.Offset;
+            follow.SnapTo(target.position + follow.Offset);
         }
 
         static void SpawnObstacles()
@@ -130,28 +139,57 @@ namespace GorillaSurvivors.Core
             // Rocks are no longer purely decorative — every rock in the world
             // comes from AttackableRockManager now, so all of them can be
             // ground-slammed into a boulder instead of some being inert.
-            const int treeCount = 18;
-            const int bushCount = 26;
             const float minDistanceFromSpawn = 6f;
-            const float scatterRadius = 45f;
+            const float scatterRadius = 52f;
 
-            for (int i = 0; i < treeCount; i++)
+            for (int i = 0; i < 26; i++)
             {
                 var pos = RandomScatterPos(minDistanceFromSpawn, scatterRadius);
                 var tree = Blocky3DArt.Tree();
                 tree.transform.position = pos;
                 tree.transform.rotation = Quaternion.Euler(0f, Random.Range(0f, 360f), 0f);
-                float s = Random.Range(0.85f, 1.25f);
-                tree.transform.localScale = Vector3.one * s;
+                tree.transform.localScale = Vector3.one * Random.Range(0.85f, 1.3f);
+                tree.AddComponent<FellableTree>();
             }
 
-            for (int i = 0; i < bushCount; i++)
+            for (int i = 0; i < 30; i++)
             {
-                var pos = RandomScatterPos(minDistanceFromSpawn * 0.6f, scatterRadius);
                 var bush = Blocky3DArt.Bush();
-                bush.transform.position = pos;
+                bush.transform.position = RandomScatterPos(minDistanceFromSpawn * 0.6f, scatterRadius);
                 bush.transform.rotation = Quaternion.Euler(0f, Random.Range(0f, 360f), 0f);
                 bush.transform.localScale = Vector3.one * Random.Range(0.8f, 1.3f);
+            }
+
+            // Ground dressing — no colliders, purely to keep the plane from
+            // reading as an empty field between the gameplay props.
+            for (int i = 0; i < 220; i++)
+            {
+                var tuft = Blocky3DArt.GrassTuft();
+                tuft.transform.position = RandomScatterPos(2f, scatterRadius);
+                tuft.transform.localScale = Vector3.one * Random.Range(0.8f, 1.5f);
+            }
+
+            for (int i = 0; i < 60; i++)
+            {
+                var flower = Blocky3DArt.Flower();
+                flower.transform.position = RandomScatterPos(3f, scatterRadius);
+                flower.transform.rotation = Quaternion.Euler(0f, Random.Range(0f, 360f), 0f);
+                flower.transform.localScale = Vector3.one * Random.Range(0.85f, 1.25f);
+            }
+
+            for (int i = 0; i < 10; i++)
+            {
+                var stump = Blocky3DArt.Stump();
+                stump.transform.position = RandomScatterPos(8f, scatterRadius);
+                stump.transform.rotation = Quaternion.Euler(0f, Random.Range(0f, 360f), 0f);
+            }
+
+            for (int i = 0; i < 24; i++)
+            {
+                var shroom = Blocky3DArt.Mushroom();
+                shroom.transform.position = RandomScatterPos(5f, scatterRadius);
+                shroom.transform.rotation = Quaternion.Euler(0f, Random.Range(0f, 360f), 0f);
+                shroom.transform.localScale = Vector3.one * Random.Range(0.8f, 1.4f);
             }
         }
 
