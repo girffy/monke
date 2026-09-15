@@ -60,20 +60,23 @@ namespace GorillaSurvivors.Core
             collider.center = new Vector3(0f, 0.65f, 0f);
 
             var anim = go.AddComponent<CharacterAnimator>();
-            // A knuckle-walker: big arm swing, heavy body bob, modest lean.
-            anim.StrideFrequency = 2.9f;
-            anim.LegSwing = 30f;
-            anim.ArmSwing = 42f;
-            anim.BobHeight = 0.09f;
-            anim.LeanDegrees = 10f;
+            // Drops onto its knuckles to move and rises upright when still.
+            // The directional lean is kept small because the knuckle pitch is
+            // already doing most of the forward tilt.
+            anim.KnuckleWalk = true;
+            anim.StrideFrequency = 2.6f;
+            anim.LegSwing = 26f;
+            anim.ArmSwing = 34f;
+            anim.BobHeight = 0.07f;
+            anim.LeanDegrees = 5f;
 
             go.AddComponent<PlayerHealth>();
             go.AddComponent<PlayerStats>();
             go.AddComponent<PlayerController>();
             go.AddComponent<PlayerAttack>();
             go.AddComponent<QuickSwipeAttack>();
-            go.AddComponent<RoarAbility>();
-            go.AddComponent<ChargeAbility>();
+            go.AddComponent<ChestBeatAbility>();
+            go.AddComponent<DungTossAbility>();
 
             return go;
         }

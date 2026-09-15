@@ -36,8 +36,8 @@ namespace GorillaSurvivors.UI
         PlayerAttack _attack;
         QuickSwipeAttack _swipeAttack;
         PlayerController _controller;
-        RoarAbility _roarAbility;
-        ChargeAbility _chargeAbility;
+        ChestBeatAbility _chestBeat;
+        DungTossAbility _dungToss;
 
         struct AbilityIcon
         {
@@ -74,8 +74,8 @@ namespace GorillaSurvivors.UI
             hud._attack = health.GetComponent<PlayerAttack>();
             hud._swipeAttack = health.GetComponent<QuickSwipeAttack>();
             hud._controller = health.GetComponent<PlayerController>();
-            hud._roarAbility = health.GetComponent<RoarAbility>();
-            hud._chargeAbility = health.GetComponent<ChargeAbility>();
+            hud._chestBeat = health.GetComponent<ChestBeatAbility>();
+            hud._dungToss = health.GetComponent<DungTossAbility>();
 
             hud._hpFill = CreateBar(canvasGO.transform, "HPBar", "HP", new Vector2(20, -20), new Color(0.85f, 0.2f, 0.2f));
             hud._xpFill = CreateBar(canvasGO.transform, "XPBar", "XP", new Vector2(20, -46), new Color(0.2f, 0.6f, 0.95f));
@@ -174,11 +174,13 @@ namespace GorillaSurvivors.UI
 
             // Every slot uses hand-drawn pixel art (PixelArtIcons); the
             // sprites carry their own palette, so no tint is applied.
-            _atkIcon = CreateAbilityIcon(parent, "AbilityAttack", "LMB", AttackColor, startX + 0 * (iconSize + spacing), iconSize, PixelArtIcons.Slam());
-            _swipeIcon = CreateAbilityIcon(parent, "AbilitySwipe", "RMB", SwipeColor, startX + 1 * (iconSize + spacing), iconSize, PixelArtIcons.Claw());
+            // Order matches the buttons: the quick swipe is the primary
+            // (left) attack, the committed slam the secondary (right) one.
+            _swipeIcon = CreateAbilityIcon(parent, "AbilitySwipe", "LMB", SwipeColor, startX + 0 * (iconSize + spacing), iconSize, PixelArtIcons.Claw());
+            _atkIcon = CreateAbilityIcon(parent, "AbilityAttack", "RMB", AttackColor, startX + 1 * (iconSize + spacing), iconSize, PixelArtIcons.Slam());
             _dashIcon = CreateAbilityIcon(parent, "AbilityDash", "SPC", DashColor, startX + 2 * (iconSize + spacing), iconSize, PixelArtIcons.Dash());
-            _roarIcon = CreateAbilityIcon(parent, "AbilityRoar", "Q", RoarColor, startX + 3 * (iconSize + spacing), iconSize, PixelArtIcons.GorillaShout());
-            _chargeIcon = CreateAbilityIcon(parent, "AbilityCharge", "E", ChargeColor, startX + 4 * (iconSize + spacing), iconSize, PixelArtIcons.Charge());
+            _roarIcon = CreateAbilityIcon(parent, "AbilityChestBeat", "Q", RoarColor, startX + 3 * (iconSize + spacing), iconSize, PixelArtIcons.GorillaShout());
+            _chargeIcon = CreateAbilityIcon(parent, "AbilityDungToss", "E", ChargeColor, startX + 4 * (iconSize + spacing), iconSize, PixelArtIcons.DungToss());
         }
 
         static AbilityIcon CreateAbilityIcon(Transform parent, string name, string label, Color color, float xOffset, float size, Sprite glyphSprite)
@@ -298,8 +300,8 @@ namespace GorillaSurvivors.UI
             RefreshAbilityIcon(_atkIcon, AttackColor, true, _attack != null ? _attack.AttackCooldownRemaining01() : 0f);
             RefreshAbilityIcon(_swipeIcon, SwipeColor, true, _swipeAttack != null ? _swipeAttack.SwipeCooldownRemaining01() : 0f);
             RefreshAbilityIcon(_dashIcon, DashColor, true, _controller != null ? _controller.DashCooldownRemaining01() : 0f);
-            RefreshAbilityIcon(_roarIcon, RoarColor, _roarAbility != null && _roarAbility.Unlocked, _roarAbility != null ? _roarAbility.CooldownRemaining01() : 0f);
-            RefreshAbilityIcon(_chargeIcon, ChargeColor, _chargeAbility != null && _chargeAbility.Unlocked, _chargeAbility != null ? _chargeAbility.CooldownRemaining01() : 0f);
+            RefreshAbilityIcon(_roarIcon, RoarColor, _chestBeat != null && _chestBeat.Unlocked, _chestBeat != null ? _chestBeat.CooldownRemaining01() : 0f);
+            RefreshAbilityIcon(_chargeIcon, ChargeColor, _dungToss != null && _dungToss.Unlocked, _dungToss != null ? _dungToss.CooldownRemaining01() : 0f);
         }
 
         public void ShowRoundBanner(int round)

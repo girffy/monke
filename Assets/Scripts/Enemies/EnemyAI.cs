@@ -48,6 +48,16 @@ namespace GorillaSurvivors.Enemies
             _knockbackUntil = Time.time + duration;
         }
 
+        // Multiplicative slow applied while standing in something nasty (the
+        // dung patch). Stored as a plain factor rather than a timer, because
+        // whatever applied it is responsible for clearing it when the enemy
+        // leaves — that keeps overlapping patches from fighting over it.
+        public void ApplySlow(float factor) => _slowFactor = Mathf.Clamp01(factor);
+        public void ClearSlow() => _slowFactor = 1f;
+
+        float _slowFactor = 1f;
+        float CurrentMoveSpeed => MoveSpeed * _slowFactor;
+
         void FixedUpdate()
         {
             // Without this, enemies kept moving, dealing contact damage,
@@ -82,11 +92,11 @@ namespace GorillaSurvivors.Enemies
                 // Hold at range and lob projectiles instead of closing in.
                 if (dist > PreferredRange + 0.5f)
                 {
-                    _rb.linearVelocity = dir * MoveSpeed;
+                    _rb.linearVelocity = dir * CurrentMoveSpeed;
                 }
                 else if (dist < PreferredRange - 0.5f)
                 {
-                    _rb.linearVelocity = -dir * MoveSpeed;
+                    _rb.linearVelocity = -dir * CurrentMoveSpeed;
                 }
                 else
                 {
@@ -104,7 +114,7 @@ namespace GorillaSurvivors.Enemies
             }
             else
             {
-                _rb.linearVelocity = dir * MoveSpeed;
+                _rb.linearVelocity = dir * CurrentMoveSpeed;
 
                 // Distance-based contact damage — two solid Rigidbody circles
                 // pushing directly into each other tend to separate every physics

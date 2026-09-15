@@ -142,16 +142,18 @@ namespace GorillaSurvivors.Player
             return true;
         }
 
+        // Right mouse / right trigger: the heavy, committed attack sits on
+        // the secondary button, with the fast poke on the primary one.
         bool WasAttackPressed()
         {
             var kb = Keyboard.current;
             if (kb != null && (kb.jKey.wasPressedThisFrame || kb.enterKey.wasPressedThisFrame)) return true;
 
             var mouse = Mouse.current;
-            if (mouse != null && mouse.leftButton.wasPressedThisFrame) return true;
+            if (mouse != null && mouse.rightButton.wasPressedThisFrame) return true;
 
             var gp = Gamepad.current;
-            if (gp != null && (gp.buttonWest.wasPressedThisFrame || gp.rightTrigger.wasPressedThisFrame)) return true;
+            if (gp != null && gp.rightTrigger.wasPressedThisFrame) return true;
 
             return false;
         }

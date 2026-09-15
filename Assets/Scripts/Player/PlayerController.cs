@@ -38,6 +38,7 @@ namespace GorillaSurvivors.Player
         PlayerHealth _health;
         PlayerStats _stats;
         PlayerAttack _attackCache;
+        Abilities.ChestBeatAbility _chestBeatCache;
         Transform _model;
 
         // Lazily resolved instead of cached in Awake: GameBootstrap adds
@@ -46,6 +47,7 @@ namespace GorillaSurvivors.Player
         // and silently disable dash-cancels-attack forever (the same class
         // of add-order bug EnemyAI/EnemyHealth hit).
         PlayerAttack Attack => _attackCache != null ? _attackCache : (_attackCache = GetComponent<PlayerAttack>());
+        Abilities.ChestBeatAbility ChestBeat => _chestBeatCache != null ? _chestBeatCache : (_chestBeatCache = GetComponent<Abilities.ChestBeatAbility>());
 
         Vector3 _moveInput;
         float _dashEndTime;
@@ -90,7 +92,9 @@ namespace GorillaSurvivors.Player
                 // damage still lands right away instead of being lost) and
                 // fires the dash immediately, rather than only buffering it
                 // for when the animation would have ended on its own.
-                if (Attack != null && Attack.TryCancelWithDash())
+                bool cancelled = (Attack != null && Attack.TryCancelWithDash())
+                              || (ChestBeat != null && ChestBeat.TryCancelWithDash());
+                if (cancelled)
                 {
                     Vector3 dashDir = _moveInput.sqrMagnitude > 0.01f ? _moveInput.normalized : FacingDirection;
                     _moveInput = dashDir;

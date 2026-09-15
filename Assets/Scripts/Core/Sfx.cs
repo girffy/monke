@@ -15,7 +15,7 @@ namespace GorillaSurvivors.Core
         static AudioClip _xpPickup, _powerupPickup, _levelUp;
         static AudioClip _roundClear, _roundStart;
         static AudioClip _rockExplosion;
-        static AudioClip _treeCrack, _treeFall, _shieldBlock, _bomberFuse, _heal;
+        static AudioClip _treeCrack, _treeFall, _shieldBlock, _bomberFuse, _heal, _splat;
         static bool _initialized;
 
         // A small pool of persistent AudioSources, warmed up well before
@@ -104,6 +104,8 @@ namespace GorillaSurvivors.Core
             _shieldBlock = ProceduralAudio.Tone(180f, 0.12f, 0.45f, -60f);
             _bomberFuse = ProceduralAudio.Tone(140f, 0.5f, 0.4f, 260f);
             _heal = ProceduralAudio.Tone(700f, 0.22f, 0.32f, 240f);
+            // Wet, dull and short — a low sliding tone under soft noise.
+            _splat = ProceduralAudio.Noise(0.16f, 0.5f, 0.25f);
         }
 
         // Non-spatial (spatialBlend = 0, no distance rolloff) — for a small
@@ -158,5 +160,6 @@ namespace GorillaSurvivors.Core
         public static void ShieldBlock(Vector3 pos) { EnsureInit(); Play(_shieldBlock, pos, 0.55f); }
         public static void BomberFuse(Vector3 pos) { EnsureInit(); Play(_bomberFuse, pos, 0.5f); }
         public static void Heal(Vector3 pos) { EnsureInit(); Play(_heal, pos, 0.45f); }
+        public static void Splat(Vector3 pos) { EnsureInit(); Play(_splat, pos, 0.75f); }
     }
 }

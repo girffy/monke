@@ -25,16 +25,18 @@ namespace GorillaSurvivors.Core
         {
             var root = new GameObject("GorillaModel");
 
-            // Read-from-above palette: the fixed camera looks down at 45
-            // degrees, so the parts facing the sky (head crown, silver
-            // saddle, shoulders) carry the contrast. Pure near-black fur
-            // turned the whole animal into one unreadable silhouette.
-            var fur = new Color(0.31f, 0.24f, 0.21f);
-            var furMid = new Color(0.38f, 0.30f, 0.25f);
-            var furLight = new Color(0.46f, 0.37f, 0.30f);
-            var silver = new Color(0.68f, 0.66f, 0.66f);
-            var hide = new Color(0.17f, 0.13f, 0.12f);
-            var muzzle = new Color(0.24f, 0.18f, 0.16f);
+            // Silverback palette: charcoal greys rather than brown, with the
+            // saddle bright enough to be the animal's read-at-a-glance
+            // marking. Real lighting does the form, so the fur can sit this
+            // dark without collapsing into a silhouette — but not truly
+            // black, because the fixed camera looks down at 45 degrees and
+            // the sky-facing surfaces still need to catch the key light.
+            var fur = new Color(0.23f, 0.22f, 0.24f);
+            var furMid = new Color(0.30f, 0.29f, 0.32f);
+            var furLight = new Color(0.40f, 0.39f, 0.43f);
+            var silver = new Color(0.79f, 0.79f, 0.82f);
+            var hide = new Color(0.11f, 0.10f, 0.12f);
+            var muzzle = new Color(0.16f, 0.15f, 0.17f);
 
             // Upright, hunched-forward silverback rather than a quadruped
             // crouch: the fixed camera looks down the character's back, and a

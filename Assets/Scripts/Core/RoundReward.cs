@@ -37,8 +37,8 @@ namespace GorillaSurvivors.Core
         static List<RoundReward> BuildPool(GameObject player)
         {
             var stats = player.GetComponent<PlayerStats>();
-            var roar = player.GetComponent<RoarAbility>();
-            var charge = player.GetComponent<ChargeAbility>();
+            var chestBeat = player.GetComponent<ChestBeatAbility>();
+            var dungToss = player.GetComponent<DungTossAbility>();
 
             var pool = new List<RoundReward>
             {
@@ -86,23 +86,23 @@ namespace GorillaSurvivors.Core
                 },
             };
 
-            if (roar != null && !roar.Unlocked)
+            if (chestBeat != null && !chestBeat.Unlocked)
             {
                 pool.Add(new RoundReward
                 {
-                    Title = "Unlock: Roar",
-                    Description = "Press Q — AoE damage + knockback around you",
-                    Apply = p => p.GetComponent<RoarAbility>().Unlocked = true,
+                    Title = "Unlock: Chest Beat",
+                    Description = "Press Q — rear up and pound out 3 shockwaves (roots you)",
+                    Apply = p => p.GetComponent<ChestBeatAbility>().Unlocked = true,
                 });
             }
 
-            if (charge != null && !charge.Unlocked)
+            if (dungToss != null && !dungToss.Unlocked)
             {
                 pool.Add(new RoundReward
                 {
-                    Title = "Unlock: Charge",
-                    Description = "Press E — dash-attack that damages everything in your path",
-                    Apply = p => p.GetComponent<ChargeAbility>().Unlocked = true,
+                    Title = "Unlock: Dung Toss",
+                    Description = "Press E — hurl dung; splash damage and a slowing patch",
+                    Apply = p => p.GetComponent<DungTossAbility>().Unlocked = true,
                 });
             }
 

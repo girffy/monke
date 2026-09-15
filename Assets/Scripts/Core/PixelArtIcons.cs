@@ -19,9 +19,13 @@ namespace GorillaSurvivors.Core
 
         static readonly Dictionary<char, Color32> Palette = new Dictionary<char, Color32>
         {
-            { 'F', new Color32(96, 70, 56, 255) },
-            { 'D', new Color32(62, 44, 35, 255) },
-            { 'B', new Color32(32, 22, 18, 255) },
+            // Greys, to match the silverback palette the 3D model uses.
+            { 'F', new Color32(84, 82, 88, 255) },
+            { 'D', new Color32(54, 52, 58, 255) },
+            { 'B', new Color32(28, 26, 30, 255) },
+            // Dung browns, only used by the toss icon.
+            { 'N', new Color32(96, 68, 38, 255) },
+            { 'n', new Color32(66, 46, 26, 255) },
             { 'S', new Color32(158, 120, 98, 255) },
             { 'E', new Color32(236, 229, 214, 255) },
             { 'P', new Color32(20, 16, 14, 255) },
@@ -175,7 +179,35 @@ namespace GorillaSurvivors.Core
             "...........",
         };
 
+        // A lobbed clod with its arc trailing behind it.
+        static readonly string[] DungTossFull =
+        {
+            "......................",
+            "..............nnnn....",
+            ".............nNNNNn...",
+            "............nNNNNNNn..",
+            "............nNNnnNNn..",
+            "............nNNNNNNn..",
+            "............nnNNNNn...",
+            ".............nnNNnn...",
+            "..............nnnn....",
+            "......................",
+            "..........WW..........",
+            "........WW............",
+            "......WW..............",
+            ".....W................",
+            "...WW.................",
+            "..W...................",
+            "......................",
+            "......................",
+            "......................",
+            "......................",
+            "......................",
+            "......................",
+        };
+
         public static Sprite GorillaShout(int pixelScale = 6) => GetOrBuild("shout", ShoutHalf, true, pixelScale);
+        public static Sprite DungToss(int pixelScale = 6) => GetOrBuild("dung", DungTossFull, false, pixelScale);
         public static Sprite Slam(int pixelScale = 6) => GetOrBuild("slam", SlamHalf, true, pixelScale);
         public static Sprite Claw(int pixelScale = 6) => GetOrBuild("claw", ClawFull, false, pixelScale);
         public static Sprite Dash(int pixelScale = 6) => GetOrBuild("dash", DashFull, false, pixelScale);

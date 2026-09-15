@@ -60,13 +60,15 @@ namespace GorillaSurvivors.Player
             StartCoroutine(SwipeSequence());
         }
 
+        // Left mouse / X / left trigger. buttonNorth is deliberately NOT used
+        // here — that's the chest beat, and the two used to share it.
         bool WasSwipePressed()
         {
             var mouse = Mouse.current;
-            if (mouse != null && mouse.rightButton.wasPressedThisFrame) return true;
+            if (mouse != null && mouse.leftButton.wasPressedThisFrame) return true;
 
             var gp = Gamepad.current;
-            if (gp != null && gp.buttonNorth.wasPressedThisFrame) return true;
+            if (gp != null && (gp.buttonWest.wasPressedThisFrame || gp.leftTrigger.wasPressedThisFrame)) return true;
 
             return false;
         }

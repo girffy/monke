@@ -21,6 +21,15 @@ namespace GorillaSurvivors.Core
         public float IdleBreathAmplitude = 0.02f;
         public float ReferenceSpeed = 4.5f;    // speed treated as "full stride"
 
+        [Header("Knuckle walk")]
+        // A gorilla drops onto its knuckles to travel and rises back up when
+        // it stops. Blending on movement speed keeps the readable upright
+        // silhouette for standing/attacking while still moving like an ape.
+        public bool KnuckleWalk;
+        public float KnuckleWalkPitch = 30f;    // degrees nose-down at full gait
+        public float KnuckleWalkCrouch = -0.16f;// body drops as it goes down
+        public float KnuckleArmForward = 20f;   // arms reach ahead to plant
+
         // Set by whatever is posing the arms this frame (PlayerAttack,
         // QuickSwipeAttack). While true the animator leaves arms alone and
         // eases them back in once released.
@@ -42,7 +51,9 @@ namespace GorillaSurvivors.Core
         float _phase;
         float _armBlend = 1f;
         float _leanBlend;
-        Quaternion _appliedLean = Quaternion.identity;
+        Quaternion _baseRotation = Quaternion.identity;
+        Quaternion _lastWritten = Quaternion.identity;
+        bool _hasWritten;
 
         void Awake()
         {
@@ -90,20 +101,33 @@ namespace GorillaSurvivors.Core
             if (_armBlend > 0.001f)
             {
                 float armAmount = ArmSwing * gait * _armBlend;
-                if (_armL != null) _armL.localRotation = Quaternion.Euler(-swing * armAmount, 0f, 0f);
-                if (_armR != null) _armR.localRotation = Quaternion.Euler(swing * armAmount, 0f, 0f);
+                // Negative pitch swings a downward-hanging limb forwards, so
+                // the knuckle reach is subtracted to plant the hands ahead.
+                float armBase = KnuckleWalk ? -KnuckleArmForward * gait * _armBlend : 0f;
+                if (_armL != null) _armL.localRotation = Quaternion.Euler(armBase - swing * armAmount, 0f, 0f);
+                if (_armR != null) _armR.localRotation = Quaternion.Euler(armBase + swing * armAmount, 0f, 0f);
             }
 
             // Idle breathing keeps a standing character from looking frozen.
             float idle = Mathf.Sin(Time.time * 2.2f) * IdleBreathAmplitude * (1f - gait);
-            _model.localPosition = _modelBasePos + new Vector3(0f, bob * BobHeight * gait + idle + BodyHeightOffset, 0f);
+            float knuckleCrouch = KnuckleWalk ? KnuckleWalkCrouch * gait : 0f;
+            _model.localPosition = _modelBasePos + new Vector3(0f, bob * BobHeight * gait + idle + BodyHeightOffset + knuckleCrouch, 0f);
 
-            // Lean into the direction of travel. PlayerController (aim
-            // facing) and EnemyAI (chase facing) both own the model's
-            // rotation, so the lean is composed on top of whatever they set
-            // — and last frame's lean is undone first, so it can never
-            // accumulate if nobody reasserts the facing on some frame.
-            _model.localRotation = _model.localRotation * Quaternion.Inverse(_appliedLean);
+            // Lean into the direction of travel, composed on top of the
+            // facing that PlayerController (aim) / EnemyAI (chase) set.
+            //
+            // Those writers assign a WORLD rotation every frame, which wipes
+            // whatever pose was applied last frame. So rather than trying to
+            // undo the previous pose off the transform (which silently
+            // cancelled the pose out entirely when a writer had already
+            // replaced it), the clean facing is tracked here: if the
+            // rotation still matches what this component wrote last frame,
+            // nobody has touched it and the remembered facing is reused;
+            // otherwise the current value IS a fresh facing.
+            if (!_hasWritten || Quaternion.Angle(_model.localRotation, _lastWritten) > 0.01f)
+            {
+                _baseRotation = _model.localRotation;
+            }
 
             _leanBlend = Mathf.MoveTowards(_leanBlend, gait, Time.deltaTime * 4f);
             var lean = Quaternion.identity;
@@ -116,14 +140,16 @@ namespace GorillaSurvivors.Core
                     // Velocity expressed in the model's own (unleaned) space:
                     // +Z is "forward as drawn", so moving that way pitches
                     // nose-down and strafing rolls into the turn.
-                    Vector3 local = _model.InverseTransformDirection(dir.normalized);
+                    Vector3 local = Quaternion.Inverse(_baseRotation) * _model.parent.InverseTransformDirection(dir.normalized);
                     lean = Quaternion.Euler(local.z * LeanDegrees * _leanBlend, 0f, -local.x * LeanDegrees * _leanBlend);
                 }
             }
 
-            var pose = lean * Quaternion.Euler(BodyPitch, BodyYaw, 0f);
-            _model.localRotation = _model.localRotation * pose;
-            _appliedLean = pose;
+            float knucklePitch = KnuckleWalk ? KnuckleWalkPitch * gait : 0f;
+            var pose = lean * Quaternion.Euler(BodyPitch + knucklePitch, BodyYaw, 0f);
+            _model.localRotation = _baseRotation * pose;
+            _lastWritten = _model.localRotation;
+            _hasWritten = true;
         }
     }
 }
