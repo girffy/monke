@@ -53,6 +53,10 @@ namespace GorillaSurvivors.Enemies
 
         void Update()
         {
+            // Same fix as EnemyAI: in-flight throws shouldn't keep damaging
+            // the player during the round-clear/upgrade-choice screen.
+            if (GameManager.Instance != null && GameManager.Instance.IsPaused) return;
+
             transform.position += _direction * Speed * Time.deltaTime;
 
             if (Time.time - _spawnTime >= Lifetime)

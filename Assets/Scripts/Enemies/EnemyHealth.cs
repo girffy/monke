@@ -12,6 +12,7 @@ namespace GorillaSurvivors.Enemies
 
         float _currentHP;
         bool _initialized;
+        bool _dead;
 
         void Awake()
         {
@@ -39,6 +40,8 @@ namespace GorillaSurvivors.Enemies
         // already does its own knockback, rock explosions) can skip it.
         public void TakeDamage(float amount, Vector3? knockbackDirection, float knockbackForce)
         {
+            if (_dead) return;
+
             _currentHP -= amount;
             if (_currentHP <= 0f)
             {
@@ -56,6 +59,15 @@ namespace GorillaSurvivors.Enemies
 
         void Die()
         {
+            // A lethal hit and, in the same frame, another source (e.g. a
+            // rock explosion overlapping the slam's own hit) could both
+            // call TakeDamage before Destroy(gameObject) actually takes
+            // effect at end of frame — without this guard that meant a
+            // double Die() call, double XP/loot, and EnemySpawner's alive
+            // count getting decremented twice for one real enemy.
+            if (_dead) return;
+            _dead = true;
+
             XPOrb.Spawn(transform.position, XPReward);
 
             if (Random.value < PowerupDropChance)

@@ -1,4 +1,5 @@
 using UnityEngine;
+using GorillaSurvivors.Core;
 using GorillaSurvivors.Player;
 
 namespace GorillaSurvivors.Enemies
@@ -49,6 +50,16 @@ namespace GorillaSurvivors.Enemies
 
         void FixedUpdate()
         {
+            // Without this, enemies kept moving, dealing contact damage,
+            // and lobbing projectiles during the round-clear/upgrade-choice
+            // screen (and after game over) even though everything else —
+            // spawning, player attacks/input — correctly stopped.
+            if (GameManager.Instance != null && GameManager.Instance.IsPaused)
+            {
+                _rb.linearVelocity = Vector3.zero;
+                return;
+            }
+
             if (_target == null)
             {
                 AcquireTarget();

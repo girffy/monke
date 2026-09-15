@@ -37,8 +37,15 @@ namespace GorillaSurvivors.Player
         Rigidbody _rb;
         PlayerHealth _health;
         PlayerStats _stats;
-        PlayerAttack _attack;
+        PlayerAttack _attackCache;
         Transform _model;
+
+        // Lazily resolved instead of cached in Awake: GameBootstrap adds
+        // PlayerController before PlayerAttack, so an Awake-time
+        // GetComponent<PlayerAttack>() call here would always find nothing
+        // and silently disable dash-cancels-attack forever (the same class
+        // of add-order bug EnemyAI/EnemyHealth hit).
+        PlayerAttack Attack => _attackCache != null ? _attackCache : (_attackCache = GetComponent<PlayerAttack>());
 
         Vector3 _moveInput;
         float _dashEndTime;
@@ -55,7 +62,6 @@ namespace GorillaSurvivors.Player
             _rb = GetComponent<Rigidbody>();
             _health = GetComponent<PlayerHealth>();
             _stats = GetComponent<PlayerStats>();
-            _attack = GetComponent<PlayerAttack>();
             _model = transform.Find("GorillaModel");
 
             _rb.useGravity = false;
@@ -84,7 +90,7 @@ namespace GorillaSurvivors.Player
                 // damage still lands right away instead of being lost) and
                 // fires the dash immediately, rather than only buffering it
                 // for when the animation would have ended on its own.
-                if (_attack != null && _attack.TryCancelWithDash())
+                if (Attack != null && Attack.TryCancelWithDash())
                 {
                     Vector3 dashDir = _moveInput.sqrMagnitude > 0.01f ? _moveInput.normalized : FacingDirection;
                     _moveInput = dashDir;

@@ -23,6 +23,7 @@ namespace GorillaSurvivors.Player
 
         PlayerStats _stats;
         PlayerController _controller;
+        PlayerAttack _attackCache;
         Transform _armR;
         bool _isSwiping;
 
@@ -31,7 +32,13 @@ namespace GorillaSurvivors.Player
         static readonly Vector3 SwipeStartDir = new Vector3(0.7f, 0.3f, 0.2f).normalized;
         static readonly Vector3 SwipeEndDir = new Vector3(-0.6f, -0.1f, 0.6f).normalized;
 
+        public bool IsSwiping => _isSwiping;
         public float SwipeCooldownRemaining01() => _isSwiping ? 1f : 0f;
+
+        // Lazy: PlayerAttack and QuickSwipeAttack can be added to the
+        // player in either order, so an Awake-time GetComponent here isn't
+        // guaranteed to find it yet.
+        PlayerAttack Attack => _attackCache != null ? _attackCache : (_attackCache = GetComponent<PlayerAttack>());
 
         void Awake()
         {
@@ -45,6 +52,7 @@ namespace GorillaSurvivors.Player
         {
             if (_isSwiping) return;
             if (GameManager.Instance != null && GameManager.Instance.IsPaused) return;
+            if (Attack != null && Attack.IsSlamming) return;
             if (!WasSwipePressed()) return;
 
             StartCoroutine(SwipeSequence());

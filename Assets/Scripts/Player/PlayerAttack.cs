@@ -22,6 +22,7 @@ namespace GorillaSurvivors.Player
 
         PlayerStats _stats;
         PlayerController _controller;
+        QuickSwipeAttack _swipeCache;
         Transform _armL;
         Transform _armR;
         float _nextAttackReadyTime;
@@ -29,6 +30,16 @@ namespace GorillaSurvivors.Player
         bool _hitLanded;
         Vector3 _pendingAimDirection;
         Coroutine _slamCoroutine;
+
+        bool _attackBuffered;
+        Vector3 _bufferedAimDirection;
+        bool _wasDashing;
+
+        public bool IsSlamming => _isSlamming;
+
+        // Lazy for the same reason PlayerController.Attack is: add order
+        // between the two attack components isn't guaranteed either way.
+        QuickSwipeAttack Swipe => _swipeCache != null ? _swipeCache : (_swipeCache = GetComponent<QuickSwipeAttack>());
 
         static readonly Collider[] HitBuffer = new Collider[32];
 
@@ -61,6 +72,23 @@ namespace GorillaSurvivors.Player
         {
             if (_isSlamming) return;
             if (GameManager.Instance != null && GameManager.Instance.IsPaused) return;
+
+            bool isDashingNow = _controller.IsDashing;
+
+            // A dash finishing releases any attack buffered while it was
+            // playing, regardless of whether the normal cooldown has
+            // elapsed yet — the cooldown already started the moment the
+            // press was buffered below.
+            if (_wasDashing && !isDashingNow && _attackBuffered)
+            {
+                _attackBuffered = false;
+                _slamCoroutine = StartCoroutine(SlamSequence(_bufferedAimDirection));
+                _wasDashing = isDashingNow;
+                return;
+            }
+            _wasDashing = isDashingNow;
+
+            if (Swipe != null && Swipe.IsSwiping) return;
             if (Time.time < _nextAttackReadyTime) return;
             if (!WasAttackPressed()) return;
 
@@ -71,7 +99,17 @@ namespace GorillaSurvivors.Player
             aimDirection.y = 0f;
             aimDirection.Normalize();
 
-            _slamCoroutine = StartCoroutine(SlamSequence(aimDirection));
+            if (isDashingNow)
+            {
+                // Can't play the slam animation mid-dash — commit to it
+                // (cooldown starts now) and fire it the instant the dash ends.
+                _attackBuffered = true;
+                _bufferedAimDirection = aimDirection;
+            }
+            else
+            {
+                _slamCoroutine = StartCoroutine(SlamSequence(aimDirection));
+            }
         }
 
         // Called by PlayerController when a dash is pressed mid-attack.
