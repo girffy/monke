@@ -122,7 +122,7 @@ namespace GorillaSurvivors.Enemies
                 // simple and consistent with how pickups already detect the player.
                 if (Time.time >= _nextContactDamageTime && dist <= ContactRange)
                 {
-                    _targetHealth.TakeDamage(ContactDamage);
+                    _targetHealth.TakeDamage(ContactDamage, transform.position);
                     _nextContactDamageTime = Time.time + ContactDamageInterval;
                 }
             }

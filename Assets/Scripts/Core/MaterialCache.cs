@@ -12,6 +12,14 @@ namespace GorillaSurvivors.Core
     // VFX and UI-ish world elements (swipe discs, glow rings, health bars)
     // deliberately stay Unlit so they keep a constant, punchy color no matter
     // where they are relative to the light.
+    //
+    // Every material is cloned from a template asset in
+    // Resources/RuntimeMaterials rather than built from Shader.Find. No other
+    // asset references the URP shaders (everything is made at runtime), so a
+    // player build strips them: Shader.Find returns null, new Material(null)
+    // throws on the first frame, and the WebGL build died on startup. The
+    // templates are what pull the shaders — and the exact keyword variants in
+    // use, like _EMISSION on the glowing one — into a build.
     public static class MaterialCache
     {
         static readonly Dictionary<Color, Material> LitCache = new Dictionary<Color, Material>();
@@ -19,14 +27,15 @@ namespace GorillaSurvivors.Core
         static readonly Dictionary<Color, Material> UnlitCache = new Dictionary<Color, Material>();
         static readonly Dictionary<string, Material> TexturedCache = new Dictionary<string, Material>();
 
-        static Shader _litShader;
-        static Shader _unlitShader;
+        static Material _litTemplate;
+        static Material _glowTemplate;
+        static Material _unlitTemplate;
 
         public static Material Get(Color color)
         {
             if (LitCache.TryGetValue(color, out var mat) && mat != null) return mat;
 
-            mat = new Material(LitShader());
+            mat = new Material(Template(ref _litTemplate, "Lit"));
             ApplyBaseColor(mat, color);
             // Matte by default: these are furry/organic/rocky surfaces, and a
             // broad specular highlight on every sphere reads as plastic.
@@ -43,7 +52,7 @@ namespace GorillaSurvivors.Core
             var key = (color, metallic, smoothness);
             if (MetalCache.TryGetValue(key, out var mat) && mat != null) return mat;
 
-            mat = new Material(LitShader());
+            mat = new Material(Template(ref _litTemplate, "Lit"));
             ApplyBaseColor(mat, color);
             mat.SetFloat("_Smoothness", smoothness);
             mat.SetFloat("_Metallic", metallic);
@@ -59,7 +68,7 @@ namespace GorillaSurvivors.Core
             string key = $"{texture.GetInstanceID()}_{tint}_{tiling}";
             if (TexturedCache.TryGetValue(key, out var mat) && mat != null) return mat;
 
-            mat = new Material(LitShader());
+            mat = new Material(Template(ref _litTemplate, "Lit"));
             ApplyBaseColor(mat, tint);
             mat.SetTexture("_BaseMap", texture);
             mat.SetTextureScale("_BaseMap", tiling);
@@ -73,7 +82,7 @@ namespace GorillaSurvivors.Core
         {
             if (UnlitCache.TryGetValue(color, out var mat) && mat != null) return mat;
 
-            mat = new Material(UnlitShader());
+            mat = new Material(Template(ref _unlitTemplate, "Unlit"));
             ApplyBaseColor(mat, color);
             UnlitCache[color] = mat;
             return mat;
@@ -86,7 +95,7 @@ namespace GorillaSurvivors.Core
             var key = (color, intensity, -1f);
             if (MetalCache.TryGetValue(key, out var mat) && mat != null) return mat;
 
-            mat = new Material(LitShader());
+            mat = new Material(Template(ref _glowTemplate, "LitEmissive"));
             ApplyBaseColor(mat, color);
             mat.SetFloat("_Smoothness", 0.4f);
             mat.SetFloat("_Metallic", 0f);
@@ -106,24 +115,14 @@ namespace GorillaSurvivors.Core
             mat.color = color;
         }
 
-        static Shader LitShader()
+        static Material Template(ref Material cached, string name)
         {
-            if (_litShader == null)
+            if (cached == null)
             {
-                _litShader = Shader.Find("Universal Render Pipeline/Lit");
-                if (_litShader == null) _litShader = Shader.Find("Standard");
+                cached = Resources.Load<Material>("RuntimeMaterials/" + name);
+                if (cached == null) Debug.LogError($"Missing template material Resources/RuntimeMaterials/{name}");
             }
-            return _litShader;
-        }
-
-        static Shader UnlitShader()
-        {
-            if (_unlitShader == null)
-            {
-                _unlitShader = Shader.Find("Universal Render Pipeline/Unlit");
-                if (_unlitShader == null) _unlitShader = Shader.Find("Unlit/Color");
-            }
-            return _unlitShader;
+            return cached;
         }
     }
 }

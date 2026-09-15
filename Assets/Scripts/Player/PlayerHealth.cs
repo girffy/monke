@@ -42,6 +42,20 @@ namespace GorillaSurvivors.Player
 
         public void TakeDamage(float amount)
         {
+            TakeDamage(amount, null);
+        }
+
+        // A hit grants brief invulnerability and shoves the gorilla away from
+        // whatever landed it. Without both, standing in a crowd meant every
+        // body in contact ticked damage independently and the player melted
+        // before they could react; the i-frames make a mob hit you once, and
+        // the knockback is what gets you out of the pile.
+        public const float HitInvulnerabilitySeconds = 0.5f;
+        const float KnockbackSpeed = 9f;
+        const float KnockbackDuration = 0.14f;
+
+        public void TakeDamage(float amount, Vector3? sourcePosition)
+        {
             if (_dead || IsInvulnerable) return;
 
             CurrentHP -= amount;
@@ -52,7 +66,49 @@ namespace GorillaSurvivors.Player
             if (CurrentHP <= 0f)
             {
                 _dead = true;
+                SetModelVisible(true);
                 OnDeath?.Invoke();
+                return;
+            }
+
+            GrantInvulnerability(HitInvulnerabilitySeconds);
+            _hitFlashUntil = Time.time + HitInvulnerabilitySeconds;
+
+            if (sourcePosition.HasValue)
+            {
+                Vector3 away = transform.position - sourcePosition.Value;
+                away.y = 0f;
+                if (away.sqrMagnitude < 0.0001f) away = UnityEngine.Random.insideUnitSphere;
+                away.y = 0f;
+                GetComponent<PlayerController>()?.ApplyKnockback(away.normalized * KnockbackSpeed, KnockbackDuration);
+            }
+        }
+
+        float _hitFlashUntil;
+        Renderer[] _modelRenderers;
+        bool _modelVisible = true;
+
+        // Blink while hit-invulnerable so the i-frames are readable. Dash
+        // i-frames deliberately don't blink — the dash is its own tell.
+        void Update()
+        {
+            bool flashing = !_dead && Time.time < _hitFlashUntil;
+            SetModelVisible(!flashing || Mathf.Repeat(Time.time, 0.12f) < 0.07f);
+        }
+
+        void SetModelVisible(bool visible)
+        {
+            if (visible == _modelVisible) return;
+            _modelVisible = visible;
+
+            if (_modelRenderers == null)
+            {
+                var model = transform.Find("GorillaModel");
+                _modelRenderers = model != null ? model.GetComponentsInChildren<Renderer>() : new Renderer[0];
+            }
+            foreach (var r in _modelRenderers)
+            {
+                if (r != null) r.enabled = visible;
             }
         }
     }

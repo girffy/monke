@@ -189,6 +189,13 @@ namespace GorillaSurvivors.Player
             {
                 _rb.linearVelocity = _dashDirection * DashSpeed;
             }
+            else if (Time.time < _knockbackUntil)
+            {
+                // Decays to zero over the shove so it reads as a hit, not a
+                // teleport — and input can't cancel it mid-way.
+                float remaining = Mathf.Clamp01((_knockbackUntil - Time.time) / Mathf.Max(0.0001f, _knockbackDuration));
+                _rb.linearVelocity = _knockbackVelocity * remaining;
+            }
             else
             {
                 _rb.linearVelocity = _moveInput * speed;
@@ -250,6 +257,22 @@ namespace GorillaSurvivors.Player
             puff.transform.position = transform.position + Vector3.up * 0.05f - _dashDirection * 0.3f;
             puff.transform.localScale = new Vector3(0.25f, 0.02f, 0.25f);
             puff.AddComponent<GorillaSurvivors.Environment.ExpandingDisc>().Play(1.5f, 0.28f);
+        }
+
+        Vector3 _knockbackVelocity;
+        float _knockbackUntil;
+        float _knockbackDuration;
+
+        public void ApplyKnockback(Vector3 velocity, float duration)
+        {
+            // A dash or a rooted attack/ability owns movement; a hit landing
+            // then (only possible at the very edge of i-frames) shouldn't
+            // drag the player out of it.
+            if (IsDashing || MovementLocked || IsExternallyControlled) return;
+
+            _knockbackVelocity = velocity;
+            _knockbackDuration = duration;
+            _knockbackUntil = Time.time + duration;
         }
 
         public float DashCooldownRemaining01()

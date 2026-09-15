@@ -72,7 +72,7 @@ namespace GorillaSurvivors.Enemies
 
                 if (Vector3.Distance(transform.position, player.transform.position) <= HitRadius)
                 {
-                    player.GetComponent<PlayerHealth>()?.TakeDamage(Damage);
+                    player.GetComponent<PlayerHealth>()?.TakeDamage(Damage, transform.position - _direction);
                     Destroy(gameObject);
                 }
             }

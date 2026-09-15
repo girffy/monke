@@ -217,6 +217,19 @@ namespace GorillaSurvivors.Core
             }
         }
 
+        static void AttachShoe(Transform leg, string name, Color color)
+        {
+            if (leg == null) return;
+            var foot = leg.Find("Lower/End");
+            if (foot == null) return;
+
+            // Parent to the knee joint ("Lower") beside the foot sphere rather
+            // than to the sphere itself, so the shoe isn't inheriting the
+            // foot's non-uniform scale; it sits just forward like a toe box.
+            var shoe = AddGlowPart(foot.parent, name, PrimitiveType.Sphere, foot.localPosition + new Vector3(0f, -0.02f, 0.06f), new Vector3(0.19f, 0.12f, 0.26f), color);
+            shoe.transform.localRotation = Quaternion.identity;
+        }
+
         static void BuildModifierProps(GameObject root, EnemyModifierRoll modifiers)
         {
             if (modifiers.Armor != ModifierTier.None)
@@ -229,9 +242,12 @@ namespace GorillaSurvivors.Core
 
             if (modifiers.HasShoes)
             {
+                // Parented to each leg's foot joint rather than the model root,
+                // so the shoes travel with the stride instead of sitting still
+                // on the ground under a walking enemy.
                 var glow = new Color(0.95f, 0.85f, 0.15f);
-                AddGlowPart(root.transform, "ShoeGlowL", PrimitiveType.Sphere, new Vector3(-0.15f, 0.07f, 0.06f), new Vector3(0.19f, 0.12f, 0.26f), glow);
-                AddGlowPart(root.transform, "ShoeGlowR", PrimitiveType.Sphere, new Vector3(0.15f, 0.07f, 0.06f), new Vector3(0.19f, 0.12f, 0.26f), glow);
+                AttachShoe(root.transform.Find("LegL"), "ShoeGlowL", glow);
+                AttachShoe(root.transform.Find("LegR"), "ShoeGlowR", glow);
             }
 
             if (modifiers.HasCrown)

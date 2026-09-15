@@ -93,7 +93,7 @@ namespace GorillaSurvivors.Enemies
                     }
 
                     var player = HitBuffer[i].GetComponentInParent<PlayerHealth>();
-                    if (player != null) player.TakeDamage(_damage);
+                    if (player != null) player.TakeDamage(_damage, transform.position);
                 }
             }
         }
