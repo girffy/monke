@@ -10,7 +10,7 @@ namespace GorillaSurvivors.Core
     {
         static readonly Dictionary<string, Texture2D> Cache = new Dictionary<string, Texture2D>();
 
-        public static Texture2D Grass(int size = 256)
+        public static Texture2D Grass(int size = 512)
         {
             return GetOrCreate($"grass_{size}", () => BuildGrass(size));
         }
@@ -32,10 +32,12 @@ namespace GorillaSurvivors.Core
                 anisoLevel = 4,
             };
 
-            var deepGrass = new Color(0.20f, 0.33f, 0.16f);
-            var midGrass = new Color(0.28f, 0.43f, 0.21f);
-            var paleGrass = new Color(0.38f, 0.52f, 0.26f);
+            var deepGrass = new Color(0.17f, 0.30f, 0.14f);
+            var midGrass = new Color(0.27f, 0.42f, 0.20f);
+            var paleGrass = new Color(0.40f, 0.54f, 0.27f);
+            var dryGrass = new Color(0.55f, 0.53f, 0.28f);
             var dirt = new Color(0.34f, 0.28f, 0.19f);
+            var pebble = new Color(0.52f, 0.50f, 0.47f);
 
             var pixels = new Color32[size * size];
             var rng = new System.Random(20260915);
@@ -45,6 +47,8 @@ namespace GorillaSurvivors.Core
             float o1 = (float)rng.NextDouble() * 100f;
             float o2 = (float)rng.NextDouble() * 100f;
             float o3 = (float)rng.NextDouble() * 100f;
+            float o4 = (float)rng.NextDouble() * 100f;
+            float o5 = (float)rng.NextDouble() * 100f;
 
             for (int y = 0; y < size; y++)
             {
@@ -60,16 +64,33 @@ namespace GorillaSurvivors.Core
                     float broad = TileableNoise(u, v, 3f, o1);
                     float detail = TileableNoise(u, v, 9f, o2);
                     float speckle = TileableNoise(u, v, 26f, o3);
+                    // A high-frequency anisotropic layer: sampling at very
+                    // different frequencies per axis stretches the noise into
+                    // streaks that read as blades of grass rather than blobs.
+                    float blades = TileableNoise(u * 1.6f, v * 0.25f, 60f, o4);
 
-                    float shade = broad * 0.6f + detail * 0.28f + speckle * 0.12f;
+                    float shade = broad * 0.52f + detail * 0.26f + speckle * 0.12f + blades * 0.10f;
 
                     Color c = shade < 0.45f
                         ? Color.Lerp(deepGrass, midGrass, Mathf.InverseLerp(0.25f, 0.45f, shade))
                         : Color.Lerp(midGrass, paleGrass, Mathf.InverseLerp(0.45f, 0.72f, shade));
 
+                    // Sun-bleached patches, offset from the dirt so the two
+                    // don't land in the same places.
+                    float dryMask = Mathf.InverseLerp(0.62f, 0.80f, TileableNoise(u, v, 4.5f, o5));
+                    if (dryMask > 0f) c = Color.Lerp(c, dryGrass, dryMask * 0.55f);
+
                     // Sparse worn-dirt patches where the broad noise dips.
                     float dirtMask = Mathf.InverseLerp(0.30f, 0.16f, broad);
-                    if (dirtMask > 0f) c = Color.Lerp(c, dirt, dirtMask * 0.75f);
+                    if (dirtMask > 0f)
+                    {
+                        c = Color.Lerp(c, dirt, dirtMask * 0.8f);
+                        // Scattered grit, only inside the bare patches.
+                        if (speckle > 0.74f && rng.NextDouble() < 0.28)
+                        {
+                            c = Color.Lerp(c, pebble, dirtMask * 0.7f);
+                        }
+                    }
 
                     // Fine per-pixel grain so the surface doesn't look like a
                     // smooth gradient up close.

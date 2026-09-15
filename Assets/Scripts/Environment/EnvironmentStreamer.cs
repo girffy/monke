@@ -66,6 +66,9 @@ namespace GorillaSurvivors.Environment
             _kinds.Add(new PropKind { Name = "Flower", Target = 60, MinScale = 0.85f, MaxScale = 1.25f, Create = Blocky3DArt.Flower });
             _kinds.Add(new PropKind { Name = "Mushroom", Target = 24, MinScale = 0.8f, MaxScale = 1.4f, Create = Blocky3DArt.Mushroom });
             _kinds.Add(new PropKind { Name = "Stump", Target = 10, Create = Blocky3DArt.Stump });
+            _kinds.Add(new PropKind { Name = "Log", Target = 12, MinScale = 0.85f, MaxScale = 1.25f, Create = Blocky3DArt.Log });
+            _kinds.Add(new PropKind { Name = "Fern", Target = 45, MinScale = 0.85f, MaxScale = 1.35f, Create = Blocky3DArt.Fern });
+            _kinds.Add(new PropKind { Name = "Pebbles", Target = 40, MinScale = 0.8f, MaxScale = 1.4f, Create = Blocky3DArt.Pebbles });
         }
 
         // Fills the starting area. Unlike the streaming passes this ignores

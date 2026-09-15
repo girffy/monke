@@ -88,13 +88,9 @@ namespace GorillaSurvivors.Core
         {
             var root = new GameObject("HumanModel");
 
-            var skin = new Color(0.76f, 0.58f, 0.46f);
-            var pants = new Color(0.24f, 0.25f, 0.31f);
-            var shoe = new Color(0.12f, 0.11f, 0.11f);
             var belt = new Color(0.13f, 0.10f, 0.09f);
 
-            Color shirt = new Color(0.72f, 0.20f, 0.18f);
-            Color hair = new Color(0.18f, 0.13f, 0.10f);
+            Color shirtBase = new Color(0.72f, 0.20f, 0.18f);
             float scale = 1f;
             float build = 1f;      // torso/limb thickness
             bool holdsWeapon = false;
@@ -102,38 +98,47 @@ namespace GorillaSurvivors.Core
             switch (variant)
             {
                 case HumanVariant.Runner:
-                    shirt = new Color(0.26f, 0.66f, 0.34f);
-                    hair = new Color(0.42f, 0.28f, 0.12f);
+                    shirtBase = new Color(0.26f, 0.66f, 0.34f);
                     scale = 0.88f;
                     build = 0.85f;
                     break;
                 case HumanVariant.Brute:
-                    shirt = new Color(0.40f, 0.17f, 0.50f);
+                    shirtBase = new Color(0.40f, 0.17f, 0.50f);
                     scale = 1.5f;
                     build = 1.28f;
                     break;
                 case HumanVariant.Thrower:
-                    shirt = new Color(0.82f, 0.52f, 0.16f);
+                    shirtBase = new Color(0.82f, 0.52f, 0.16f);
                     scale = 1f;
                     holdsWeapon = true;
                     break;
                 case HumanVariant.Shieldman:
-                    shirt = new Color(0.30f, 0.36f, 0.62f);
+                    shirtBase = new Color(0.30f, 0.36f, 0.62f);
                     scale = 1.08f;
                     build = 1.1f;
                     break;
                 case HumanVariant.Bomber:
-                    shirt = new Color(0.85f, 0.78f, 0.22f);
-                    hair = new Color(0.30f, 0.22f, 0.16f);
+                    shirtBase = new Color(0.85f, 0.78f, 0.22f);
                     scale = 0.95f;
                     break;
                 case HumanVariant.Medic:
-                    shirt = new Color(0.92f, 0.92f, 0.94f);
-                    hair = new Color(0.55f, 0.45f, 0.30f);
+                    shirtBase = new Color(0.92f, 0.92f, 0.94f);
                     scale = 1f;
                     build = 0.92f;
                     break;
             }
+
+            // Everything below the type's silhouette and shirt hue is rolled
+            // per individual, so a hundred-man wave reads as a crowd of
+            // people rather than one man cloned a hundred times.
+            var look = HumanAppearance.Roll(shirtBase);
+            var skin = look.Skin;
+            var pants = look.Pants;
+            var shoe = look.Shoe;
+            var hair = look.Hair;
+            var shirt = look.Shirt;
+            scale *= look.HeightScale;
+            build *= look.BuildScale;
 
             var weaponColor = new Color(0.33f, 0.24f, 0.15f);
             if (modifiers.Weapon != ModifierTier.None)
@@ -151,10 +156,7 @@ namespace GorillaSurvivors.Core
             AddPart(root.transform, "Neck", PrimitiveType.Capsule, new Vector3(0f, 1.26f, 0f), new Vector3(0.13f, 0.06f, 0.13f), skin);
 
             var head = AddPart(root.transform, "Head", PrimitiveType.Sphere, new Vector3(0f, 1.42f, 0f), new Vector3(0.30f, 0.34f, 0.30f), skin);
-            AddPart(head.transform, "Hair", PrimitiveType.Sphere, new Vector3(0f, 0.22f, -0.06f), new Vector3(1.08f, 0.72f, 1.10f), hair);
-            AddPart(head.transform, "Nose", PrimitiveType.Sphere, new Vector3(0f, -0.06f, 0.48f), new Vector3(0.18f, 0.16f, 0.16f), skin);
-            AddPart(head.transform, "EyeL", PrimitiveType.Sphere, new Vector3(-0.28f, 0.06f, 0.40f), new Vector3(0.16f, 0.14f, 0.10f), Color.black);
-            AddPart(head.transform, "EyeR", PrimitiveType.Sphere, new Vector3(0.28f, 0.06f, 0.40f), new Vector3(0.16f, 0.14f, 0.10f), Color.black);
+            BuildFace(head.transform, look, skin, hair);
 
             AddLimb(root.transform, "ArmL", new Vector3(-0.28f * build, 1.18f, 0f), 0.085f * build, 0.26f, 0.075f * build, 0.24f, 0.09f, shirt, skin, skin);
             AddLimb(root.transform, "ArmR", new Vector3(0.28f * build, 1.18f, 0f), 0.085f * build, 0.26f, 0.075f * build, 0.24f, 0.09f, shirt, skin, skin);
@@ -171,6 +173,50 @@ namespace GorillaSurvivors.Core
 
             root.transform.localScale = Vector3.one * scale;
             return root;
+        }
+
+        // Faces are assembled from the rolled appearance: eye spacing and
+        // size, nose size, hairstyle and facial hair all vary. All positions
+        // are in head-local space, so they follow the head's scale pulse.
+        static void BuildFace(Transform head, HumanAppearance look, Color skin, Color hair)
+        {
+            AddPart(head, "Nose", PrimitiveType.Sphere, new Vector3(0f, -0.06f, 0.48f), Vector3.one * look.NoseSize, skin);
+            AddPart(head, "EyeL", PrimitiveType.Sphere, new Vector3(-look.EyeSpacing, 0.06f, 0.40f), new Vector3(look.EyeSize, look.EyeSize * 0.88f, 0.10f), Color.black);
+            AddPart(head, "EyeR", PrimitiveType.Sphere, new Vector3(look.EyeSpacing, 0.06f, 0.40f), new Vector3(look.EyeSize, look.EyeSize * 0.88f, 0.10f), Color.black);
+
+            if (look.HeavyBrow)
+            {
+                AddPart(head, "Brow", PrimitiveType.Cube, new Vector3(0f, 0.22f, 0.36f), new Vector3(0.78f, 0.10f, 0.26f), hair);
+            }
+
+            switch (look.Hairstyle)
+            {
+                case HairStyle.Bald:
+                    break;
+                case HairStyle.Cropped:
+                    AddPart(head, "Hair", PrimitiveType.Sphere, new Vector3(0f, 0.16f, -0.04f), new Vector3(1.04f, 0.62f, 1.06f), hair);
+                    break;
+                case HairStyle.Mop:
+                    AddPart(head, "Hair", PrimitiveType.Sphere, new Vector3(0f, 0.22f, -0.06f), new Vector3(1.14f, 0.86f, 1.16f), hair);
+                    break;
+                case HairStyle.Topknot:
+                    AddPart(head, "Hair", PrimitiveType.Sphere, new Vector3(0f, 0.18f, -0.06f), new Vector3(1.06f, 0.70f, 1.08f), hair);
+                    AddPart(head, "Bun", PrimitiveType.Sphere, new Vector3(0f, 0.62f, -0.10f), Vector3.one * 0.42f, hair);
+                    break;
+                case HairStyle.Cap:
+                    AddPart(head, "Cap", PrimitiveType.Sphere, new Vector3(0f, 0.20f, -0.02f), new Vector3(1.12f, 0.70f, 1.12f), look.CapColor);
+                    AddPart(head, "CapPeak", PrimitiveType.Cube, new Vector3(0f, 0.12f, 0.46f), new Vector3(0.72f, 0.08f, 0.44f), look.CapColor);
+                    break;
+            }
+
+            if (look.Beard)
+            {
+                AddPart(head, "Beard", PrimitiveType.Sphere, new Vector3(0f, -0.34f, 0.24f), new Vector3(0.86f, 0.60f, 0.82f), hair);
+            }
+            else if (look.Moustache)
+            {
+                AddPart(head, "Moustache", PrimitiveType.Cube, new Vector3(0f, -0.20f, 0.44f), new Vector3(0.44f, 0.09f, 0.16f), hair);
+            }
         }
 
         // Per-type silhouette cues so the player can read a threat at a
@@ -405,19 +451,49 @@ namespace GorillaSurvivors.Core
         public static GameObject Rock(float scale = 1f)
         {
             var root = new GameObject("Rock");
-            var gray = new Color(0.46f, 0.45f, 0.43f);
-            var grayDark = new Color(0.33f, 0.32f, 0.31f);
-            var grayLight = new Color(0.58f, 0.57f, 0.55f);
 
-            // Angular chunks (rotated cubes) mixed with spheres so rocks read
-            // as stone rather than as a pile of eggs.
-            var core = AddPart(root.transform, "Core", PrimitiveType.Cube, new Vector3(0f, 0.33f, 0f), new Vector3(0.80f, 0.56f, 0.72f), gray);
-            core.transform.localRotation = Quaternion.Euler(8f, 24f, 6f);
-            var chunk = AddPart(root.transform, "Chunk", PrimitiveType.Cube, new Vector3(0.26f, 0.48f, 0.08f), new Vector3(0.44f, 0.40f, 0.42f), grayLight);
-            chunk.transform.localRotation = Quaternion.Euler(-14f, 40f, 18f);
-            var chunk2 = AddPart(root.transform, "Chunk2", PrimitiveType.Cube, new Vector3(-0.28f, 0.36f, -0.12f), new Vector3(0.42f, 0.34f, 0.38f), grayDark);
-            chunk2.transform.localRotation = Quaternion.Euler(12f, -30f, -10f);
-            AddPart(root.transform, "Pebble", PrimitiveType.Sphere, new Vector3(0.34f, 0.10f, -0.26f), new Vector3(0.24f, 0.18f, 0.22f), grayDark);
+            // Stone colour varies per rock: cool grey, warm sandstone, or
+            // dark basalt, with a little jitter on top.
+            Color baseTone;
+            float tint = Random.value;
+            if (tint < 0.55f) baseTone = new Color(0.46f, 0.45f, 0.43f);
+            else if (tint < 0.82f) baseTone = new Color(0.52f, 0.46f, 0.38f);
+            else baseTone = new Color(0.34f, 0.34f, 0.36f);
+
+            float v = Random.Range(-0.05f, 0.05f);
+            var gray = new Color(baseTone.r + v, baseTone.g + v, baseTone.b + v);
+            var grayDark = gray * 0.72f;
+            var grayLight = Color.Lerp(gray, Color.white, 0.18f);
+
+            int shape = Random.Range(0, 3);
+            if (shape == 0)
+            {
+                // Angular boulder.
+                var core = AddPart(root.transform, "Core", PrimitiveType.Cube, new Vector3(0f, 0.33f, 0f), new Vector3(0.80f, 0.56f, 0.72f), gray);
+                core.transform.localRotation = Quaternion.Euler(8f, 24f, 6f);
+                var chunk = AddPart(root.transform, "Chunk", PrimitiveType.Cube, new Vector3(0.26f, 0.48f, 0.08f), new Vector3(0.44f, 0.40f, 0.42f), grayLight);
+                chunk.transform.localRotation = Quaternion.Euler(-14f, 40f, 18f);
+                var chunk2 = AddPart(root.transform, "Chunk2", PrimitiveType.Cube, new Vector3(-0.28f, 0.36f, -0.12f), new Vector3(0.42f, 0.34f, 0.38f), grayDark);
+                chunk2.transform.localRotation = Quaternion.Euler(12f, -30f, -10f);
+                AddPart(root.transform, "Pebble", PrimitiveType.Sphere, new Vector3(0.34f, 0.10f, -0.26f), new Vector3(0.24f, 0.18f, 0.22f), grayDark);
+            }
+            else if (shape == 1)
+            {
+                // Low flat slab, like a weathered outcrop.
+                var slab = AddPart(root.transform, "Slab", PrimitiveType.Cube, new Vector3(0f, 0.20f, 0f), new Vector3(1.10f, 0.30f, 0.86f), gray);
+                slab.transform.localRotation = Quaternion.Euler(4f, 18f, -3f);
+                var ledge = AddPart(root.transform, "Ledge", PrimitiveType.Cube, new Vector3(-0.18f, 0.38f, 0.10f), new Vector3(0.62f, 0.22f, 0.54f), grayLight);
+                ledge.transform.localRotation = Quaternion.Euler(-6f, 34f, 5f);
+                AddPart(root.transform, "Chip", PrimitiveType.Sphere, new Vector3(0.44f, 0.12f, -0.20f), new Vector3(0.30f, 0.20f, 0.26f), grayDark);
+            }
+            else
+            {
+                // Cluster of rounded stones.
+                AddPart(root.transform, "StoneA", PrimitiveType.Sphere, new Vector3(0f, 0.28f, 0f), new Vector3(0.70f, 0.52f, 0.66f), gray);
+                AddPart(root.transform, "StoneB", PrimitiveType.Sphere, new Vector3(0.36f, 0.20f, 0.18f), new Vector3(0.46f, 0.38f, 0.44f), grayLight);
+                AddPart(root.transform, "StoneC", PrimitiveType.Sphere, new Vector3(-0.32f, 0.18f, -0.14f), new Vector3(0.42f, 0.34f, 0.40f), grayDark);
+                AddPart(root.transform, "StoneD", PrimitiveType.Sphere, new Vector3(0.06f, 0.14f, -0.38f), new Vector3(0.34f, 0.26f, 0.32f), gray);
+            }
 
             root.transform.localScale = Vector3.one * scale;
 
@@ -433,17 +509,21 @@ namespace GorillaSurvivors.Core
         public static GameObject Tree(int species = -1)
         {
             var root = new GameObject("Tree");
-            if (species < 0) species = Random.Range(0, 3);
+            if (species < 0) species = Random.Range(0, 5);
 
-            var bark = new Color(0.34f, 0.24f, 0.17f);
-            var barkDark = new Color(0.25f, 0.17f, 0.12f);
+            // Bark and foliage are tinted per tree so a stand of the same
+            // species doesn't look stamped out.
+            float barkShift = Random.Range(-0.05f, 0.05f);
+            var bark = new Color(0.34f + barkShift, 0.24f + barkShift * 0.7f, 0.17f + barkShift * 0.5f);
+            var barkDark = bark * 0.72f;
+            float leafShift = Random.Range(-0.05f, 0.06f);
 
             switch (species)
             {
                 case 0: // Broad canopy
                 {
-                    var leaves = new Color(0.20f, 0.42f, 0.20f);
-                    var leavesLight = new Color(0.27f, 0.51f, 0.24f);
+                    var leaves = new Color(0.20f, 0.42f + leafShift, 0.20f);
+                    var leavesLight = new Color(0.27f, 0.51f + leafShift, 0.24f);
                     AddPart(root.transform, "Trunk", PrimitiveType.Cylinder, new Vector3(0f, 0.95f, 0f), new Vector3(0.30f, 0.95f, 0.30f), bark);
                     AddPart(root.transform, "Flare", PrimitiveType.Cylinder, new Vector3(0f, 0.12f, 0f), new Vector3(0.44f, 0.14f, 0.44f), barkDark);
                     AddPart(root.transform, "Canopy", PrimitiveType.Sphere, new Vector3(0f, 2.15f, 0f), new Vector3(1.25f, 1.05f, 1.25f), leaves);
@@ -454,8 +534,8 @@ namespace GorillaSurvivors.Core
                 }
                 case 1: // Conifer
                 {
-                    var needle = new Color(0.15f, 0.34f, 0.22f);
-                    var needleLight = new Color(0.20f, 0.42f, 0.26f);
+                    var needle = new Color(0.15f, 0.34f + leafShift, 0.22f);
+                    var needleLight = new Color(0.20f, 0.42f + leafShift, 0.26f);
                     AddPart(root.transform, "Trunk", PrimitiveType.Cylinder, new Vector3(0f, 0.70f, 0f), new Vector3(0.24f, 0.70f, 0.24f), barkDark);
                     for (int i = 0; i < 4; i++)
                     {
@@ -467,10 +547,39 @@ namespace GorillaSurvivors.Core
                     AddPart(root.transform, "Top", PrimitiveType.Capsule, new Vector3(0f, 3.55f, 0f), new Vector3(0.22f, 0.26f, 0.22f), needle);
                     break;
                 }
+                case 3: // Bare dead tree — bark only, stark silhouette
+                {
+                    AddPart(root.transform, "Trunk", PrimitiveType.Cylinder, new Vector3(0f, 1.05f, 0f), new Vector3(0.26f, 1.05f, 0.26f), barkDark);
+                    AddPart(root.transform, "Flare", PrimitiveType.Cylinder, new Vector3(0f, 0.12f, 0f), new Vector3(0.40f, 0.14f, 0.40f), barkDark);
+                    for (int i = 0; i < 5; i++)
+                    {
+                        float angle = Random.Range(0f, 360f);
+                        float height = Random.Range(1.3f, 2.2f);
+                        var branch = AddPart(root.transform, "Branch" + i, PrimitiveType.Capsule, Vector3.zero, new Vector3(0.10f, 0.34f, 0.10f), bark);
+                        branch.transform.localPosition = new Vector3(0f, height, 0f) + Quaternion.Euler(0f, angle, 0f) * new Vector3(0.34f, 0.12f, 0f);
+                        branch.transform.localRotation = Quaternion.Euler(0f, angle, Random.Range(38f, 66f));
+                    }
+                    break;
+                }
+                case 4: // Pale-trunked birch with a light, airy crown
+                {
+                    var birchBark = new Color(0.82f, 0.80f, 0.74f);
+                    var leaves = new Color(0.42f, 0.58f + leafShift, 0.24f);
+                    var leavesLight = new Color(0.52f, 0.66f + leafShift, 0.30f);
+                    AddPart(root.transform, "Trunk", PrimitiveType.Cylinder, new Vector3(0f, 1.25f, 0f), new Vector3(0.20f, 1.25f, 0.20f), birchBark);
+                    for (int i = 0; i < 3; i++)
+                    {
+                        AddPart(root.transform, "Band" + i, PrimitiveType.Cylinder, new Vector3(0f, 0.5f + i * 0.7f, 0f), new Vector3(0.21f, 0.04f, 0.21f), new Color(0.28f, 0.26f, 0.24f));
+                    }
+                    AddPart(root.transform, "CrownA", PrimitiveType.Sphere, new Vector3(0f, 2.55f, 0f), new Vector3(0.98f, 0.86f, 0.98f), leaves);
+                    AddPart(root.transform, "CrownB", PrimitiveType.Sphere, new Vector3(0.34f, 2.25f, 0.20f), Vector3.one * 0.62f, leavesLight);
+                    AddPart(root.transform, "CrownC", PrimitiveType.Sphere, new Vector3(-0.30f, 2.34f, -0.18f), Vector3.one * 0.56f, leaves);
+                    break;
+                }
                 default: // Tall palm-ish with a leaning trunk
                 {
-                    var frond = new Color(0.24f, 0.47f, 0.22f);
-                    var frondDark = new Color(0.18f, 0.38f, 0.18f);
+                    var frond = new Color(0.24f, 0.47f + leafShift, 0.22f);
+                    var frondDark = new Color(0.18f, 0.38f + leafShift, 0.18f);
                     for (int i = 0; i < 4; i++)
                     {
                         float t = i / 3f;
@@ -570,6 +679,63 @@ namespace GorillaSurvivors.Core
             AddPart(root.transform, "Rings", PrimitiveType.Cylinder, new Vector3(0f, 0.45f, 0f), new Vector3(0.46f, 0.02f, 0.46f), inner);
             AddPart(root.transform, "RootA", PrimitiveType.Sphere, new Vector3(0.34f, 0.08f, 0.14f), new Vector3(0.28f, 0.14f, 0.22f), bark);
             AddPart(root.transform, "RootB", PrimitiveType.Sphere, new Vector3(-0.30f, 0.08f, -0.18f), new Vector3(0.26f, 0.13f, 0.20f), bark);
+            return root;
+        }
+
+        // A fallen log — breaks up open ground and reads as forest floor.
+        public static GameObject Log()
+        {
+            var root = new GameObject("Log");
+            var bark = new Color(0.32f + Random.Range(-0.04f, 0.04f), 0.23f, 0.16f);
+            var inner = new Color(0.60f, 0.47f, 0.31f);
+
+            var trunk = AddPart(root.transform, "Trunk", PrimitiveType.Cylinder, new Vector3(0f, 0.22f, 0f), new Vector3(0.44f, 0.80f, 0.44f), bark);
+            trunk.transform.localRotation = Quaternion.Euler(90f, 0f, Random.Range(-8f, 8f));
+            AddPart(root.transform, "CutEnd", PrimitiveType.Cylinder, new Vector3(0f, 0.22f, 0.80f), new Vector3(0.40f, 0.03f, 0.40f), inner);
+            AddPart(root.transform, "Knot", PrimitiveType.Sphere, new Vector3(0.16f, 0.36f, -0.18f), new Vector3(0.22f, 0.16f, 0.22f), bark);
+            if (Random.value < 0.5f)
+            {
+                AddPart(root.transform, "Moss", PrimitiveType.Sphere, new Vector3(-0.08f, 0.40f, 0.22f), new Vector3(0.34f, 0.14f, 0.5f), new Color(0.25f, 0.44f, 0.22f));
+            }
+            return root;
+        }
+
+        // Tall ferny clump, a taller counterpart to the grass tufts.
+        public static GameObject Fern()
+        {
+            var root = new GameObject("Fern");
+            var a = new Color(0.20f, 0.42f + Random.Range(-0.05f, 0.05f), 0.20f);
+            var b = new Color(0.26f, 0.50f, 0.24f);
+
+            int fronds = Random.Range(5, 8);
+            for (int i = 0; i < fronds; i++)
+            {
+                float angle = i * (360f / fronds) + Random.Range(-12f, 12f);
+                float len = Random.Range(0.30f, 0.48f);
+                var frond = AddPart(root.transform, "Frond" + i, PrimitiveType.Capsule, Vector3.zero, new Vector3(0.11f, len, 0.11f), i % 2 == 0 ? a : b);
+                frond.transform.localPosition = Quaternion.Euler(0f, angle, 0f) * new Vector3(0.14f, len * 0.75f, 0f);
+                frond.transform.localRotation = Quaternion.Euler(0f, angle, Random.Range(30f, 52f));
+            }
+            DisableShadowCasting(root);
+            return root;
+        }
+
+        // Scatter of small stones — ground detail with no gameplay meaning,
+        // distinct from the attackable boulders.
+        public static GameObject Pebbles()
+        {
+            var root = new GameObject("Pebbles");
+            var tone = new Color(0.48f, 0.47f, 0.45f);
+
+            int count = Random.Range(3, 6);
+            for (int i = 0; i < count; i++)
+            {
+                var dir = Random.insideUnitCircle * 0.35f;
+                float s = Random.Range(0.09f, 0.18f);
+                var shade = tone * Random.Range(0.8f, 1.15f);
+                AddPart(root.transform, "Pebble" + i, PrimitiveType.Sphere, new Vector3(dir.x, s * 0.4f, dir.y), new Vector3(s, s * 0.6f, s * 0.9f), shade);
+            }
+            DisableShadowCasting(root);
             return root;
         }
 

@@ -19,7 +19,8 @@ namespace GorillaSurvivors.Core
             Sfx.WarmUp();
             CameraShake.Reset();
             SetupLighting();
-            Blocky3DArt.Ground();
+            var ground = Blocky3DArt.Ground();
+            ground.AddComponent<GroundFollower>();
 
             var player = CreatePlayer();
 
