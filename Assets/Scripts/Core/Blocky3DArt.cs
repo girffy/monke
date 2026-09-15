@@ -36,8 +36,6 @@ namespace GorillaSurvivors.Core
             var hide = new Color(0.17f, 0.13f, 0.12f);
             var muzzle = new Color(0.24f, 0.18f, 0.16f);
 
-            // Haunches and a forward-leaning barrel torso give the knuckle-
-            // walker silhouette: heavy up front, low at the back.
             // Upright, hunched-forward silverback rather than a quadruped
             // crouch: the fixed camera looks down the character's back, and a
             // horizontal body just reads as a shapeless mass from there. A
@@ -510,7 +508,19 @@ namespace GorillaSurvivors.Core
                 blade.transform.localPosition = Quaternion.Euler(0f, angle, 0f) * new Vector3(Random.Range(0.02f, 0.14f), h * 0.8f, 0f);
                 blade.transform.localRotation = Quaternion.Euler(0f, angle, lean);
             }
+            DisableShadowCasting(root);
             return root;
+        }
+
+        // Ground dressing is scattered in the hundreds and is too small for
+        // its shadows to read — keeping them out of the shadow pass is most
+        // of the cost of having that much of it.
+        static void DisableShadowCasting(GameObject root)
+        {
+            foreach (var mr in root.GetComponentsInChildren<MeshRenderer>())
+            {
+                mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            }
         }
 
         public static GameObject Flower()
@@ -528,6 +538,7 @@ namespace GorillaSurvivors.Core
                 p.transform.localRotation = Quaternion.Euler(0f, angle, 0f);
             }
             AddPart(root.transform, "Center", PrimitiveType.Sphere, new Vector3(0f, 0.31f, 0f), Vector3.one * 0.055f, new Color(0.95f, 0.75f, 0.20f));
+            DisableShadowCasting(root);
             return root;
         }
 
@@ -551,6 +562,7 @@ namespace GorillaSurvivors.Core
             AddPart(root.transform, "Stalk", PrimitiveType.Capsule, new Vector3(0f, 0.10f, 0f), new Vector3(0.07f, 0.09f, 0.07f), new Color(0.90f, 0.87f, 0.78f));
             AddPart(root.transform, "Cap", PrimitiveType.Sphere, new Vector3(0f, 0.20f, 0f), new Vector3(0.22f, 0.14f, 0.22f), cap);
             AddPart(root.transform, "Spot", PrimitiveType.Sphere, new Vector3(0.05f, 0.25f, 0.04f), Vector3.one * 0.05f, new Color(0.95f, 0.93f, 0.88f));
+            DisableShadowCasting(root);
             return root;
         }
 

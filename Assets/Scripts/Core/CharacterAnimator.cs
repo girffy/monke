@@ -82,9 +82,11 @@ namespace GorillaSurvivors.Core
             if (_legL != null) _legL.localRotation = Quaternion.Euler(swing * LegSwing * gait, 0f, 0f);
             if (_legR != null) _legR.localRotation = Quaternion.Euler(-swing * LegSwing * gait, 0f, 0f);
 
-            // Ease the arms back to the walk cycle after an attack releases
-            // them, instead of snapping mid-swing.
-            _armBlend = Mathf.MoveTowards(_armBlend, SuppressArms ? 0f : 1f, Time.deltaTime * 6f);
+            // Suppression is immediate but the return eases. Blending OUT
+            // would mean the animator kept partially overwriting an attack's
+            // arm pose for the first few frames of every swing — the
+            // animator runs in LateUpdate, so it gets the last word.
+            _armBlend = SuppressArms ? 0f : Mathf.MoveTowards(_armBlend, 1f, Time.deltaTime * 6f);
             if (_armBlend > 0.001f)
             {
                 float armAmount = ArmSwing * gait * _armBlend;
