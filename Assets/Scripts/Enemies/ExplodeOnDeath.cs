@@ -11,7 +11,10 @@ namespace GorillaSurvivors.Enemies
     // have a moment to dash away from.
     public class ExplodeOnDeath : MonoBehaviour
     {
-        public float FuseSeconds = 0.55f;
+        // Long enough to see the warning ring, place yourself, and walk or
+        // dash clear — a short fuse just felt like an unavoidable tax for
+        // killing the wrong enemy at the wrong moment.
+        public float FuseSeconds = 1.5f;
         public float Radius = 3.2f;
         public float Damage = 28f;
 

@@ -20,13 +20,15 @@ namespace GorillaSurvivors.Core
             CameraShake.Reset();
             SetupLighting();
             Blocky3DArt.Ground();
-            SpawnObstacles();
-
-            var rockManagerGO = new GameObject("AttackableRockManager");
-            var rockManager = rockManagerGO.AddComponent<AttackableRockManager>();
-            rockManager.SpawnInitial(24, 6f, 45f);
 
             var player = CreatePlayer();
+
+            // Props stream around the player rather than being scattered once,
+            // so the world never runs out however far the run travels. Created
+            // after the player because it seeds the first batch around them.
+            var streamerGO = new GameObject("EnvironmentStreamer");
+            streamerGO.AddComponent<EnvironmentStreamer>().PopulateInitial();
+
             SetupCamera(player.transform);
 
             var gameManagerGO = new GameObject("GameManager");
@@ -138,70 +140,5 @@ namespace GorillaSurvivors.Core
             follow.SnapTo(target.position + follow.Offset);
         }
 
-        static void SpawnObstacles()
-        {
-            // Rocks are no longer purely decorative — every rock in the world
-            // comes from AttackableRockManager now, so all of them can be
-            // ground-slammed into a boulder instead of some being inert.
-            const float minDistanceFromSpawn = 6f;
-            const float scatterRadius = 52f;
-
-            for (int i = 0; i < 26; i++)
-            {
-                var pos = RandomScatterPos(minDistanceFromSpawn, scatterRadius);
-                var tree = Blocky3DArt.Tree();
-                tree.transform.position = pos;
-                tree.transform.rotation = Quaternion.Euler(0f, Random.Range(0f, 360f), 0f);
-                tree.transform.localScale = Vector3.one * Random.Range(0.85f, 1.3f);
-                tree.AddComponent<FellableTree>();
-            }
-
-            for (int i = 0; i < 30; i++)
-            {
-                var bush = Blocky3DArt.Bush();
-                bush.transform.position = RandomScatterPos(minDistanceFromSpawn * 0.6f, scatterRadius);
-                bush.transform.rotation = Quaternion.Euler(0f, Random.Range(0f, 360f), 0f);
-                bush.transform.localScale = Vector3.one * Random.Range(0.8f, 1.3f);
-            }
-
-            // Ground dressing — no colliders, purely to keep the plane from
-            // reading as an empty field between the gameplay props.
-            for (int i = 0; i < 220; i++)
-            {
-                var tuft = Blocky3DArt.GrassTuft();
-                tuft.transform.position = RandomScatterPos(2f, scatterRadius);
-                tuft.transform.localScale = Vector3.one * Random.Range(0.8f, 1.5f);
-            }
-
-            for (int i = 0; i < 60; i++)
-            {
-                var flower = Blocky3DArt.Flower();
-                flower.transform.position = RandomScatterPos(3f, scatterRadius);
-                flower.transform.rotation = Quaternion.Euler(0f, Random.Range(0f, 360f), 0f);
-                flower.transform.localScale = Vector3.one * Random.Range(0.85f, 1.25f);
-            }
-
-            for (int i = 0; i < 10; i++)
-            {
-                var stump = Blocky3DArt.Stump();
-                stump.transform.position = RandomScatterPos(8f, scatterRadius);
-                stump.transform.rotation = Quaternion.Euler(0f, Random.Range(0f, 360f), 0f);
-            }
-
-            for (int i = 0; i < 24; i++)
-            {
-                var shroom = Blocky3DArt.Mushroom();
-                shroom.transform.position = RandomScatterPos(5f, scatterRadius);
-                shroom.transform.rotation = Quaternion.Euler(0f, Random.Range(0f, 360f), 0f);
-                shroom.transform.localScale = Vector3.one * Random.Range(0.8f, 1.4f);
-            }
-        }
-
-        static Vector3 RandomScatterPos(float minRadius, float maxRadius)
-        {
-            var dir = Random.insideUnitCircle.normalized;
-            float dist = Random.Range(minRadius, maxRadius);
-            return new Vector3(dir.x * dist, 0f, dir.y * dist);
-        }
     }
 }

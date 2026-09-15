@@ -7,8 +7,8 @@ namespace GorillaSurvivors.Environment
 {
     // A terrain rock the player can hit to send it flying as a boulder that
     // explodes for AoE damage — either on hitting an enemy, or after
-    // travelling its max distance. Consumed on launch; AttackableRockManager
-    // spawns a replacement offscreen after a delay.
+    // travelling its max distance. Consumed on launch; EnvironmentStreamer
+    // replaces it off-camera.
     public class AttackableRock : MonoBehaviour
     {
         const float FlightSpeed = 16f;
@@ -75,7 +75,8 @@ namespace GorillaSurvivors.Environment
             SpawnExplosionEffect();
             Sfx.RockExplosion(transform.position);
 
-            AttackableRockManager.Instance?.NotifyRockConsumed();
+            // EnvironmentStreamer notices the gap and spawns a replacement
+            // off-camera; nothing needs telling.
             Destroy(gameObject);
         }
 

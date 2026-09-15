@@ -84,7 +84,7 @@ namespace GorillaSurvivors.Environment
             SweepDamage(direction, 1f, damage, alreadyHit);
 
             Impact(direction);
-            StartCoroutine(RegrowAfterDelay());
+            StartCoroutine(CleanupAfterDelay());
         }
 
         // Damages anything under the trunk's current sweep. Each enemy is hit
@@ -139,15 +139,12 @@ namespace GorillaSurvivors.Environment
 
         GameObject _stump;
 
-        IEnumerator RegrowAfterDelay()
+        // The log lies around for a while, then clears itself. Growing the
+        // replacement isn't this tree's job — EnvironmentStreamer sees the
+        // population drop and puts a new one in off-camera.
+        IEnumerator CleanupAfterDelay()
         {
             yield return new WaitForSeconds(RegrowDelay);
-
-            var replacement = Blocky3DArt.Tree();
-            replacement.transform.position = WorldScatter.OffscreenPosition(12f, 30f);
-            replacement.transform.rotation = Quaternion.Euler(0f, Random.Range(0f, 360f), 0f);
-            replacement.transform.localScale = Vector3.one * Random.Range(0.85f, 1.3f);
-            replacement.AddComponent<FellableTree>();
 
             if (_stump != null) Destroy(_stump);
             Destroy(gameObject);

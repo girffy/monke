@@ -91,6 +91,7 @@ namespace GorillaSurvivors.UI
             hud._upgradePanel = CreateUpgradePanel(canvasGO.transform, hud, out hud._upgradeTitle, hud._upgradeButtons, hud._upgradeButtonLabels);
             hud._upgradePanel.SetActive(false);
 
+            hud.CreatePauseButton(canvasGO.transform);
             hud._toastText = CreateToastText(canvasGO.transform);
             hud._roundBannerText = CreateRoundBannerText(canvasGO.transform);
             hud.CreateAbilityBar(canvasGO.transform);
@@ -388,14 +389,61 @@ namespace GorillaSurvivors.UI
             GameManager.Instance.ResolveUpgradeChoice(choice);
         }
 
+        // A clickable pause control alongside the Esc/P keys. Browsers
+        // reserve Escape for leaving fullscreen, and a web build embedded in
+        // a page doesn't always get keyboard focus at all, so the mouse is
+        // the one input that is guaranteed to reach a WebGL build.
+        void CreatePauseButton(Transform parent)
+        {
+            var go = new GameObject("PauseButton", typeof(RectTransform));
+            go.transform.SetParent(parent, false);
+            var rect = go.GetComponent<RectTransform>();
+            rect.anchorMin = new Vector2(1f, 1f);
+            rect.anchorMax = new Vector2(1f, 1f);
+            rect.pivot = new Vector2(1f, 1f);
+            rect.anchoredPosition = new Vector2(-20f, -56f);
+            rect.sizeDelta = new Vector2(46f, 34f);
+
+            var image = go.AddComponent<Image>();
+            image.color = new Color(0.16f, 0.16f, 0.18f, 0.85f);
+
+            var button = go.AddComponent<Button>();
+            button.onClick.AddListener(() =>
+            {
+                var gm = GameManager.Instance;
+                if (gm != null) gm.SetManualPause(!gm.IsManuallyPaused);
+            });
+
+            var labelGO = new GameObject("Label", typeof(RectTransform));
+            labelGO.transform.SetParent(go.transform, false);
+            var labelRect = labelGO.GetComponent<RectTransform>();
+            labelRect.anchorMin = Vector2.zero;
+            labelRect.anchorMax = Vector2.one;
+            labelRect.offsetMin = Vector2.zero;
+            labelRect.offsetMax = Vector2.zero;
+            var label = labelGO.AddComponent<Text>();
+            label.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            label.fontSize = 18;
+            label.fontStyle = FontStyle.Bold;
+            label.alignment = TextAnchor.MiddleCenter;
+            label.color = Color.white;
+            label.text = "II";
+        }
+
         public void ShowPaused(bool paused)
         {
             if (_pausePanel == null)
             {
                 _pausePanel = CreateGameOverPanel(transform, out var label);
                 _pausePanel.name = "PausePanel";
-                label.text = "PAUSED\n\n<size=24>Esc to resume</size>";
+                label.text = "PAUSED\n\n<size=24>Click, Esc or P to resume</size>";
                 label.supportRichText = true;
+
+                // The whole dimmed overlay resumes on click — uGUI ignores
+                // timeScale, so this still responds while the game is frozen.
+                var resume = _pausePanel.AddComponent<Button>();
+                resume.transition = Selectable.Transition.None;
+                resume.onClick.AddListener(() => GameManager.Instance?.SetManualPause(false));
             }
             _pausePanel.SetActive(paused);
         }

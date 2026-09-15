@@ -67,7 +67,12 @@ namespace GorillaSurvivors.Core
 
         void Update()
         {
-            if ((Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame)
+            // P as well as Esc: browsers reserve Escape for leaving
+            // fullscreen/pointer lock, so a WebGL build never reliably sees
+            // it — verified missing in an actual browser build.
+            bool pausePressed = Keyboard.current != null
+                && (Keyboard.current.escapeKey.wasPressedThisFrame || Keyboard.current.pKey.wasPressedThisFrame);
+            if (pausePressed
                 || (Gamepad.current != null && Gamepad.current.startButton.wasPressedThisFrame))
             {
                 SetManualPause(!IsManuallyPaused);

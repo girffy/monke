@@ -18,7 +18,7 @@ namespace GorillaSurvivors.Player
         public float DashSpeed = 16f;
         public float DashDuration = 0.18f;
         public float DashCooldown = 2.4f;
-        public float DashInvulnerabilitySeconds = 0.25f;
+        public float DashInvulnerabilitySeconds = 0.45f;
 
         // Movement happens on the flat XZ ground plane; Y stays constant.
         public Vector3 FacingDirection { get; private set; } = Vector3.forward;
@@ -247,7 +247,10 @@ namespace GorillaSurvivors.Player
             _dashReadyTime = Time.time + DashCooldown * (_stats != null ? _stats.AbilityCooldownMultiplier : 1f);
             // Always cover at least the full dash — iframes are the point of
             // dashing through a crowd, not an accidental side effect.
-            _health.GrantInvulnerability(Mathf.Max(DashInvulnerabilitySeconds, DashDuration));
+            // Cover the whole dash plus a landing buffer. Invulnerability
+            // that expires mid-slide means dashing into a crowd still trades
+            // a hit, which defeats the point of dashing through one.
+            _health.GrantInvulnerability(Mathf.Max(DashInvulnerabilitySeconds, DashDuration + 0.2f));
             Sfx.Dash(transform.position);
 
             // Kick up dust where the gorilla pushed off. The lean into the
