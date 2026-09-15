@@ -14,7 +14,8 @@ namespace GorillaSurvivors.Core
 
         public bool IsGameOver { get; private set; }
         public bool IsChoosingUpgrade { get; private set; }
-        public bool IsPaused => IsGameOver || IsChoosingUpgrade;
+        public bool IsManuallyPaused { get; private set; }
+        public bool IsPaused => IsGameOver || IsChoosingUpgrade || IsManuallyPaused;
         public float SurvivalTime { get; private set; }
         public int CurrentRound => _spawner != null ? _spawner.CurrentRound : 1;
         public int KilledThisRound => _spawner != null ? _spawner.KilledThisRound : 0;
@@ -23,6 +24,7 @@ namespace GorillaSurvivors.Core
         public event Action OnGameOver;
         public event Action<List<RoundReward>> OnUpgradeChoiceReady;
         public event Action<int> OnRoundStarted;
+        public event Action<bool> OnPauseToggled;
 
         EnemySpawner _spawner;
         GameObject _player;
@@ -30,6 +32,26 @@ namespace GorillaSurvivors.Core
         void Awake()
         {
             Instance = this;
+            // Time.timeScale is global engine state, not scene state — it
+            // survives a scene reload, so a restart must never inherit a
+            // frozen clock from a session that ended while paused.
+            Time.timeScale = 1f;
+        }
+
+        // Esc pause freezes the clock itself rather than just raising
+        // IsPaused: cooldowns, respawn timers, coroutines and physics all run
+        // on scaled time, so a flag alone would let them keep ticking behind
+        // the pause screen. The round-reward screen doesn't need this (its
+        // timers resolving in the background is harmless), so it keeps the
+        // flag-only pause.
+        public void SetManualPause(bool paused)
+        {
+            if (IsGameOver || IsChoosingUpgrade) return;
+            if (IsManuallyPaused == paused) return;
+
+            IsManuallyPaused = paused;
+            Time.timeScale = paused ? 0f : 1f;
+            OnPauseToggled?.Invoke(paused);
         }
 
         public void RegisterSpawner(EnemySpawner spawner)
@@ -45,6 +67,12 @@ namespace GorillaSurvivors.Core
 
         void Update()
         {
+            if ((Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame)
+                || (Gamepad.current != null && Gamepad.current.startButton.wasPressedThisFrame))
+            {
+                SetManualPause(!IsManuallyPaused);
+            }
+
             if (IsGameOver)
             {
                 if (Keyboard.current != null && Keyboard.current.rKey.wasPressedThisFrame)
@@ -54,7 +82,7 @@ namespace GorillaSurvivors.Core
                 return;
             }
 
-            if (!IsChoosingUpgrade) SurvivalTime += Time.deltaTime;
+            if (!IsPaused) SurvivalTime += Time.deltaTime;
         }
 
         // Called by EnemySpawner once every enemy in the round has been both

@@ -17,7 +17,8 @@ namespace GorillaSurvivors.Pickups
     public class PowerupPickup : MonoBehaviour
     {
         public PowerupType Type;
-        public float PickupRadius = 0.55f;
+        // Powerups have no magnet, so their grab radius does all the work.
+        public float PickupRadius = 1.3f;
 
         Transform _player;
         Transform _visual;

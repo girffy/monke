@@ -135,6 +135,7 @@ namespace GorillaSurvivors.Player
             if (_animator != null)
             {
                 _animator.SuppressArms = false;
+                _animator.StandUpright = false;
                 _animator.BodyHeightOffset = 0f;
                 _animator.BodyPitch = 0f;
             }
@@ -164,7 +165,13 @@ namespace GorillaSurvivors.Player
             _hitLanded = false;
             _pendingAimDirection = aimDirection;
             _controller.MovementLocked = true;
-            if (_animator != null) _animator.SuppressArms = true;
+            if (_animator != null)
+            {
+                _animator.SuppressArms = true;
+                // An overhead two-handed smash needs both hands free, so the
+                // gorilla rears up off its knuckles for it.
+                _animator.StandUpright = true;
+            }
 
             var model = transform.Find("GorillaModel");
             var lockedRotation = Quaternion.LookRotation(aimDirection, Vector3.up);
@@ -195,6 +202,7 @@ namespace GorillaSurvivors.Player
             if (_animator != null)
             {
                 _animator.SuppressArms = false;
+                _animator.StandUpright = false;
                 _animator.BodyHeightOffset = 0f;
                 _animator.BodyPitch = 0f;
             }

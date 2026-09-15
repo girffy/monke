@@ -22,13 +22,17 @@ namespace GorillaSurvivors.Core
         public float ReferenceSpeed = 4.5f;    // speed treated as "full stride"
 
         [Header("Knuckle walk")]
-        // A gorilla drops onto its knuckles to travel and rises back up when
-        // it stops. Blending on movement speed keeps the readable upright
-        // silhouette for standing/attacking while still moving like an ape.
+        // Quadruped stance: a gorilla stands and moves on its knuckles, and
+        // only rears up for moves that need it (see StandUpright).
         public bool KnuckleWalk;
-        public float KnuckleWalkPitch = 30f;    // degrees nose-down at full gait
+        public float KnuckleWalkPitch = 30f;    // degrees nose-down on all fours
         public float KnuckleWalkCrouch = -0.16f;// body drops as it goes down
         public float KnuckleArmForward = 20f;   // arms reach ahead to plant
+
+        // Set by moves performed standing (the overhead slam, the chest
+        // beat). The stance blends rather than snaps, so rearing up and
+        // dropping back onto the knuckles both read as motion.
+        public bool StandUpright { get; set; }
 
         // Set by whatever is posing the arms this frame (PlayerAttack,
         // QuickSwipeAttack). While true the animator leaves arms alone and
@@ -51,6 +55,7 @@ namespace GorillaSurvivors.Core
         float _phase;
         float _armBlend = 1f;
         float _leanBlend;
+        float _uprightBlend;
         Quaternion _baseRotation = Quaternion.identity;
         Quaternion _lastWritten = Quaternion.identity;
         bool _hasWritten;
@@ -90,6 +95,9 @@ namespace GorillaSurvivors.Core
             float swing = Mathf.Sin(_phase);
             float bob = Mathf.Abs(Mathf.Cos(_phase));
 
+            _uprightBlend = Mathf.MoveTowards(_uprightBlend, StandUpright ? 1f : 0f, Time.deltaTime * 7f);
+            float stance = KnuckleWalk ? 1f - _uprightBlend : 0f;
+
             if (_legL != null) _legL.localRotation = Quaternion.Euler(swing * LegSwing * gait, 0f, 0f);
             if (_legR != null) _legR.localRotation = Quaternion.Euler(-swing * LegSwing * gait, 0f, 0f);
 
@@ -103,14 +111,14 @@ namespace GorillaSurvivors.Core
                 float armAmount = ArmSwing * gait * _armBlend;
                 // Negative pitch swings a downward-hanging limb forwards, so
                 // the knuckle reach is subtracted to plant the hands ahead.
-                float armBase = KnuckleWalk ? -KnuckleArmForward * gait * _armBlend : 0f;
+                float armBase = -KnuckleArmForward * stance * _armBlend;
                 if (_armL != null) _armL.localRotation = Quaternion.Euler(armBase - swing * armAmount, 0f, 0f);
                 if (_armR != null) _armR.localRotation = Quaternion.Euler(armBase + swing * armAmount, 0f, 0f);
             }
 
             // Idle breathing keeps a standing character from looking frozen.
             float idle = Mathf.Sin(Time.time * 2.2f) * IdleBreathAmplitude * (1f - gait);
-            float knuckleCrouch = KnuckleWalk ? KnuckleWalkCrouch * gait : 0f;
+            float knuckleCrouch = KnuckleWalkCrouch * stance;
             _model.localPosition = _modelBasePos + new Vector3(0f, bob * BobHeight * gait + idle + BodyHeightOffset + knuckleCrouch, 0f);
 
             // Lean into the direction of travel, composed on top of the
@@ -145,7 +153,7 @@ namespace GorillaSurvivors.Core
                 }
             }
 
-            float knucklePitch = KnuckleWalk ? KnuckleWalkPitch * gait : 0f;
+            float knucklePitch = KnuckleWalkPitch * stance;
             var pose = lean * Quaternion.Euler(BodyPitch + knucklePitch, BodyYaw, 0f);
             _model.localRotation = _baseRotation * pose;
             _lastWritten = _model.localRotation;

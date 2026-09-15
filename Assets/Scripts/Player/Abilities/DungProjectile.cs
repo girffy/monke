@@ -14,7 +14,7 @@ namespace GorillaSurvivors.Player.Abilities
     {
         public float ImpactRadius = 2.2f;
         public float Damage = 26f;
-        public float PatchDuration = 5f;
+        public float PatchDuration = 3.5f;
         public float SlowFactor = 0.45f;
 
         Vector3 _start;

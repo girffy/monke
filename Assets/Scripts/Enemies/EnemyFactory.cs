@@ -50,10 +50,9 @@ namespace GorillaSurvivors.Enemies
                     collider.radius = 0.30f;
                     collider.height = 1.4f;
                     collider.center = new Vector3(0f, 0.7f, 0f);
-                    // Stays one-shot-able by the base attack (22 dmg) for a
-                    // very long time — it's meant to be a fast, fragile
-                    // pest, not a damage check.
-                    baseHP = 12f + 1.0f * difficultyScale;
+                    // A fast, fragile pest, not a damage check: one swipe for
+                    // a long time.
+                    baseHP = 7f + 0.7f * difficultyScale;
                     baseXP = 2f;
                     baseMoveSpeed = 3.4f + 0.4f * Mathf.Min(difficultyScale, 4f);
                     baseContactDamage = 4f + 1f * Mathf.Min(difficultyScale, 3f);
@@ -63,11 +62,10 @@ namespace GorillaSurvivors.Enemies
                     collider.radius = 0.55f;
                     collider.height = 2.4f;
                     collider.center = new Vector3(0f, 1.2f, 0f);
-                    // The "big guy": always takes 2-3 unbuffed base-attack
-                    // hits (base attack = 22 dmg), even in round 1, and
-                    // gets tankier every round so damage upgrades stay
-                    // meaningful against it long after Grunts stop mattering.
-                    baseHP = 50f + 4f * difficultyScale;
+                    // The "big guy": two slams or four swipes in round 1, and
+                    // tankier every round so damage upgrades stay meaningful
+                    // against it long after Grunts stop mattering.
+                    baseHP = 34f + 3.0f * difficultyScale;
                     baseXP = 7f;
                     baseMoveSpeed = 1.1f + 0.2f * Mathf.Min(difficultyScale, 4f);
                     baseContactDamage = 13f + 3f * Mathf.Min(difficultyScale, 4f);
@@ -77,7 +75,7 @@ namespace GorillaSurvivors.Enemies
                     collider.radius = 0.35f;
                     collider.height = 1.6f;
                     collider.center = new Vector3(0f, 0.8f, 0f);
-                    baseHP = 18f + 1.2f * difficultyScale;
+                    baseHP = 10f + 0.9f * difficultyScale;
                     baseXP = 4f;
                     baseMoveSpeed = 1.6f;
                     isRanged = true;
@@ -93,7 +91,7 @@ namespace GorillaSurvivors.Enemies
                     // Modest HP — the shield, not the health pool, is what
                     // makes these awkward, so flanking is rewarded rather
                     // than just out-damaging them.
-                    baseHP = 26f + 2.0f * difficultyScale;
+                    baseHP = 20f + 1.5f * difficultyScale;
                     baseXP = 5f;
                     baseMoveSpeed = 1.35f + 0.18f * Mathf.Min(difficultyScale, 4f);
                     baseContactDamage = 8f + 2f * Mathf.Min(difficultyScale, 3f);
@@ -110,7 +108,7 @@ namespace GorillaSurvivors.Enemies
                     collider.center = new Vector3(0f, 0.8f, 0f);
                     // Fragile and fast-ish: the threat is where it dies, not
                     // how long it survives.
-                    baseHP = 10f + 0.8f * difficultyScale;
+                    baseHP = 6f + 0.5f * difficultyScale;
                     baseXP = 5f;
                     baseMoveSpeed = 2.2f + 0.3f * Mathf.Min(difficultyScale, 4f);
                     baseContactDamage = 4f;
@@ -122,7 +120,7 @@ namespace GorillaSurvivors.Enemies
                     collider.radius = 0.35f;
                     collider.height = 1.6f;
                     collider.center = new Vector3(0f, 0.8f, 0f);
-                    baseHP = 20f + 1.4f * difficultyScale;
+                    baseHP = 14f + 1.0f * difficultyScale;
                     baseXP = 6f;
                     // Hangs back from the fight so it isn't trivially caught
                     // in the AoE aimed at the crowd it's healing.
@@ -138,11 +136,13 @@ namespace GorillaSurvivors.Enemies
                     collider.radius = 0.35f;
                     collider.height = 1.6f;
                     collider.center = new Vector3(0f, 0.8f, 0f);
-                    // Meant to stay a reliable one-shot against the base
-                    // 22-dmg attack for the first several rounds, then
-                    // gradually creep past it so late-game runs without any
-                    // damage round-reward/powerup start needing 2 hits.
-                    baseHP = 16f + 1.2f * difficultyScale;
+                    // One swipe in round 1. HP was last tuned against the 22-
+                    // dmg slam back when that was the primary attack; now
+                    // that LMB is the 10-dmg swipe, the old 16 HP meant two
+                    // clicks per basic enemy from the very first wave. Sits
+                    // just under a swipe so a level or damage buff keeps it
+                    // a one-hit kill as the per-round growth creeps in.
+                    baseHP = 9f + 0.9f * difficultyScale;
                     baseXP = 3f;
                     baseMoveSpeed = 1.8f + 0.35f * Mathf.Min(difficultyScale, 4f);
                     baseContactDamage = 6f + 2f * Mathf.Min(difficultyScale, 3f);

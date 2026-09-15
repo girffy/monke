@@ -7,9 +7,11 @@ namespace GorillaSurvivors.Pickups
     public class XPOrb : MonoBehaviour
     {
         public float XPAmount = 3f;
-        public float MagnetRadius = 2.5f;
+        public float MagnetRadius = 4.5f;
         public float MagnetSpeed = 9f;
-        public float PickupRadius = 0.45f;
+        // Measured from the gorilla's centre, and the gorilla is wide — the
+        // old 0.45 meant an orb could visibly touch its fur and not count.
+        public float PickupRadius = 0.9f;
 
         Transform _player;
         PlayerStats _stats;

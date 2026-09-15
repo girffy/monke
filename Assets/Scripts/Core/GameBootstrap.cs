@@ -42,6 +42,7 @@ namespace GorillaSurvivors.Core
             gameManager.OnGameOver += hud.ShowGameOver;
             gameManager.OnUpgradeChoiceReady += hud.ShowUpgradeChoice;
             gameManager.OnRoundStarted += hud.ShowRoundBanner;
+            gameManager.OnPauseToggled += hud.ShowPaused;
         }
 
         static GameObject CreatePlayer()

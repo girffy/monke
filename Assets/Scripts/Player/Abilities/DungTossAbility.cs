@@ -17,10 +17,10 @@ namespace GorillaSurvivors.Player.Abilities
     public class DungTossAbility : MonoBehaviour
     {
         public bool Unlocked;
-        public float Cooldown = 3.2f;
-        public float BaseDamage = 26f;
+        public float Cooldown = 4.5f;
+        public float BaseDamage = 14f;
         public float Range = 11f;
-        public float ImpactRadius = 2.2f;
+        public float ImpactRadius = 1.4f;
         public float AimAssistAngle = 18f;
 
         const float WindupTime = 0.16f;

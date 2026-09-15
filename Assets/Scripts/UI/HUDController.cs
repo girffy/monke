@@ -388,6 +388,20 @@ namespace GorillaSurvivors.UI
             GameManager.Instance.ResolveUpgradeChoice(choice);
         }
 
+        public void ShowPaused(bool paused)
+        {
+            if (_pausePanel == null)
+            {
+                _pausePanel = CreateGameOverPanel(transform, out var label);
+                _pausePanel.name = "PausePanel";
+                label.text = "PAUSED\n\n<size=24>Esc to resume</size>";
+                label.supportRichText = true;
+            }
+            _pausePanel.SetActive(paused);
+        }
+
+        GameObject _pausePanel;
+
         public void ShowGameOver()
         {
             _gameOverPanel.SetActive(true);

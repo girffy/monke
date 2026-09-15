@@ -108,7 +108,11 @@ namespace GorillaSurvivors.Player.Abilities
             _isBeating = true;
             _pulsesFired = 0;
             _controller.MovementLocked = true;
-            if (_animator != null) _animator.SuppressArms = true;
+            if (_animator != null)
+            {
+                _animator.SuppressArms = true;
+                _animator.StandUpright = true;
+            }
 
             // Rear up onto the hind legs.
             yield return Pose(Vector3.down, ArmsWideDir, RiseTime, 0f, 0.20f, 0f, -12f);
@@ -135,6 +139,7 @@ namespace GorillaSurvivors.Player.Abilities
             if (_animator != null)
             {
                 _animator.SuppressArms = false;
+                _animator.StandUpright = false;
                 _animator.BodyHeightOffset = 0f;
                 _animator.BodyPitch = 0f;
             }
