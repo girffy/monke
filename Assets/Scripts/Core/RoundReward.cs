@@ -66,6 +66,18 @@ namespace GorillaSurvivors.Core
                     Description = "+15% move speed",
                     Apply = p => p.GetComponent<PlayerStats>().AddPermanentMoveSpeedBonus(0.15f),
                 },
+                new RoundReward
+                {
+                    Title = "Quick Recovery",
+                    Description = "-15% ability cooldowns (Dash/Roar/Charge/LMB)",
+                    Apply = p => p.GetComponent<PlayerStats>().AddPermanentCooldownReduction(0.15f),
+                },
+                new RoundReward
+                {
+                    Title = "Wide Reach",
+                    Description = "+20% attack area size",
+                    Apply = p => p.GetComponent<PlayerStats>().AddPermanentAreaBonus(0.2f),
+                },
             };
 
             if (roar != null && !roar.Unlocked)

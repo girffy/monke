@@ -26,6 +26,8 @@ namespace GorillaSurvivors.Player
         public float PermanentDamageBonus { get; private set; }
         public float PermanentAttackSpeedBonus { get; private set; }
         public float PermanentMoveSpeedBonus { get; private set; }
+        public float PermanentCooldownReduction { get; private set; }
+        public float PermanentAreaBonus { get; private set; }
 
         public event Action<int> OnLevelUp;
         public event Action<float, float> OnXPChanged; // current, needed
@@ -139,13 +141,25 @@ namespace GorillaSurvivors.Player
             _health?.SetMaxHP(_health.MaxHP + amount, healToFull: true);
         }
 
+        public void AddPermanentCooldownReduction(float amount)
+        {
+            PermanentCooldownReduction += amount;
+            RecomputeMultipliers();
+        }
+
+        public void AddPermanentAreaBonus(float amount)
+        {
+            PermanentAreaBonus += amount;
+            RecomputeMultipliers();
+        }
+
         void RecomputeMultipliers()
         {
             DamageMultiplier = 1f + PermanentDamageBonus + (_damageBuffUntil > 0f ? _damageBuffAmount : 0f);
             AttackSpeedMultiplier = 1f + PermanentAttackSpeedBonus + (_attackSpeedBuffUntil > 0f ? _attackSpeedBuffAmount : 0f);
             MoveSpeedMultiplier = 1f + PermanentMoveSpeedBonus + (_moveSpeedBuffUntil > 0f ? _moveSpeedBuffAmount : 0f);
-            AbilityCooldownMultiplier = Mathf.Max(0.25f, 1f - (_cooldownBuffUntil > 0f ? _cooldownBuffAmount : 0f));
-            AreaMultiplier = 1f + (_areaBuffUntil > 0f ? _areaBuffAmount : 0f);
+            AbilityCooldownMultiplier = Mathf.Max(0.25f, 1f - PermanentCooldownReduction - (_cooldownBuffUntil > 0f ? _cooldownBuffAmount : 0f));
+            AreaMultiplier = 1f + PermanentAreaBonus + (_areaBuffUntil > 0f ? _areaBuffAmount : 0f);
         }
     }
 }

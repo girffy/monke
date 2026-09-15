@@ -13,6 +13,13 @@ namespace GorillaSurvivors.Enemies
         float _currentHP;
         bool _initialized;
         bool _dead;
+        EnemyHealthBar _healthBar;
+        float _healthBarHeight = 2f;
+
+        // Set by EnemyFactory right after the collider dimensions are known,
+        // so the bar sits just above the model's actual head regardless of
+        // variant/scale.
+        public void SetHealthBarHeight(float height) => _healthBarHeight = height;
 
         void Awake()
         {
@@ -43,6 +50,10 @@ namespace GorillaSurvivors.Enemies
             if (_dead) return;
 
             _currentHP -= amount;
+
+            if (_healthBar == null) _healthBar = EnemyHealthBar.Attach(transform, _healthBarHeight);
+            _healthBar.SetFraction(_currentHP / MaxHP);
+
             if (_currentHP <= 0f)
             {
                 Die();
@@ -67,6 +78,8 @@ namespace GorillaSurvivors.Enemies
             // count getting decremented twice for one real enemy.
             if (_dead) return;
             _dead = true;
+
+            if (_healthBar != null) Destroy(_healthBar.gameObject);
 
             XPOrb.Spawn(transform.position, XPReward);
 

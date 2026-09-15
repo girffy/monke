@@ -115,9 +115,20 @@ namespace GorillaSurvivors.Core
             if (modifiers.HasCrown)
             {
                 var gold = new Color(1f, 0.85f, 0.2f);
-                AddPrimitive(root.transform, "Crown", PrimitiveType.Cylinder, new Vector3(0, 1.63f, 0), new Vector3(0.24f, 0.07f, 0.24f), gold);
-                var spike = AddPrimitive(root.transform, "CrownSpike", PrimitiveType.Cube, new Vector3(0, 1.72f, 0), new Vector3(0.06f, 0.1f, 0.06f), gold);
-                spike.transform.localRotation = Quaternion.Euler(0f, 45f, 0f);
+                AddPrimitive(root.transform, "CrownBand", PrimitiveType.Cylinder, new Vector3(0, 1.59f, 0), new Vector3(0.25f, 0.045f, 0.25f), gold);
+
+                const int spikeCount = 6;
+                const float ringRadius = 0.185f;
+                for (int i = 0; i < spikeCount; i++)
+                {
+                    float angle = i * Mathf.PI * 2f / spikeCount;
+                    float x = Mathf.Cos(angle) * ringRadius;
+                    float z = Mathf.Sin(angle) * ringRadius;
+                    bool tall = i % 2 == 0;
+                    float spikeHeight = tall ? 0.22f : 0.14f;
+                    var spike = AddPrimitive(root.transform, "CrownSpike" + i, PrimitiveType.Cube, new Vector3(x, 1.63f + spikeHeight / 2f, z), new Vector3(0.045f, spikeHeight, 0.045f), gold);
+                    spike.transform.localRotation = Quaternion.Euler(0f, angle * Mathf.Rad2Deg, 0f);
+                }
             }
 
             root.transform.localScale = Vector3.one * scale;

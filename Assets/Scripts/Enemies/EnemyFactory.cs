@@ -96,6 +96,7 @@ namespace GorillaSurvivors.Enemies
             // Armor/Weapon/Shoes/Crown modifiers (see EnemyModifiers.cs) are
             // applied uniformly on top of the base per-variant numbers above.
             health.Init(maxHP: baseHP * modifiers.HPMultiplier, xpReward: baseXP * modifiers.XPMultiplier);
+            health.SetHealthBarHeight(collider.center.y + collider.height / 2f + 0.35f);
             ai.MoveSpeed = baseMoveSpeed * modifiers.SpeedMultiplier;
             ai.ContactDamage = baseContactDamage * modifiers.DamageMultiplier;
             ai.IsRanged = isRanged;
