@@ -206,16 +206,29 @@ namespace GorillaSurvivors.Core
             AddLimb(root.transform, "LegL", new Vector3(-0.15f * build, 0.66f, 0f), 0.10f * build, 0.30f, 0.09f * build, 0.28f, 0.11f, pants, pants, shoe);
             AddLimb(root.transform, "LegR", new Vector3(0.15f * build, 0.66f, 0f), 0.10f * build, 0.30f, 0.09f * build, 0.28f, 0.11f, pants, pants, shoe);
 
-            AddPart(root.transform, "Hips", PrimitiveType.Sphere, new Vector3(0f, 0.72f, 0f), new Vector3(0.38f * build, 0.26f, 0.28f * build), pants);
-            AddPart(root.transform, "Torso", PrimitiveType.Capsule, new Vector3(0f, 1.00f, 0f), new Vector3(0.44f * build, 0.30f, 0.30f * build), shirt);
-            AddPart(root.transform, "Belt", PrimitiveType.Cube, new Vector3(0f, 0.80f, 0f), new Vector3(0.46f * build, 0.07f, 0.32f * build), belt);
-            AddPart(root.transform, "Neck", PrimitiveType.Capsule, new Vector3(0f, 1.26f, 0f), new Vector3(0.13f, 0.06f, 0.13f), skin);
+            // The body is a taper, not a tube: narrow hips, a chest that is
+            // wider than the waist, and shoulders capping the top. A single
+            // capsule for the whole torso made every man read as a bollard,
+            // and it is the one shape all eight variants share, so it is
+            // worth the extra three spheres.
+            AddPart(root.transform, "Hips", PrimitiveType.Sphere, new Vector3(0f, 0.72f, 0f), new Vector3(0.36f * build, 0.26f, 0.27f * build), pants);
+            AddPart(root.transform, "Waist", PrimitiveType.Capsule, new Vector3(0f, 0.92f, 0f), new Vector3(0.38f * build, 0.16f, 0.27f * build), shirt);
+            AddPart(root.transform, "Chest", PrimitiveType.Capsule, new Vector3(0f, 1.10f, 0f), new Vector3(0.47f * build, 0.19f, 0.32f * build), shirt);
+            AddPart(root.transform, "Belt", PrimitiveType.Cube, new Vector3(0f, 0.80f, 0f), new Vector3(0.44f * build, 0.07f, 0.31f * build), belt);
 
-            var head = AddPart(root.transform, "Head", PrimitiveType.Sphere, new Vector3(0f, 1.42f, 0f), new Vector3(0.30f, 0.34f, 0.30f), skin);
+            // Shoulder caps, so the arms grow out of a body instead of being
+            // stuck to its sides.
+            AddPart(root.transform, "ShoulderL", PrimitiveType.Sphere, new Vector3(-0.25f * build, 1.20f, 0f), new Vector3(0.20f * build, 0.17f, 0.20f * build), shirt);
+            AddPart(root.transform, "ShoulderR", PrimitiveType.Sphere, new Vector3(0.25f * build, 1.20f, 0f), new Vector3(0.20f * build, 0.17f, 0.20f * build), shirt);
+            AddPart(root.transform, "Collar", PrimitiveType.Capsule, new Vector3(0f, 1.24f, 0f), new Vector3(0.30f * build, 0.05f, 0.22f * build), shirt);
+            AddPart(root.transform, "Neck", PrimitiveType.Capsule, new Vector3(0f, 1.29f, 0f), new Vector3(0.13f, 0.06f, 0.13f), skin);
+
+            var head = AddPart(root.transform, "Head", PrimitiveType.Sphere, new Vector3(0f, 1.44f, 0f), new Vector3(0.30f, 0.34f, 0.30f), skin);
+            AddPart(head.transform, "Ears", PrimitiveType.Sphere, new Vector3(0f, -0.06f, -0.04f), new Vector3(1.14f, 0.34f, 0.72f), skin);
             BuildFace(head.transform, look, skin, hair);
 
-            AddLimb(root.transform, "ArmL", new Vector3(-0.28f * build, 1.18f, 0f), 0.085f * build, 0.26f, 0.075f * build, 0.24f, 0.09f, shirt, skin, skin);
-            AddLimb(root.transform, "ArmR", new Vector3(0.28f * build, 1.18f, 0f), 0.085f * build, 0.26f, 0.075f * build, 0.24f, 0.09f, shirt, skin, skin);
+            AddLimb(root.transform, "ArmL", new Vector3(-0.27f * build, 1.19f, 0f), 0.085f * build, 0.26f, 0.075f * build, 0.24f, 0.09f, shirt, skin, skin);
+            AddLimb(root.transform, "ArmR", new Vector3(0.27f * build, 1.19f, 0f), 0.085f * build, 0.26f, 0.075f * build, 0.24f, 0.09f, shirt, skin, skin);
 
             if (holdsWeapon)
             {
@@ -339,10 +352,15 @@ namespace GorillaSurvivors.Core
                     var sling = AddPart(root.transform, "Sling", PrimitiveType.Cube, new Vector3(0.10f, 1.06f, 0.02f), new Vector3(0.07f, 0.42f, 0.30f), new Color(0.48f, 0.42f, 0.33f));
                     sling.transform.localRotation = Quaternion.Euler(0f, 0f, 20f);
 
-                    // Cross on the brow: the medic has to be findable in a
-                    // crowd from any angle, and white-on-white is not enough.
-                    AddPart(head, "BandCross", PrimitiveType.Cube, new Vector3(0f, 0.30f, 0.34f), new Vector3(0.30f, 0.12f, 0.30f), red);
-                    AddPart(head, "BandCrossV", PrimitiveType.Cube, new Vector3(0f, 0.30f, 0.34f), new Vector3(0.12f, 0.30f, 0.30f), red);
+                    // A white cap with a cross on it, rather than the cross
+                    // painted straight onto the forehead — at head scale a
+                    // small red mark on bare skin reads as a head wound, not
+                    // as insignia. The medic still has to be findable in a
+                    // crowd from any angle, hence putting it up top.
+                    AddPart(head, "Cap", PrimitiveType.Sphere, new Vector3(0f, 0.20f, -0.02f), new Vector3(1.14f, 0.72f, 1.14f), new Color(0.94f, 0.94f, 0.96f));
+                    AddPart(head, "CapPeak", PrimitiveType.Cube, new Vector3(0f, 0.12f, 0.46f), new Vector3(0.70f, 0.08f, 0.42f), new Color(0.94f, 0.94f, 0.96f));
+                    AddPart(head, "CapCrossH", PrimitiveType.Cube, new Vector3(0f, 0.46f, 0.06f), new Vector3(0.44f, 0.16f, 0.14f), red);
+                    AddPart(head, "CapCrossV", PrimitiveType.Cube, new Vector3(0f, 0.46f, 0.06f), new Vector3(0.14f, 0.16f, 0.44f), red);
                     break;
                 }
                 case HumanVariant.Brute:
