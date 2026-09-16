@@ -430,8 +430,14 @@ namespace GorillaSurvivors.Player
         float _knockbackUntil;
         float _knockbackDuration;
 
+        // Tech tree "Immovable": the shove that comes with taking a hit is
+        // usually what saves you, but it also throws off a swing you were
+        // mid-way through, so trading it away is a real choice.
+        public bool IgnoreKnockback;
+
         public void ApplyKnockback(Vector3 velocity, float duration)
         {
+            if (IgnoreKnockback) return;
             // A dash or a rooted attack/ability owns movement; a hit landing
             // then (only possible at the very edge of i-frames) shouldn't
             // drag the player out of it.

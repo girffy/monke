@@ -138,6 +138,24 @@ namespace GorillaSurvivors.Enemies
                     bomb.Damage = 40f + 2.6f * r;
                     break;
 
+                case HumanVariant.Wizard:
+                    collider.radius = 0.40f;
+                    collider.height = 1.8f;
+                    collider.center = new Vector3(0f, 0.9f, 0f);
+                    // The toughest thing in the game by a clear margin, and
+                    // it has to be: it spends most of a fight out of reach,
+                    // so a low pool would mean it dies to the one attack that
+                    // ever connects and never gets to be a threat.
+                    baseHP = 75f + 6f * difficultyScale;
+                    baseXP = 16f;
+                    baseMoveSpeed = 1.5f;
+                    isRanged = true;
+                    preferredRange = 10f;
+                    baseProjectileInterval = 999f; // casts instead of throwing
+                    var caster = go.AddComponent<WizardCaster>();
+                    caster.FireballDamage = 26f + 1.8f * r;
+                    break;
+
                 case HumanVariant.Medic:
                     collider.radius = 0.35f;
                     collider.height = 1.6f;

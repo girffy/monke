@@ -17,6 +17,9 @@ namespace GorillaSurvivors.Enemies
 
         public float CurrentHP => _currentHP;
         public System.Action<EnemyHealth> OnDied;
+        // Fired with the damage actually taken. The Wizard uses it to blink
+        // away from a solid hit.
+        public System.Action<float> OnDamaged;
 
         // Counted rather than a bool so overlapping medics can't undo each
         // other: the shield lifts only when the last one drops.
@@ -109,6 +112,7 @@ namespace GorillaSurvivors.Enemies
             }
 
             _currentHP -= amount;
+            OnDamaged?.Invoke(amount);
 
             if (_healthBar == null) _healthBar = EnemyHealthBar.Attach(transform, _healthBarHeight);
             _healthBar.SetFraction(_currentHP / MaxHP);

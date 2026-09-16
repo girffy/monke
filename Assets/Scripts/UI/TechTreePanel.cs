@@ -75,28 +75,49 @@ namespace GorillaSurvivors.UI
             gridRect.offsetMin = new Vector2(16f, 62f);
             gridRect.offsetMax = new Vector2(-16f, -64f);
 
+            // Each branch gets horizontal space in proportion to how many
+            // columns of nodes it holds, so a three-column branch isn't
+            // squeezed into the same width as a two-column one.
             var branches = TechTree.Branches;
-            int columns = branches.Count;
+            int totalColumns = 0;
             int rows = 0;
-            foreach (var b in branches) rows = Mathf.Max(rows, b.Nodes.Count);
+            foreach (var b in branches)
+            {
+                totalColumns += b.Columns;
+                foreach (var n in b.Nodes) rows = Mathf.Max(rows, n.Row + 1);
+            }
             float rowFraction = (1f - HeaderFraction) / rows;
 
-            for (int c = 0; c < columns; c++)
+            int columnCursor = 0;
+            for (int bi = 0; bi < branches.Count; bi++)
             {
-                var branch = branches[c];
-                float x0 = c / (float)columns;
-                float x1 = (c + 1) / (float)columns;
+                var branch = branches[bi];
+                float bx0 = columnCursor / (float)totalColumns;
+                float bx1 = (columnCursor + branch.Columns) / (float)totalColumns;
+                columnCursor += branch.Columns;
 
-                var header = MakeStretched(gridRect, "Header" + c,
-                    new Vector2(x0 + PadX, 1f - HeaderFraction + PadY), new Vector2(x1 - PadX, 1f));
-                var headerText = AddText(header, 15, TextAnchor.MiddleCenter);
-                headerText.text = branch.Name;
+                var header = MakeStretched(gridRect, "Header" + bi,
+                    new Vector2(bx0 + PadX, 1f - HeaderFraction + PadY), new Vector2(bx1 - PadX, 1f));
+                var headerText = AddText(header, 16, TextAnchor.MiddleCenter);
+                headerText.text = $"<b>{branch.Name}</b>\n<size=11>{branch.Blurb}</size>";
                 headerText.color = branch.Tint;
 
-                for (int r = 0; r < branch.Nodes.Count; r++)
+                // A faint plate behind each branch so the three read as three
+                // trees rather than one wall of boxes.
+                var plate = MakeStretched(gridRect, "Plate" + bi,
+                    new Vector2(bx0 + PadX * 0.5f, 0f), new Vector2(bx1 - PadX * 0.5f, 1f - HeaderFraction));
+                var plateImage = plate.gameObject.AddComponent<Image>();
+                plateImage.color = new Color(branch.Tint.r, branch.Tint.g, branch.Tint.b, 0.055f);
+                plateImage.raycastTarget = false;
+
+                float columnSpan = (bx1 - bx0) / branch.Columns;
+                foreach (var node in branch.Nodes)
                 {
-                    float yTop = 1f - HeaderFraction - r * rowFraction;
-                    _views.Add(MakeNode(branch.Nodes[r], branch.Tint, gridRect,
+                    float x0 = bx0 + node.Column * columnSpan;
+                    float x1 = x0 + columnSpan;
+                    float yTop = 1f - HeaderFraction - node.Row * rowFraction;
+
+                    _views.Add(MakeNode(node, branch.Tint, gridRect,
                         new Vector2(x0 + PadX, yTop - rowFraction + PadY), new Vector2(x1 - PadX, yTop - PadY)));
                 }
             }
@@ -256,11 +277,12 @@ namespace GorillaSurvivors.UI
                     // planning a route through it, which you can't do if the
                     // deep nodes are blank until you're already standing on
                     // them. The prerequisite goes on its own dimmer line.
-                    var previous = TechTree.Find(view.Node.Requires);
+                    string reason = _state.LockReason(view.Node);
                     view.Label.text =
                         $"<color=#6e6e6e><b>{view.Node.Title}</b>{rankTag}\n"
-                        + $"<size=11>{view.Node.Description}</size>\n"
-                        + $"<size=10><color=#4f4f4f>needs {previous?.Title}</color></size></color>";
+                        + $"<size=11>{view.Node.Description}</size>"
+                        + (reason == null ? "" : $"\n<size=10><color=#4f4f4f>{reason}</color></size>")
+                        + "</color>";
                 }
                 else
                 {

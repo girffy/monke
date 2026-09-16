@@ -2,7 +2,7 @@ using UnityEngine;
 
 namespace GorillaSurvivors.Core
 {
-    public enum HumanVariant { Grunt, Runner, Brute, Thrower, Shieldman, Bomber, Medic }
+    public enum HumanVariant { Grunt, Runner, Brute, Thrower, Shieldman, Bomber, Medic, Wizard }
 
     // Primitive-assembled 3D models (spheres/capsules/cubes). Since the
     // project ships no art assets, quality comes from silhouette, proportion
@@ -67,26 +67,39 @@ namespace GorillaSurvivors.Core
             // Torso are what make the curve read from the fixed side-on
             // camera; without them the animal is a wedge, which is the
             // hunched-human silhouette again.
-            AddPart(root.transform, "Rump", PrimitiveType.Sphere, new Vector3(0f, 0.46f, -0.40f), new Vector3(0.76f, 0.58f, 0.70f), fur);
-            AddPart(root.transform, "Loin", PrimitiveType.Sphere, new Vector3(0f, 0.76f, -0.32f), new Vector3(0.84f, 0.66f, 0.64f), fur);
-            AddPart(root.transform, "Torso", PrimitiveType.Sphere, new Vector3(0f, 0.94f, -0.08f), new Vector3(1.04f, 0.94f, 0.90f), furMid);
-            AddPart(root.transform, "Chest", PrimitiveType.Sphere, new Vector3(0f, 1.04f, 0.24f), new Vector3(1.24f, 1.00f, 0.98f), furMid);
-            // The saddle follows the arch, so it is long and curved along the
-            // back rather than a patch sitting flat on top of it.
-            AddPart(root.transform, "Saddle", PrimitiveType.Sphere, new Vector3(0f, 1.22f, -0.22f), new Vector3(0.90f, 0.50f, 0.88f), silver);
-            // The hump over the shoulders — the peak of the silhouette.
-            AddPart(root.transform, "Hump", PrimitiveType.Sphere, new Vector3(0f, 1.38f, 0.06f), new Vector3(1.02f, 0.54f, 0.70f), furLight);
-            AddPart(root.transform, "ShoulderL", PrimitiveType.Sphere, new Vector3(-0.60f, 1.20f, 0.24f), Vector3.one * 0.56f, furLight);
-            AddPart(root.transform, "ShoulderR", PrimitiveType.Sphere, new Vector3(0.60f, 1.20f, 0.24f), Vector3.one * 0.56f, furLight);
+            // The topline is CONCAVE-DOWN: it rises steeply off the hips,
+            // peaks over the middle of the back, and falls away again toward
+            // the shoulders and head. Previously every piece stepped upward
+            // from rump to hump, which is a monotonic ramp — and a back that
+            // only ever climbs toward the shoulders is exactly the shape of a
+            // person stooping, no matter how far forward the arms are put.
+            //
+            // The heights below deliberately go 0.44 -> 0.86 -> 1.20 -> 1.34
+            // -> 1.30 -> 1.24: up fast, over the top, and back DOWN into the
+            // neck. That turnover is the whole read.
+            AddPart(root.transform, "Rump", PrimitiveType.Sphere, new Vector3(0f, 0.44f, -0.44f), new Vector3(0.72f, 0.56f, 0.66f), fur);
+            AddPart(root.transform, "Loin", PrimitiveType.Sphere, new Vector3(0f, 0.86f, -0.36f), new Vector3(0.86f, 0.72f, 0.62f), fur);
+            AddPart(root.transform, "Torso", PrimitiveType.Sphere, new Vector3(0f, 1.10f, -0.14f), new Vector3(1.06f, 0.86f, 0.80f), furMid);
+            AddPart(root.transform, "Chest", PrimitiveType.Sphere, new Vector3(0f, 1.02f, 0.26f), new Vector3(1.26f, 1.02f, 1.00f), furMid);
+            // The crown of the arch, over the MIDDLE of the back rather than
+            // over the shoulders.
+            AddPart(root.transform, "Withers", PrimitiveType.Sphere, new Vector3(0f, 1.34f, -0.10f), new Vector3(0.96f, 0.46f, 0.74f), furLight);
+            // The saddle follows the curve down the back of the arch.
+            AddPart(root.transform, "Saddle", PrimitiveType.Sphere, new Vector3(0f, 1.22f, -0.30f), new Vector3(0.88f, 0.48f, 0.80f), silver);
+            // Shoulders sit BELOW the crown, so the line falls away forward.
+            AddPart(root.transform, "Hump", PrimitiveType.Sphere, new Vector3(0f, 1.24f, 0.12f), new Vector3(1.06f, 0.50f, 0.74f), furLight);
+            AddPart(root.transform, "ShoulderL", PrimitiveType.Sphere, new Vector3(-0.60f, 1.14f, 0.26f), Vector3.one * 0.58f, furLight);
+            AddPart(root.transform, "ShoulderR", PrimitiveType.Sphere, new Vector3(0.60f, 1.14f, 0.26f), Vector3.one * 0.58f, furLight);
             AddPart(root.transform, "PecL", PrimitiveType.Sphere, new Vector3(-0.27f, 0.94f, 0.55f), new Vector3(0.44f, 0.40f, 0.28f), hide);
             AddPart(root.transform, "PecR", PrimitiveType.Sphere, new Vector3(0.27f, 0.94f, 0.55f), new Vector3(0.44f, 0.40f, 0.28f), hide);
             // Barely any neck: the head sits straight off the chest, slung
             // forward and low between the shoulders.
-            AddPart(root.transform, "Neck", PrimitiveType.Sphere, new Vector3(0f, 1.30f, 0.34f), new Vector3(0.44f, 0.32f, 0.36f), fur);
+            AddPart(root.transform, "Neck", PrimitiveType.Sphere, new Vector3(0f, 1.18f, 0.38f), new Vector3(0.46f, 0.32f, 0.36f), fur);
 
             // Facial features parent to Head so the chest-beat head pulse
             // scales the whole face, not a bare skull sphere.
-            var head = AddPart(root.transform, "Head", PrimitiveType.Sphere, new Vector3(0f, 1.38f, 0.54f), new Vector3(0.62f, 0.60f, 0.58f), furMid);
+            // Slung low and forward, well below the crown of the back.
+            var head = AddPart(root.transform, "Head", PrimitiveType.Sphere, new Vector3(0f, 1.24f, 0.60f), new Vector3(0.62f, 0.60f, 0.58f), furMid);
             AddPart(head.transform, "Crest", PrimitiveType.Sphere, new Vector3(0f, 0.34f, -0.08f), new Vector3(0.60f, 0.52f, 0.72f), furLight);
             AddPart(head.transform, "Brow", PrimitiveType.Sphere, new Vector3(0f, 0.16f, 0.40f), new Vector3(0.90f, 0.26f, 0.42f), hide);
             AddPart(head.transform, "Muzzle", PrimitiveType.Sphere, new Vector3(0f, -0.20f, 0.44f), new Vector3(0.62f, 0.46f, 0.52f), muzzle);
@@ -104,8 +117,8 @@ namespace GorillaSurvivors.Core
             // the chest and plant ahead of the body rather than beside it.
             // Forearms are thicker than the upper arms — the heavy-wristed
             // taper is a big part of reading as an ape.
-            AddLimb(root.transform, "ArmL", new Vector3(-0.64f, 1.22f, 0.26f), 0.18f, 0.44f, 0.19f, 0.40f, 0.21f, furMid, furLight, hide);
-            AddLimb(root.transform, "ArmR", new Vector3(0.64f, 1.22f, 0.26f), 0.18f, 0.44f, 0.19f, 0.40f, 0.21f, furMid, furLight, hide);
+            AddLimb(root.transform, "ArmL", new Vector3(-0.64f, 1.16f, 0.28f), 0.18f, 0.44f, 0.19f, 0.40f, 0.21f, furMid, furLight, hide);
+            AddLimb(root.transform, "ArmR", new Vector3(0.64f, 1.16f, 0.28f), 0.18f, 0.44f, 0.19f, 0.40f, 0.21f, furMid, furLight, hide);
             // Short, stocky legs tucked well back under the small hips, which
             // the arch has dropped and pushed further behind the ribcage.
             AddLimb(root.transform, "LegL", new Vector3(-0.29f, 0.50f, -0.28f), 0.19f, 0.24f, 0.17f, 0.20f, 0.18f, fur, fur, hide);
@@ -160,6 +173,15 @@ namespace GorillaSurvivors.Core
                     scale = 1f;
                     build = 0.92f;
                     break;
+                case HumanVariant.Wizard:
+                    // Deep violet, the only robe in the game — the wizard has
+                    // to be identifiable across the arena the instant it
+                    // arrives, because it is the one enemy you must deal with
+                    // on its terms rather than yours.
+                    shirtBase = new Color(0.24f, 0.14f, 0.42f);
+                    scale = 1.12f;
+                    build = 0.95f;
+                    break;
             }
 
             // Everything below the type's silhouette and shirt hue is rolled
@@ -202,7 +224,7 @@ namespace GorillaSurvivors.Core
                 AddPart(weapon.transform, "Head", PrimitiveType.Sphere, new Vector3(0f, 1.05f, 0f), new Vector3(1.9f, 0.55f, 1.9f), weaponColor);
             }
 
-            BuildVariantProps(root, variant, scale, build);
+            BuildVariantProps(root, head.transform, variant, build, skin, hair);
             BuildModifierProps(root, modifiers);
 
             root.transform.localScale = Vector3.one * scale;
@@ -255,17 +277,36 @@ namespace GorillaSurvivors.Core
 
         // Per-type silhouette cues so the player can read a threat at a
         // glance without relying on shirt color alone.
-        static void BuildVariantProps(GameObject root, HumanVariant variant, float scale, float build)
+        // Anything worn on the head parents to the HEAD, not the body. Two
+        // of these used to hang off the root at a hard-coded height: at
+        // default build they happened to land near the face, and at any
+        // other height or scale they floated in front of it — the Brute's
+        // brow ridge in particular read as a pair of sunglasses hovering a
+        // few centimetres off his nose.
+        static void BuildVariantProps(GameObject root, Transform head, HumanVariant variant, float build,
+            Color skin, Color hair)
         {
             switch (variant)
             {
                 case HumanVariant.Shieldman:
                 {
+                    var steel = new Color(0.52f, 0.54f, 0.58f);
+                    var steelDark = new Color(0.36f, 0.37f, 0.40f);
+                    var steelLight = new Color(0.70f, 0.72f, 0.76f);
+
                     // Big slab held out front — the visual promise that
                     // frontal hits get soaked.
-                    var shield = AddPart(root.transform, "Shield", PrimitiveType.Cube, new Vector3(0f, 1.02f, 0.42f), new Vector3(0.78f, 0.86f, 0.09f), new Color(0.52f, 0.54f, 0.58f));
-                    AddPart(shield.transform, "Boss", PrimitiveType.Sphere, new Vector3(0f, 0f, -1.1f), new Vector3(0.36f, 0.32f, 1.6f), new Color(0.70f, 0.72f, 0.76f));
-                    AddPart(shield.transform, "RimTop", PrimitiveType.Cube, new Vector3(0f, 0.46f, 0f), new Vector3(1.06f, 0.10f, 1.5f), new Color(0.38f, 0.39f, 0.42f));
+                    var shield = AddPart(root.transform, "Shield", PrimitiveType.Cube, new Vector3(0f, 1.02f, 0.44f), new Vector3(0.80f, 0.92f, 0.09f), steel);
+                    AddPart(shield.transform, "Boss", PrimitiveType.Sphere, new Vector3(0f, 0f, -1.1f), new Vector3(0.36f, 0.32f, 1.6f), steelLight);
+                    AddPart(shield.transform, "RimTop", PrimitiveType.Cube, new Vector3(0f, 0.46f, 0f), new Vector3(1.06f, 0.10f, 1.5f), steelDark);
+                    AddPart(shield.transform, "RimBottom", PrimitiveType.Cube, new Vector3(0f, -0.46f, 0f), new Vector3(1.06f, 0.10f, 1.5f), steelDark);
+                    AddPart(shield.transform, "Spine", PrimitiveType.Cube, new Vector3(0f, 0f, -0.6f), new Vector3(0.14f, 0.92f, 0.9f), steelDark);
+
+                    // A helmet makes the "armoured" read carry from behind
+                    // too, where the shield is hidden.
+                    AddPart(head, "Helm", PrimitiveType.Sphere, new Vector3(0f, 0.18f, -0.02f), new Vector3(1.16f, 0.82f, 1.16f), steel);
+                    AddPart(head, "HelmRidge", PrimitiveType.Cube, new Vector3(0f, 0.50f, -0.02f), new Vector3(0.12f, 0.24f, 1.05f), steelLight);
+                    AddPart(head, "Nasal", PrimitiveType.Cube, new Vector3(0f, 0.04f, 0.46f), new Vector3(0.12f, 0.58f, 0.14f), steel);
                     break;
                 }
                 case HumanVariant.Bomber:
@@ -274,24 +315,111 @@ namespace GorillaSurvivors.Core
                     var bomb = AddPart(root.transform, "Bomb", PrimitiveType.Sphere, new Vector3(0f, 1.02f, 0.30f), Vector3.one * 0.34f, new Color(0.16f, 0.16f, 0.18f));
                     AddPart(bomb.transform, "Fuse", PrimitiveType.Capsule, new Vector3(0f, 0.62f, 0f), new Vector3(0.14f, 0.28f, 0.14f), new Color(0.62f, 0.52f, 0.34f));
                     AddGlowPart(bomb.transform, "Spark", PrimitiveType.Sphere, new Vector3(0f, 1.05f, 0f), Vector3.one * 0.26f, new Color(1f, 0.62f, 0.15f));
+
+                    // Straps over both shoulders, so the charge reads as
+                    // deliberately worn rather than stuck on.
+                    var strap = new Color(0.30f, 0.25f, 0.18f);
+                    for (int s = -1; s <= 1; s += 2)
+                    {
+                        var band = AddPart(root.transform, "Strap", PrimitiveType.Cube, new Vector3(s * 0.11f, 1.12f, 0.16f), new Vector3(0.07f, 0.36f, 0.20f), strap);
+                        band.transform.localRotation = Quaternion.Euler(0f, 0f, s * 14f);
+                    }
                     break;
                 }
                 case HumanVariant.Medic:
                 {
+                    var red = new Color(0.85f, 0.18f, 0.18f);
+
                     // Red cross on the chest and a satchel on the hip.
-                    AddPart(root.transform, "CrossV", PrimitiveType.Cube, new Vector3(0f, 1.05f, 0.17f), new Vector3(0.09f, 0.26f, 0.04f), new Color(0.85f, 0.18f, 0.18f));
-                    AddPart(root.transform, "CrossH", PrimitiveType.Cube, new Vector3(0f, 1.05f, 0.17f), new Vector3(0.26f, 0.09f, 0.04f), new Color(0.85f, 0.18f, 0.18f));
-                    AddPart(root.transform, "Satchel", PrimitiveType.Cube, new Vector3(0.26f, 0.80f, -0.06f), new Vector3(0.20f, 0.18f, 0.14f), new Color(0.55f, 0.48f, 0.38f));
+                    AddPart(root.transform, "CrossV", PrimitiveType.Cube, new Vector3(0f, 1.05f, 0.17f), new Vector3(0.09f, 0.26f, 0.04f), red);
+                    AddPart(root.transform, "CrossH", PrimitiveType.Cube, new Vector3(0f, 1.05f, 0.17f), new Vector3(0.26f, 0.09f, 0.04f), red);
+
+                    var satchel = AddPart(root.transform, "Satchel", PrimitiveType.Cube, new Vector3(0.27f, 0.80f, -0.04f), new Vector3(0.22f, 0.20f, 0.15f), new Color(0.55f, 0.48f, 0.38f));
+                    AddPart(satchel.transform, "Clasp", PrimitiveType.Cube, new Vector3(0f, 0.1f, 0.55f), new Vector3(0.5f, 0.35f, 0.2f), new Color(0.38f, 0.32f, 0.24f));
+                    var sling = AddPart(root.transform, "Sling", PrimitiveType.Cube, new Vector3(0.10f, 1.06f, 0.02f), new Vector3(0.07f, 0.42f, 0.30f), new Color(0.48f, 0.42f, 0.33f));
+                    sling.transform.localRotation = Quaternion.Euler(0f, 0f, 20f);
+
+                    // Cross on the brow: the medic has to be findable in a
+                    // crowd from any angle, and white-on-white is not enough.
+                    AddPart(head, "BandCross", PrimitiveType.Cube, new Vector3(0f, 0.30f, 0.34f), new Vector3(0.30f, 0.12f, 0.30f), red);
+                    AddPart(head, "BandCrossV", PrimitiveType.Cube, new Vector3(0f, 0.30f, 0.34f), new Vector3(0.12f, 0.30f, 0.30f), red);
                     break;
                 }
                 case HumanVariant.Brute:
                 {
-                    AddPart(root.transform, "BrowRidge", PrimitiveType.Cube, new Vector3(0f, 1.50f, 0.22f), new Vector3(0.34f, 0.07f, 0.10f), new Color(0.20f, 0.15f, 0.12f));
+                    var leather = new Color(0.27f, 0.20f, 0.16f);
+
+                    // Slabs of shoulder and a heavy jaw: the bulk has to read
+                    // in silhouette, since a Brute is mostly just a bigger
+                    // version of the same body.
+                    for (int s = -1; s <= 1; s += 2)
+                    {
+                        AddPart(root.transform, "Pauldron", PrimitiveType.Sphere,
+                            new Vector3(s * 0.30f * build, 1.26f, 0f), new Vector3(0.30f * build, 0.20f, 0.30f * build), leather);
+                        // Wrapped knuckles on the ends of both arms.
+                        var arm = root.transform.Find(s < 0 ? "ArmL" : "ArmR");
+                        var fist = arm != null ? arm.Find("Lower/End") : null;
+                        if (fist != null)
+                        {
+                            AddPart(fist.parent, "Wrap", PrimitiveType.Sphere,
+                                fist.localPosition + new Vector3(0f, 0.04f, 0f), new Vector3(0.13f, 0.07f, 0.13f), leather);
+                        }
+                    }
+
+                    AddPart(head, "Jaw", PrimitiveType.Cube, new Vector3(0f, -0.34f, 0.16f), new Vector3(0.80f, 0.26f, 0.72f), skin);
+                    AddPart(head, "BrowRidge", PrimitiveType.Cube, new Vector3(0f, 0.20f, 0.34f), new Vector3(0.86f, 0.14f, 0.32f), hair);
                     break;
                 }
                 case HumanVariant.Runner:
                 {
-                    AddPart(root.transform, "Headband", PrimitiveType.Cube, new Vector3(0f, 1.52f, 0f), new Vector3(0.34f, 0.07f, 0.34f), new Color(0.90f, 0.30f, 0.30f));
+                    AddPart(head, "Headband", PrimitiveType.Cube, new Vector3(0f, 0.22f, 0f), new Vector3(1.08f, 0.16f, 1.10f), new Color(0.90f, 0.30f, 0.30f));
+                    AddPart(head, "BandTail", PrimitiveType.Cube, new Vector3(-0.34f, 0.16f, -0.36f), new Vector3(0.14f, 0.10f, 0.42f), new Color(0.82f, 0.26f, 0.26f));
+                    break;
+                }
+                case HumanVariant.Wizard:
+                {
+                    var robe = new Color(0.24f, 0.14f, 0.42f);
+                    var robeTrim = new Color(0.62f, 0.52f, 0.20f);
+                    var arcane = new Color(0.55f, 0.85f, 1f);
+
+                    // A robe that falls to the floor, hiding the legs: the
+                    // silhouette is a cone, which reads as "not one of the
+                    // men" from any distance.
+                    var skirt = AddPart(root.transform, "Robe", PrimitiveType.Cylinder, new Vector3(0f, 0.44f, 0f), new Vector3(0.62f, 0.44f, 0.62f), robe);
+                    AddPart(skirt.transform, "Hem", PrimitiveType.Cylinder, new Vector3(0f, -0.95f, 0f), new Vector3(1.22f, 0.10f, 1.22f), robeTrim);
+                    AddPart(root.transform, "Mantle", PrimitiveType.Sphere, new Vector3(0f, 1.18f, 0f), new Vector3(0.52f, 0.26f, 0.44f), robe);
+
+                    // Pointed hat, wide brim.
+                    AddPart(head, "HatBrim", PrimitiveType.Cylinder, new Vector3(0f, 0.34f, 0f), new Vector3(1.95f, 0.05f, 1.95f), robe);
+                    AddPart(head, "HatBand", PrimitiveType.Cylinder, new Vector3(0f, 0.42f, 0f), new Vector3(1.26f, 0.06f, 1.26f), robeTrim);
+
+                    // Unity has no cone primitive, so the point is stacked
+                    // out of narrowing drums — a single cylinder reads as a
+                    // top hat, which is the wrong wizard entirely. Each tier
+                    // leans slightly further back for a bit of droop.
+                    float[] widths = { 1.14f, 0.92f, 0.70f, 0.48f, 0.26f };
+                    for (int i = 0; i < widths.Length; i++)
+                    {
+                        float y = 0.50f + i * 0.30f;
+                        AddPart(head, "HatTier" + i, PrimitiveType.Cylinder,
+                            new Vector3(0f, y, -0.04f * i), new Vector3(widths[i], 0.16f, widths[i]), robe);
+                    }
+                    AddPart(head, "HatTip", PrimitiveType.Sphere, new Vector3(0f, 1.78f, -0.20f), Vector3.one * 0.20f, robeTrim);
+
+                    // Long white beard.
+                    AddPart(head, "Beard", PrimitiveType.Sphere, new Vector3(0f, -0.52f, 0.26f), new Vector3(0.78f, 0.86f, 0.70f), new Color(0.88f, 0.88f, 0.90f));
+
+                    // Staff with a lit head — the thing that throws fire.
+                    var staff = AddPart(root.transform, "Staff", PrimitiveType.Capsule, new Vector3(0.34f, 1.00f, 0.12f), new Vector3(0.06f, 0.62f, 0.06f), new Color(0.36f, 0.26f, 0.16f));
+                    AddGlowPart(staff.transform, "Orb", PrimitiveType.Sphere, new Vector3(0f, 1.02f, 0f), new Vector3(3.2f, 0.32f, 3.2f), arcane);
+                    break;
+                }
+                case HumanVariant.Thrower:
+                {
+                    // A pouch of rocks on the hip, so there is a visible
+                    // source for what he keeps throwing.
+                    var pouch = AddPart(root.transform, "Pouch", PrimitiveType.Sphere, new Vector3(-0.26f, 0.78f, -0.06f), new Vector3(0.22f, 0.22f, 0.18f), new Color(0.44f, 0.36f, 0.26f));
+                    AddPart(pouch.transform, "Stone", PrimitiveType.Sphere, new Vector3(0.1f, 0.55f, 0f), Vector3.one * 0.45f, new Color(0.48f, 0.47f, 0.45f));
                     break;
                 }
             }

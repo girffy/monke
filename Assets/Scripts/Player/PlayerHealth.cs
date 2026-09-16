@@ -19,6 +19,15 @@ namespace GorillaSurvivors.Player
 
         // Tech tree: "Old Wounds Close".
         public float RegenPerSecondFraction;
+        // "Hard to Pin": longer i-frames after a hit.
+        public float BonusHitInvulnerability;
+        // "Bristling": anything that lands a hit takes this back.
+        public float ThornsDamage;
+        // "Last Stand": one lethal hit a round is survived at 1 HP.
+        public bool HasLastStand;
+        bool _lastStandSpent;
+
+        public void RefreshLastStand() => _lastStandSpent = false;
 
         float _invulnerableUntil;
         bool _dead;
@@ -78,14 +87,31 @@ namespace GorillaSurvivors.Player
 
             if (CurrentHP <= 0f)
             {
+                // "Last Stand": survive at 1 HP with a window to get clear.
+                // Once a round, so it's a reprieve rather than a second
+                // health bar.
+                if (HasLastStand && !_lastStandSpent)
+                {
+                    _lastStandSpent = true;
+                    CurrentHP = 1f;
+                    OnHealthChanged?.Invoke(CurrentHP, MaxHP);
+                    GrantInvulnerability(3f);
+                    _hitFlashUntil = Time.time + 3f;
+                    UI.HUDController.Instance?.ShowToast("LAST STAND");
+                    return;
+                }
+
                 _dead = true;
                 SetModelVisible(true);
                 OnDeath?.Invoke();
                 return;
             }
 
-            GrantInvulnerability(HitInvulnerabilitySeconds);
-            _hitFlashUntil = Time.time + HitInvulnerabilitySeconds;
+            float iframes = HitInvulnerabilitySeconds + BonusHitInvulnerability;
+            GrantInvulnerability(iframes);
+            _hitFlashUntil = Time.time + iframes;
+
+            ApplyThorns(sourcePosition);
 
             if (sourcePosition.HasValue)
             {
@@ -94,6 +120,28 @@ namespace GorillaSurvivors.Player
                 if (away.sqrMagnitude < 0.0001f) away = UnityEngine.Random.insideUnitSphere;
                 away.y = 0f;
                 GetComponent<PlayerController>()?.ApplyKnockback(away.normalized * KnockbackSpeed, KnockbackDuration);
+            }
+        }
+
+        // "Bristling". Hits back at whatever is close enough to have been the
+        // one that landed, rather than tracing the exact attacker: contact
+        // damage, projectiles and blasts all arrive through the same call and
+        // only some of them have a body to punish.
+        static readonly Collider[] ThornsBuffer = new Collider[16];
+
+        void ApplyThorns(Vector3? sourcePosition)
+        {
+            if (ThornsDamage <= 0f || !sourcePosition.HasValue) return;
+
+            int count = Physics.OverlapSphereNonAlloc(sourcePosition.Value, 1.2f, ThornsBuffer);
+            for (int i = 0; i < count; i++)
+            {
+                var enemy = ThornsBuffer[i].GetComponentInParent<Enemies.EnemyHealth>();
+                if (enemy == null) continue;
+
+                Vector3 away = enemy.transform.position - transform.position;
+                away.y = 0f;
+                enemy.TakeDamage(ThornsDamage, away, 3f);
             }
         }
 

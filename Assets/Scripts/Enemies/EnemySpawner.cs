@@ -184,6 +184,17 @@ namespace GorillaSurvivors.Enemies
         {
             float roll = Random.value;
 
+            // The Wizard is the rarest thing in the game and the only enemy
+            // that refuses to be chased. One at a time is a fight; a pack of
+            // them teleporting around the arena is noise, so the chance is
+            // kept low even deep into a run.
+            if (round >= 7)
+            {
+                float wizardChance = Mathf.Min(0.05f, 0.012f + round * 0.002f);
+                if (roll < wizardChance) return HumanVariant.Wizard;
+                roll -= wizardChance;
+            }
+
             // Medics rewrite the fight (a crowd that heals), so they stay the
             // rarest of the specialists.
             if (round >= 6)
