@@ -521,16 +521,29 @@ namespace GorillaSurvivors.Environment
             // of the gate.
             for (int s = -1; s <= 1; s += 2)
             {
+                // NOTHING here may share a face plane with anything else.
+                //
+                // The black liner and the stone jamb used to sit at the same
+                // lateral centre, at the same width, at the same height, and
+                // they overlap in depth — so their side faces and their tops
+                // were exactly coplanar, near-black against near-white,
+                // fighting for identical pixels. That is the flicker at the
+                // gates, and it was worst at the south one because that is
+                // the gate the camera looks straight down.
+                //
+                // The liner is the narrower, shorter piece and the masonry
+                // encloses it, so every shared surface now has a clear
+                // winner at every depth.
                 var wall = CreateUnlitBlock("TunnelWall",
-                    center + dir * (TunnelDepth * 0.5f) + side * (s * (GateHalfWidth + 0.75f)) + Vector3.up * (height * 0.5f),
-                    new Vector3(1.5f, height, TunnelDepth), new Color(0.085f, 0.080f, 0.095f));
+                    center + dir * (TunnelDepth * 0.5f) + side * (s * (GateHalfWidth + 0.72f)) + Vector3.up * (height * 0.47f),
+                    new Vector3(1.38f, height * 0.94f, TunnelDepth), new Color(0.085f, 0.080f, 0.095f));
                 wall.transform.rotation = rotation;
 
                 // Lit stone on the outer face of each jamb, so from inside
                 // the arena the gate is masonry with a dark hole in it.
                 var jamb = CreateBlock("GateJamb",
-                    center + dir * 0.5f + side * (s * (GateHalfWidth + 0.75f)) + Vector3.up * (height * 0.5f),
-                    new Vector3(1.5f, height, 1.2f), Stone);
+                    center + dir * 0.5f + side * (s * (GateHalfWidth + 0.78f)) + Vector3.up * (height * 0.5f),
+                    new Vector3(1.72f, height, 1.2f), Stone);
                 jamb.transform.rotation = rotation;
 
                 // Lit masonry casing wrapping the unlit liner. Without it the
@@ -538,15 +551,16 @@ namespace GorillaSurvivors.Environment
                 // is very visible on the east and west gates where the
                 // stands have tapered away.
                 var casing = CreateBlock("TunnelCasing",
-                    center + dir * (TunnelDepth * 0.5f) + side * (s * (GateHalfWidth + 1.85f)) + Vector3.up * (height * 0.5f),
-                    new Vector3(1.0f, height, TunnelDepth + 1.4f), StoneDark);
+                    center + dir * (TunnelDepth * 0.5f) + side * (s * (GateHalfWidth + 1.9f)) + Vector3.up * (height * 0.52f),
+                    new Vector3(1.0f, height * 1.04f, TunnelDepth + 1.4f), StoneDark);
                 casing.transform.rotation = rotation;
             }
 
-            // Back of the structure, closing it off from behind.
+            // Back of the structure, closing it off from behind. Its own
+            // height again, for the same reason as everything above.
             var rear = CreateBlock("TunnelRear",
-                center + dir * (TunnelDepth + 0.6f) + Vector3.up * (height * 0.5f),
-                new Vector3(GateHalfWidth * 2f + 3.8f, height, 1.2f), StoneDark);
+                center + dir * (TunnelDepth + 0.6f) + Vector3.up * (height * 0.51f),
+                new Vector3(GateHalfWidth * 2f + 3.8f, height * 1.02f, 1.2f), StoneDark);
             rear.transform.rotation = rotation;
 
             // The roof is the one lit piece — it is seen from outside, as the
