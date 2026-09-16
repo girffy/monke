@@ -20,15 +20,16 @@ namespace GorillaSurvivors.Player
         // The swing itself: an arc drawn at Reach in front of the gorilla,
         // catching anything within BandWidth of it (see MeleeArc).
         //
-        // Deliberately short and close. The arc used to be drawn at 1.6 with
-        // a 0.85 band, which covered 0.75 to 2.45 metres out — enormous for
-        // a light poke, and the inner edge sat far enough forward that an
-        // enemy pressed against the gorilla could fall inside it and be
-        // missed. This reaches from about 0.5 to 1.8, so contact range is
-        // always covered.
-        public float Reach = 1.15f;
+        // Deliberately short and close, and the INNER edge is what matters:
+        // the arc has to start at the gorilla's own body, or an enemy pressed
+        // against him falls inside the ring and is missed by a swing that
+        // visibly passed through it. At 1.15 with a 0.65 band the inside edge
+        // sat at 0.5 — right at contact range, so a close enemy was a coin
+        // flip. This covers about 0.2 to 1.8.
+        public float Reach = 1.0f;
         public float ArcDegrees = 105f;
-        public float BandWidth = 0.65f;
+        // Half-thickness of the swept band, either side of the arc.
+        public float BandWidth = 0.8f;
         // Slowed 20% from 0.22: at the old speed the arm was a blur and the
         // swing read as a flicker rather than a swipe.
         public const float SwipeDuration = 0.264f;
@@ -176,12 +177,24 @@ namespace GorillaSurvivors.Player
         {
             float perkMultiplier = Perks != null ? Perks.MeleeDamageMultiplier : 1f;
             float damage = BaseDamage * _stats.LevelDamageBonus * _stats.DamageMultiplier * damageScale * perkMultiplier;
-            float reach = Reach * _stats.LevelAttackRadiusBonus * _stats.AreaMultiplier;
+            // Area bonuses THICKEN the swing; they do not push it out.
+            //
+            // Scaling the radius as well moved the whole ring away from the
+            // gorilla, so +50% area made the one real failure worse: the
+            // inner edge marched forward and close enemies — the ones a
+            // panic swipe is for — fell through the middle of it. A bigger
+            // area should never shrink what an attack covers, and growing
+            // only the band means it never can.
+            float grow = _stats.LevelAttackRadiusBonus * _stats.AreaMultiplier;
+            float reach = Reach;
+            float band = BandWidth * grow;
+            // The sweep widens too, at half the rate — "more area" ought to
+            // read as a broader swing, not only a deeper one.
+            float arc = Mathf.Min(170f, ArcDegrees * Mathf.Lerp(1f, grow, 0.5f));
+
             Vector3 hitCenter = transform.position + aimDirection * (reach * 0.5f);
 
-            float band = BandWidth * _stats.AreaMultiplier;
-
-            int count = MeleeArc.Overlap(transform.position, aimDirection, reach, ArcDegrees, band, HitBuffer);
+            int count = MeleeArc.Overlap(transform.position, aimDirection, reach, arc, band, HitBuffer);
             for (int i = 0; i < count; i++)
             {
                 var enemyHealth = HitBuffer[i].GetComponentInParent<EnemyHealth>();
@@ -223,15 +236,15 @@ namespace GorillaSurvivors.Player
                 }
             }
 
-            SpawnSwipeEffect(aimDirection, reach, band);
+            SpawnSwipeEffect(aimDirection, reach, arc, band);
             Sfx.Swipe(hitCenter);
         }
 
         // Draws the crescent the hit test just used, so what you see and what
         // you hit are the same shape.
-        void SpawnSwipeEffect(Vector3 aimDirection, float reach, float band)
+        void SpawnSwipeEffect(Vector3 aimDirection, float reach, float arc, float band)
         {
-            var go = Blocky3DArt.SwipeArc(new Color(0.95f, 0.88f, 0.35f), reach, ArcDegrees, band);
+            var go = Blocky3DArt.SwipeArc(new Color(0.95f, 0.88f, 0.35f), reach, arc, band);
             go.transform.position = transform.position;
             go.transform.rotation = Quaternion.LookRotation(aimDirection, Vector3.up);
 

@@ -30,11 +30,15 @@ namespace GorillaSurvivors.Player.Abilities
         public bool InvulnerableWhileBeating;   // "Unshakeable"
         public float MoveFraction;              // "Rolling Thunder"; 0 = rooted
 
-        const float RiseTime = 0.18f;
-        const float ArmsOutTime = 0.16f;
-        const float PoundTime = 0.10f;
-        const float HoldTime = 0.29f;
-        const float SettleTime = 0.20f;
+        // A gorilla drums. The old timings gave a 0.55s cycle — barely two
+        // beats a second, which reads as a man slowly patting himself rather
+        // than the rapid hollow drumroll this is supposed to be. At 0.2s a
+        // cycle it is five a second, which is about life.
+        const float RiseTime = 0.16f;
+        const float ArmsOutTime = 0.07f;
+        const float PoundTime = 0.06f;
+        const float HoldTime = 0.05f;
+        const float SettleTime = 0.18f;
 
         PlayerStats _stats;
         PlayerController _controller;
@@ -56,12 +60,19 @@ namespace GorillaSurvivors.Player.Abilities
         // fist back against the chest. Rotating only the shoulder — as this
         // did before — can only ever point a straight arm outward, which is
         // why it looked like arms raised in the air.
+        // Both poses sit LOW. The cocked arm used to point slightly above
+        // horizontal, which put the shoulder joint's whole arc up around the
+        // head — so even fully folded, the fist arrived somewhere near the
+        // chin and the move read as arms waving in the air. Pointing the
+        // upper arm down and out means folding the elbow brings the fist in
+        // at chest height, where a chest beat happens.
         static readonly Vector3 RestDir = Vector3.down;
-        static readonly Vector3 ArmsWideDir = new Vector3(0.80f, 0.16f, 0.30f).normalized;
-        static readonly Vector3 ArmsChestDir = new Vector3(0.26f, -0.30f, 0.92f).normalized;
+        static readonly Vector3 ArmsWideDir = new Vector3(0.86f, -0.34f, 0.20f).normalized;
+        static readonly Vector3 ArmsChestDir = new Vector3(0.34f, -0.56f, 0.72f).normalized;
         const float RestElbow = 0f;
-        const float ReadyElbow = 42f;
-        const float StrikeElbow = 118f;
+        const float ReadyElbow = 58f;
+        // Folded hard, so the forearm comes right back in against the body.
+        const float StrikeElbow = 138f;
 
         public bool IsBeating => _isBeating;
 

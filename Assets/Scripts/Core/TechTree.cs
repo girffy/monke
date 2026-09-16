@@ -121,12 +121,16 @@ namespace GorillaSurvivors.Core
                     N("slam_dmg", "Heavy Fists", "Slam", "+8 slam damage", 1, 3,
                         p => Get<PlayerAttack>(p).BaseDamage += 8f, 3, "brawler"),
 
-                    N("swipe_arc", "Wide Sweep", "Swipe", "Swipe covers +22° more arc and reaches 0.3 further", 2, 0,
+                    // Widens and thickens; deliberately does NOT extend. Reach
+                    // used to grow here too, which pushed the inner edge of
+                    // the swing forward and made it whiff enemies standing on
+                    // the gorilla — an upgrade that covered less than before.
+                    N("swipe_arc", "Wide Sweep", "Swipe", "Swipe covers +22° more arc and a 0.25 thicker band", 2, 0,
                         p =>
                         {
                             var s = Get<QuickSwipeAttack>(p);
                             s.ArcDegrees += 22f;
-                            s.Reach += 0.3f;
+                            s.BandWidth += 0.25f;
                         }, 2, "swipe_dmg"),
                     N("swipe_bleed", "Rake", "Swipe", "Swiped enemies bleed for half the hit again over 2s", 2, 2,
                         p => Get<QuickSwipeAttack>(p).BleedFraction = 0.5f, 1, "swipe_dmg"),
