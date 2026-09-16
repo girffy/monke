@@ -160,11 +160,19 @@ namespace GorillaSurvivors.Environment
             for (int i = 0; i < segments; i++)
             {
                 float angle = i * 360f / segments;
-                if (IsGateAngle(angle)) continue;
-
                 Vector3 dir = Quaternion.Euler(0f, angle, 0f) * Vector3.forward;
                 Vector3 basePos = Center + dir * Radius;
                 var facing = Quaternion.LookRotation(dir, Vector3.up);
+
+                // Over a gate, the seating carries straight across rather
+                // than stopping. Without this the archways sat in a gap in
+                // the ring like porches stuck on the outside of it; the
+                // passage should read as bored THROUGH the stands.
+                if (IsGateAngle(angle))
+                {
+                    BuildStands(i, dir, basePos, facing, GateStructureTop);
+                    continue;
+                }
 
                 var block = CreateBlock("Wall" + i, basePos + Vector3.up * (WallHeight * 0.5f),
                     new Vector3(1.7f, WallHeight, 1.4f), i % 2 == 0 ? Stone : StoneDark);
@@ -188,13 +196,19 @@ namespace GorillaSurvivors.Environment
         // the view, so they taper to nothing across the south and rise to
         // full height across the north — you look over a low rail in the
         // foreground at a full amphitheatre on the far side.
-        void BuildStands(int index, Vector3 dir, Vector3 basePos, Quaternion facing)
+        void BuildStands(int index, Vector3 dir, Vector3 basePos, Quaternion facing, float baseY = 0f)
         {
             float northness = Vector3.Dot(dir, Vector3.forward);
             float tall = Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(-0.15f, 0.55f, northness));
             if (tall <= 0.02f) return;
 
-            const int tiers = 3;
+            basePos += Vector3.up * baseY;
+
+            // Five tiers rather than three: the ring read as a low fence with
+            // a step behind it. A colosseum's whole character is that it
+            // keeps going up — and going higher costs nothing, because the
+            // tapering above already keeps the near side out of the shot.
+            const int tiers = 5;
             for (int t = 0; t < tiers; t++)
             {
                 float outward = 1.5f + t * 1.5f;
@@ -250,7 +264,14 @@ namespace GorillaSurvivors.Environment
         const float GateHalfWidth = 2.1f;
         const float GateSpring = 1.9f;
         // How far the passage runs outward before it is stopped by darkness.
+        // Kept inside the stands' own footprint (they step out to 7.5) so
+        // the gate is a hole in the structure, not a lump on its side.
         const float TunnelDepth = 4.5f;
+
+        // Height of the tunnel bore, and the top of the whole gate structure
+        // — where the seating above it starts.
+        const float TunnelHeight = GateSpring + GateHalfWidth + 0.5f;
+        const float GateStructureTop = TunnelHeight + 0.7f;
 
         void BuildGate(Vector3 dir)
         {
@@ -320,26 +341,54 @@ namespace GorillaSurvivors.Environment
         // and sky behind the arena.
         void BuildTunnel(Vector3 center, Vector3 dir, Vector3 side, Quaternion rotation)
         {
-            float height = GateSpring + GateHalfWidth + 0.5f;
+            float height = TunnelHeight;
 
             // Every surface inside the passage is UNLIT and nearly black.
             // Lit materials this dark still catch the key light — the sun
             // comes in over the roof at a shallow enough angle to floodlight
             // the whole tunnel, and the arch framed a brightly lit corridor
             // instead of somewhere deeper in.
+            //
+            // The jambs are wide enough to close the gap between the bore and
+            // the neighbouring stands, so no daylight shows through the side
+            // of the gate.
             for (int s = -1; s <= 1; s += 2)
             {
                 var wall = CreateUnlitBlock("TunnelWall",
-                    center + dir * (TunnelDepth * 0.5f) + side * (s * (GateHalfWidth + 0.45f)) + Vector3.up * (height * 0.5f),
-                    new Vector3(0.9f, height, TunnelDepth), new Color(0.085f, 0.080f, 0.095f));
+                    center + dir * (TunnelDepth * 0.5f) + side * (s * (GateHalfWidth + 0.75f)) + Vector3.up * (height * 0.5f),
+                    new Vector3(1.5f, height, TunnelDepth), new Color(0.085f, 0.080f, 0.095f));
                 wall.transform.rotation = rotation;
+
+                // Lit stone on the outer face of each jamb, so from inside
+                // the arena the gate is masonry with a dark hole in it.
+                var jamb = CreateBlock("GateJamb",
+                    center + dir * 0.5f + side * (s * (GateHalfWidth + 0.75f)) + Vector3.up * (height * 0.5f),
+                    new Vector3(1.5f, height, 1.2f), s < 0 ? Stone : StoneDark);
+                jamb.transform.rotation = rotation;
+
+                // Lit masonry casing wrapping the unlit liner. Without it the
+                // passage is a black slab seen from outside the ring, which
+                // is very visible on the east and west gates where the
+                // stands have tapered away.
+                var casing = CreateBlock("TunnelCasing",
+                    center + dir * (TunnelDepth * 0.5f) + side * (s * (GateHalfWidth + 1.85f)) + Vector3.up * (height * 0.5f),
+                    new Vector3(1.0f, height, TunnelDepth + 1.4f), s < 0 ? StoneDark : Stone);
+                casing.transform.rotation = rotation;
             }
 
+            // Back of the structure, closing it off from behind.
+            var rear = CreateBlock("TunnelRear",
+                center + dir * (TunnelDepth + 0.6f) + Vector3.up * (height * 0.5f),
+                new Vector3(GateHalfWidth * 2f + 3.8f, height, 1.2f), StoneDark);
+            rear.transform.rotation = rotation;
+
             // The roof is the one lit piece — it is seen from outside, as the
-            // top of the structure, not from within the passage.
+            // top of the structure, not from within the passage. It is also
+            // what the stands above the gate sit on, so it spans the full
+            // width of the opening plus both jambs.
             var roof = CreateBlock("TunnelRoof",
-                center + dir * (TunnelDepth * 0.5f + 0.2f) + Vector3.up * (height + 0.35f),
-                new Vector3(GateHalfWidth * 2f + 1.8f, 0.7f, TunnelDepth), new Color(0.34f, 0.32f, 0.29f));
+                center + dir * (TunnelDepth * 0.5f) + Vector3.up * (height + 0.35f),
+                new Vector3(GateHalfWidth * 2f + 3.0f, 0.7f, TunnelDepth + 1.4f), new Color(0.34f, 0.32f, 0.29f));
             roof.transform.rotation = rotation;
             _occluders?.Register(roof);
 

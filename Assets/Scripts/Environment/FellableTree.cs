@@ -19,6 +19,10 @@ namespace GorillaSurvivors.Environment
         const float TrunkHitRadius = 0.95f;
         const float RegrowDelay = 30f;
 
+        // Set by whatever spawned this: inside the arena the "trees" are
+        // stone columns, and a toppled column should leave rubble.
+        public bool RemnantIsRubble;
+
         bool _felled;
         float _height = 3.2f;
 
@@ -128,7 +132,9 @@ namespace GorillaSurvivors.Environment
                 runner.Play(2.2f, 0.4f);
             }
 
-            var stump = Blocky3DArt.Stump();
+            // Columns leave a broken plinth where they stood; trees leave a
+            // stump. Same lifecycle either way.
+            var stump = RemnantIsRubble ? Blocky3DArt.ColumnRubble() : Blocky3DArt.Stump();
             stump.transform.position = transform.position;
             stump.transform.rotation = Quaternion.Euler(0f, Random.Range(0f, 360f), 0f);
             stump.transform.localScale = transform.localScale * 0.9f;

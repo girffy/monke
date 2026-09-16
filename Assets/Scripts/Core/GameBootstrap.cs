@@ -57,6 +57,11 @@ namespace GorillaSurvivors.Core
             var arena = arenaGO.AddComponent<Arena>();
             arena.Build();
 
+            // Hills on the horizon. Outside the walls was a flat green plane
+            // meeting a flat blue sky in a hard line, and fog can only soften
+            // what is actually out there.
+            Blocky3DArt.Backdrop();
+
             var player = CreatePlayer();
 
             // Seeds props across the arena and refills anything the player

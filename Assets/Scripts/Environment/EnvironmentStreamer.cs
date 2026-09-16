@@ -40,6 +40,11 @@ namespace GorillaSurvivors.Environment
             // player is meant to use; 0 means "grass only, keep it out".
             public int ArenaTarget;
             public bool AllowedInArena => ArenaTarget > 0;
+            // Optional arena-specific size range; 0 means "use MinScale and
+            // MaxScale". Columns want to be smaller inside the ring than a
+            // tree does out on the grass.
+            public float ArenaMinScale;
+            public float ArenaMaxScale;
             // Props mid-use (a launched boulder, a toppling tree) must never
             // be culled out from under the effect that is driving them.
             public Func<GameObject, bool> IsBusy;
@@ -55,10 +60,23 @@ namespace GorillaSurvivors.Environment
             {
                 Name = "Tree",
                 Target = 26,
-                ArenaTarget = 6,
+                ArenaTarget = 5,
                 MinScale = 0.85f,
                 MaxScale = 1.3f,
-                Create = () => { var t = Blocky3DArt.Tree(); t.AddComponent<FellableTree>(); return t; },
+                ArenaMinScale = 0.72f,
+                ArenaMaxScale = 0.95f,
+                // Inside the arena these are stone columns, not trees. A
+                // forest growing out of a colosseum floor never made sense;
+                // a column does the same job — cover to break line of sight,
+                // and something heavy to topple onto a crowd — and belongs.
+                Create = () =>
+                {
+                    bool inArena = Arena.Instance != null;
+                    var t = inArena ? Blocky3DArt.Column() : Blocky3DArt.Tree();
+                    var fellable = t.AddComponent<FellableTree>();
+                    fellable.RemnantIsRubble = inArena;
+                    return t;
+                },
                 IsBusy = go => { var f = go.GetComponent<FellableTree>(); return f != null && f.IsFelled; },
             });
 
@@ -77,8 +95,12 @@ namespace GorillaSurvivors.Environment
             _kinds.Add(new PropKind { Name = "GrassTuft", Target = 220, MinScale = 0.8f, MaxScale = 1.5f, Create = Blocky3DArt.GrassTuft });
             _kinds.Add(new PropKind { Name = "Flower", Target = 60, MinScale = 0.85f, MaxScale = 1.25f, Create = Blocky3DArt.Flower });
             _kinds.Add(new PropKind { Name = "Mushroom", Target = 24, MinScale = 0.8f, MaxScale = 1.4f, Create = Blocky3DArt.Mushroom });
-            _kinds.Add(new PropKind { Name = "Stump", Target = 10, ArenaTarget = 3, Create = Blocky3DArt.Stump });
-            _kinds.Add(new PropKind { Name = "Log", Target = 12, ArenaTarget = 4, MinScale = 0.85f, MaxScale = 1.25f, Create = Blocky3DArt.Log });
+            // Stumps and logs are forest litter; inside the colosseum the
+            // equivalent scatter is broken masonry, which the Rubble kind
+            // below supplies.
+            _kinds.Add(new PropKind { Name = "Stump", Target = 10, Create = Blocky3DArt.Stump });
+            _kinds.Add(new PropKind { Name = "Log", Target = 12, MinScale = 0.85f, MaxScale = 1.25f, Create = Blocky3DArt.Log });
+            _kinds.Add(new PropKind { Name = "Rubble", Target = 0, ArenaTarget = 5, MinScale = 0.8f, MaxScale = 1.2f, Create = Blocky3DArt.ColumnRubble });
             _kinds.Add(new PropKind { Name = "Fern", Target = 45, MinScale = 0.85f, MaxScale = 1.35f, Create = Blocky3DArt.Fern });
             _kinds.Add(new PropKind { Name = "Pebbles", Target = 40, ArenaTarget = 12, MinScale = 0.8f, MaxScale = 1.4f, Create = Blocky3DArt.Pebbles });
         }
@@ -188,7 +210,10 @@ namespace GorillaSurvivors.Environment
             var go = kind.Create();
             go.transform.position = position;
             if (kind.RandomYaw) go.transform.rotation = Quaternion.Euler(0f, UnityEngine.Random.Range(0f, 360f), 0f);
-            go.transform.localScale = Vector3.one * UnityEngine.Random.Range(kind.MinScale, kind.MaxScale);
+            bool useArenaScale = Arena.Instance != null && kind.ArenaMaxScale > 0f;
+            float min = useArenaScale ? kind.ArenaMinScale : kind.MinScale;
+            float max = useArenaScale ? kind.ArenaMaxScale : kind.MaxScale;
+            go.transform.localScale = Vector3.one * UnityEngine.Random.Range(min, max);
             kind.Live.Add(go);
         }
 

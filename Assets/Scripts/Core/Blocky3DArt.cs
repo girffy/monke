@@ -618,6 +618,53 @@ namespace GorillaSurvivors.Core
             return plane;
         }
 
+        // A ring of hills far outside the arena. The world beyond the walls
+        // was a flat green plane meeting a flat blue sky in a hard line, and
+        // the fog only softened it — there was nothing out there to soften.
+        // These sit past the fog's far distance so they read as haze-blue
+        // scenery rather than as objects, and they never move, so the cost
+        // is a few dozen static meshes.
+        public static GameObject Backdrop(float innerRadius = 52f)
+        {
+            var root = new GameObject("Backdrop");
+            var rng = new System.Random(4417);
+
+            // Two overlapping rings, so there is a near range of hills with
+            // a paler one behind it rather than a single hedge.
+            int count = 64;
+            for (int i = 0; i < count; i++)
+            {
+                float angle = i * 360f / count + (float)rng.NextDouble() * 6f;
+                float distance = innerRadius + (float)rng.NextDouble() * 46f;
+                Vector3 dir = Quaternion.Euler(0f, angle, 0f) * Vector3.forward;
+
+                // Tall enough to actually clear the arena's stands from the
+                // player's eye line — the first pass sat below them and was
+                // invisible from inside the ring, which is the only place
+                // anyone ever looks from.
+                float height = 14f + (float)rng.NextDouble() * 26f;
+                float width = height * (1.5f + (float)rng.NextDouble() * 1.1f);
+
+                // Distant hills read cooler and paler the further off they
+                // are — cheap aerial perspective, and it keeps the ring from
+                // looking like a wall of identical lumps.
+                float haze = Mathf.InverseLerp(innerRadius, innerRadius + 46f, distance);
+                var near = new Color(0.26f, 0.34f, 0.25f);
+                var far = new Color(0.44f, 0.52f, 0.56f);
+                var tone = Color.Lerp(near, far, haze * 0.85f);
+
+                var hill = CreateBarePrimitive(PrimitiveType.Sphere, "Hill" + i, root.transform);
+                hill.transform.position = dir * distance - Vector3.up * height * 0.45f;
+                hill.transform.localScale = new Vector3(width, height, width);
+                var mr = hill.GetComponent<MeshRenderer>();
+                mr.sharedMaterial = MaterialCache.Get(tone);
+                mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                mr.receiveShadows = false;
+            }
+
+            return root;
+        }
+
         public static GameObject Rock(float scale = 1f)
         {
             var root = new GameObject("Rock");
@@ -923,6 +970,73 @@ namespace GorillaSurvivors.Core
         // ---------------------------------------------------------------
         // VFX
         // ---------------------------------------------------------------
+
+        // A standing stone column, the arena's version of a tree: something
+        // to break line of sight and shove enemies into, and something the
+        // gorilla can knock over onto a crowd. Trees in a colosseum never
+        // made sense; a toppling column does the same job and belongs here.
+        public static GameObject Column()
+        {
+            var root = new GameObject("Column");
+
+            var stone = new Color(0.68f, 0.64f, 0.56f);
+            var stoneDark = new Color(0.55f, 0.52f, 0.46f);
+            var stoneLight = new Color(0.78f, 0.74f, 0.66f);
+
+            // A stepped base, a fluted shaft in drums, and a capital: the
+            // drums are what make it read as built rather than extruded.
+            AddPart(root.transform, "Plinth", PrimitiveType.Cube, new Vector3(0f, 0.11f, 0f), new Vector3(1.12f, 0.22f, 1.12f), stoneDark);
+            AddPart(root.transform, "Base", PrimitiveType.Cylinder, new Vector3(0f, 0.30f, 0f), new Vector3(0.94f, 0.10f, 0.94f), stone);
+
+            // Four drums, not five. At full height a column stood nearly
+            // three times the gorilla and a handful of them walled the
+            // playfield in — cover should break up the space, not hide it.
+            const int drums = 4;
+            for (int i = 0; i < drums; i++)
+            {
+                float y = 0.46f + i * 0.60f;
+                // A gentle taper toward the top, as a real column has.
+                float w = Mathf.Lerp(0.78f, 0.64f, i / (float)(drums - 1));
+                AddPart(root.transform, "Drum" + i, PrimitiveType.Cylinder, new Vector3(0f, y, 0f), new Vector3(w, 0.30f, w), i % 2 == 0 ? stone : stoneLight);
+                // Thin joint line between drums.
+                AddPart(root.transform, "Joint" + i, PrimitiveType.Cylinder, new Vector3(0f, y + 0.30f, 0f), new Vector3(w * 1.04f, 0.02f, w * 1.04f), stoneDark);
+            }
+
+            float top = 0.46f + (drums - 1) * 0.60f + 0.30f;
+            AddPart(root.transform, "Capital", PrimitiveType.Cylinder, new Vector3(0f, top + 0.10f, 0f), new Vector3(0.88f, 0.10f, 0.88f), stone);
+            AddPart(root.transform, "Abacus", PrimitiveType.Cube, new Vector3(0f, top + 0.26f, 0f), new Vector3(1.0f, 0.22f, 1.0f), stoneLight);
+
+            // Same as Tree(): the attacks find fellable props by collider, so
+            // a column without one can never be hit or knocked over.
+            var col = root.AddComponent<CapsuleCollider>();
+            col.center = new Vector3(0f, 1.1f, 0f);
+            col.radius = 0.42f;
+            col.height = 2.2f;
+            return root;
+        }
+
+        // What a toppled column leaves behind: a snapped stub on its plinth
+        // with a couple of drums rolled off it.
+        public static GameObject ColumnRubble()
+        {
+            var root = new GameObject("ColumnRubble");
+
+            var stone = new Color(0.68f, 0.64f, 0.56f);
+            var stoneDark = new Color(0.55f, 0.52f, 0.46f);
+
+            AddPart(root.transform, "Plinth", PrimitiveType.Cube, new Vector3(0f, 0.11f, 0f), new Vector3(1.12f, 0.22f, 1.12f), stoneDark);
+            AddPart(root.transform, "Stub", PrimitiveType.Cylinder, new Vector3(0f, 0.36f, 0f), new Vector3(0.80f, 0.22f, 0.80f), stone);
+
+            for (int i = 0; i < 2; i++)
+            {
+                var chunk = AddPart(root.transform, "Chunk" + i, PrimitiveType.Cylinder,
+                    new Vector3(Random.Range(-0.9f, 0.9f), 0.16f, Random.Range(-0.9f, 0.9f)),
+                    new Vector3(0.62f, 0.22f, 0.62f), i % 2 == 0 ? stone : stoneDark);
+                chunk.transform.localRotation = Quaternion.Euler(90f, Random.Range(0f, 360f), 0f);
+            }
+
+            return root;
+        }
 
         // A live bomb left behind by a killed Bomber. Deliberately a cartoon
         // black sphere with a lit fuse: the player needs to read "there is a
