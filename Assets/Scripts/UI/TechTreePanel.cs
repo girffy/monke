@@ -71,6 +71,10 @@ namespace GorillaSurvivors.UI
             panel._root = go;
             panel._state = state;
             panel.BuildLayout();
+            // Anything that changes the tree from outside the panel — the
+            // debug grant key, a future reward — has to redraw it, or the
+            // screen shows points and ranks that are already out of date.
+            state.OnChanged += panel.RefreshIfOpen;
             go.SetActive(false);
             return panel;
         }
@@ -395,6 +399,16 @@ namespace GorillaSurvivors.UI
         {
             _root.SetActive(false);
             GameManager.Instance.ResolveUpgradeChoice();
+        }
+
+        void RefreshIfOpen()
+        {
+            if (_root != null && _root.activeSelf) Refresh();
+        }
+
+        void OnDestroy()
+        {
+            if (_state != null) _state.OnChanged -= RefreshIfOpen;
         }
 
         void Refresh()
