@@ -89,6 +89,7 @@ namespace GorillaSurvivors.UI
 
             hud.CreatePauseButton(canvasGO.transform);
             OffscreenEnemyMarkers.Create(canvasGO.transform);
+            BuffBar.Create(canvasGO.transform, stats);
             hud._toastText = CreateToastText(canvasGO.transform);
             hud._roundBannerText = CreateRoundBannerText(canvasGO.transform);
             hud.CreateAbilityBar(canvasGO.transform);

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 using GorillaSurvivors.Core;
 
@@ -37,8 +38,81 @@ namespace GorillaSurvivors.Player
 
         PlayerHealth _health;
 
-        float _damageBuffUntil, _attackSpeedBuffUntil, _moveSpeedBuffUntil, _cooldownBuffUntil, _areaBuffUntil;
-        float _damageBuffAmount, _attackSpeedBuffAmount, _moveSpeedBuffAmount, _cooldownBuffAmount, _areaBuffAmount;
+        // Temporary powerup buffs.
+        //
+        // Held as one struct per kind rather than ten parallel floats,
+        // because the HUD has to enumerate whatever is currently running and
+        // show how long is left — which needs the ORIGINAL duration as well
+        // as the expiry, and two more loose floats per buff was five more
+        // chances to update one and forget the other.
+        public enum BuffKind { Damage, AttackSpeed, MoveSpeed, Cooldown, Area }
+
+        public struct TimedBuff
+        {
+            public float Amount;
+            public float Until;
+            public float Duration;
+
+            public bool Active => Until > 0f && Time.time < Until;
+            public float Remaining => Mathf.Max(0f, Until - Time.time);
+            public float Fraction01 => Duration <= 0f ? 0f : Mathf.Clamp01(Remaining / Duration);
+
+            public void Apply(float amount, float seconds)
+            {
+                // A stronger or longer refresh wins on each axis separately,
+                // so picking up a weak one never shortens a strong one.
+                Amount = Mathf.Max(Amount, amount);
+                float newUntil = Time.time + seconds;
+                if (newUntil > Until)
+                {
+                    Until = newUntil;
+                    Duration = seconds;
+                }
+            }
+
+            public bool Expire()
+            {
+                if (Until <= 0f || Time.time < Until) return false;
+                Until = 0f;
+                Amount = 0f;
+                Duration = 0f;
+                return true;
+            }
+        }
+
+        TimedBuff _damage, _attackSpeed, _moveSpeed, _cooldown, _area;
+
+        public struct ActiveBuff
+        {
+            public BuffKind Kind;
+            public float Amount;
+            public float Remaining;
+            public float Fraction01;
+        }
+
+        // Fills `into` with whatever is running right now, in a stable order
+        // so chips in the HUD don't reshuffle as buffs come and go.
+        public void GetActiveBuffs(List<ActiveBuff> into)
+        {
+            into.Clear();
+            Add(into, BuffKind.Damage, _damage);
+            Add(into, BuffKind.AttackSpeed, _attackSpeed);
+            Add(into, BuffKind.MoveSpeed, _moveSpeed);
+            Add(into, BuffKind.Cooldown, _cooldown);
+            Add(into, BuffKind.Area, _area);
+        }
+
+        static void Add(List<ActiveBuff> into, BuffKind kind, TimedBuff buff)
+        {
+            if (!buff.Active) return;
+            into.Add(new ActiveBuff
+            {
+                Kind = kind,
+                Amount = buff.Amount,
+                Remaining = buff.Remaining,
+                Fraction01 = buff.Fraction01,
+            });
+        }
 
         void Awake()
         {
@@ -47,12 +121,11 @@ namespace GorillaSurvivors.Player
 
         void Update()
         {
-            bool changed = false;
-            if (_damageBuffUntil > 0f && Time.time > _damageBuffUntil) { _damageBuffUntil = 0f; changed = true; }
-            if (_attackSpeedBuffUntil > 0f && Time.time > _attackSpeedBuffUntil) { _attackSpeedBuffUntil = 0f; changed = true; }
-            if (_moveSpeedBuffUntil > 0f && Time.time > _moveSpeedBuffUntil) { _moveSpeedBuffUntil = 0f; changed = true; }
-            if (_cooldownBuffUntil > 0f && Time.time > _cooldownBuffUntil) { _cooldownBuffUntil = 0f; changed = true; }
-            if (_areaBuffUntil > 0f && Time.time > _areaBuffUntil) { _areaBuffUntil = 0f; changed = true; }
+            bool changed = _damage.Expire();
+            changed |= _attackSpeed.Expire();
+            changed |= _moveSpeed.Expire();
+            changed |= _cooldown.Expire();
+            changed |= _area.Expire();
             if (changed) RecomputeMultipliers();
         }
 
@@ -92,36 +165,31 @@ namespace GorillaSurvivors.Player
 
         public void ApplyTemporaryDamageBuff(float multiplierAdd, float seconds)
         {
-            _damageBuffAmount = Mathf.Max(_damageBuffAmount, multiplierAdd);
-            _damageBuffUntil = Mathf.Max(_damageBuffUntil, Time.time + seconds);
+            _damage.Apply(multiplierAdd, seconds);
             RecomputeMultipliers();
         }
 
         public void ApplyTemporaryAttackSpeedBuff(float multiplierAdd, float seconds)
         {
-            _attackSpeedBuffAmount = Mathf.Max(_attackSpeedBuffAmount, multiplierAdd);
-            _attackSpeedBuffUntil = Mathf.Max(_attackSpeedBuffUntil, Time.time + seconds);
+            _attackSpeed.Apply(multiplierAdd, seconds);
             RecomputeMultipliers();
         }
 
         public void ApplyTemporaryMoveSpeedBuff(float multiplierAdd, float seconds)
         {
-            _moveSpeedBuffAmount = Mathf.Max(_moveSpeedBuffAmount, multiplierAdd);
-            _moveSpeedBuffUntil = Mathf.Max(_moveSpeedBuffUntil, Time.time + seconds);
+            _moveSpeed.Apply(multiplierAdd, seconds);
             RecomputeMultipliers();
         }
 
         public void ApplyTemporaryCooldownBuff(float reductionFraction, float seconds)
         {
-            _cooldownBuffAmount = Mathf.Max(_cooldownBuffAmount, reductionFraction);
-            _cooldownBuffUntil = Mathf.Max(_cooldownBuffUntil, Time.time + seconds);
+            _cooldown.Apply(reductionFraction, seconds);
             RecomputeMultipliers();
         }
 
         public void ApplyTemporaryAreaBuff(float multiplierAdd, float seconds)
         {
-            _areaBuffAmount = Mathf.Max(_areaBuffAmount, multiplierAdd);
-            _areaBuffUntil = Mathf.Max(_areaBuffUntil, Time.time + seconds);
+            _area.Apply(multiplierAdd, seconds);
             RecomputeMultipliers();
         }
 
@@ -168,11 +236,11 @@ namespace GorillaSurvivors.Player
 
         void RecomputeMultipliers()
         {
-            DamageMultiplier = 1f + PermanentDamageBonus + (_damageBuffUntil > 0f ? _damageBuffAmount : 0f);
-            AttackSpeedMultiplier = 1f + PermanentAttackSpeedBonus + (_attackSpeedBuffUntil > 0f ? _attackSpeedBuffAmount : 0f);
-            MoveSpeedMultiplier = 1f + PermanentMoveSpeedBonus + (_moveSpeedBuffUntil > 0f ? _moveSpeedBuffAmount : 0f);
-            AbilityCooldownMultiplier = Mathf.Max(0.25f, 1f - PermanentCooldownReduction - (_cooldownBuffUntil > 0f ? _cooldownBuffAmount : 0f));
-            AreaMultiplier = 1f + PermanentAreaBonus + (_areaBuffUntil > 0f ? _areaBuffAmount : 0f);
+            DamageMultiplier = 1f + PermanentDamageBonus + (_damage.Active ? _damage.Amount : 0f);
+            AttackSpeedMultiplier = 1f + PermanentAttackSpeedBonus + (_attackSpeed.Active ? _attackSpeed.Amount : 0f);
+            MoveSpeedMultiplier = 1f + PermanentMoveSpeedBonus + (_moveSpeed.Active ? _moveSpeed.Amount : 0f);
+            AbilityCooldownMultiplier = Mathf.Max(0.25f, 1f - PermanentCooldownReduction - (_cooldown.Active ? _cooldown.Amount : 0f));
+            AreaMultiplier = 1f + PermanentAreaBonus + (_area.Active ? _area.Amount : 0f);
             PickupRadiusMultiplier = 1f + PermanentPickupRadiusBonus;
         }
     }

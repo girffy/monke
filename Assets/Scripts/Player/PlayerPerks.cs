@@ -21,6 +21,8 @@ namespace GorillaSurvivors.Player
         public const float FrenzyDuration = 3f;
 
         public int FrenzyStacks { get; private set; }
+        // For the HUD's buff chip.
+        public float FrenzyRemaining => Mathf.Max(0f, _frenzyExpires - Time.time);
         float _frenzyExpires;
 
         public void NotifyMeleeKill()
