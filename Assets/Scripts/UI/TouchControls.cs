@@ -84,6 +84,10 @@ namespace GorillaSurvivors.UI
             var controls = go.AddComponent<TouchControls>();
             Instance = controls;
 
+            // Lives on the canvas, not on this object, so it keeps watching
+            // while the controls themselves are switched off.
+            parent.gameObject.AddComponent<TouchModeWatcher>();
+
             bool touch = HasTouchScreen();
             controls._touch = touch;
             controls.BuildLayout(rect);
@@ -95,9 +99,38 @@ namespace GorillaSurvivors.UI
 
         // Public so the HUD can size its canvas for a phone before any of
         // this exists.
+        //
+        // Deliberately NOT "does a Touchscreen device exist". In a browser
+        // that test is close to useless: plenty of desktop machines report
+        // touch support (any laptop with a touch screen, and Chrome on
+        // Windows often reports it regardless), so the web build handed
+        // mouse-and-keyboard players the phone layout.
+        //
+        // So the build-time answer is the conservative one — is this
+        // actually a handheld — and the layout flips to touch later, the
+        // first time someone really puts a finger on the screen.
         public static bool HasTouchScreen()
         {
-            return Touchscreen.current != null || Application.isMobilePlatform;
+            return _touchConfirmed
+                || Application.isMobilePlatform
+                || SystemInfo.deviceType == DeviceType.Handheld;
+        }
+
+        static bool _touchConfirmed;
+
+        // Called by the watcher below on the first genuine touch press.
+        public static void ConfirmTouch()
+        {
+            if (_touchConfirmed) return;
+            _touchConfirmed = true;
+
+            HUDController.Instance?.ApplyTouchLayout();
+
+            if (Instance == null) return;
+            Instance._touch = true;
+            Instance.gameObject.SetActive(true);
+            Instance.ApplyBandSize();
+            Instance.LayoutButtons();
         }
 
         void OnDestroy()
@@ -299,6 +332,31 @@ namespace GorillaSurvivors.UI
             var rect = button.GetComponent<RectTransform>();
             rect.sizeDelta = new Vector2(size, size);
             rect.anchoredPosition = position;
+        }
+    }
+
+    // Watches for the first real finger on the glass and switches the game
+    // over to the touch layout when it sees one.
+    //
+    // This is the other half of HasTouchScreen's conservatism: the build
+    // starts in desktop mode unless the device is plainly a handheld, which
+    // means a touch-screen laptop or a tablet the browser doesn't identify
+    // starts with the wrong controls. A press is unambiguous where a
+    // capability flag isn't, so one tap fixes it. There is no path back —
+    // switching away mid-game because a mouse twitched would be worse than
+    // either mistake.
+    public class TouchModeWatcher : MonoBehaviour
+    {
+        void Update()
+        {
+            if (TouchControls.HasTouchScreen()) { enabled = false; return; }
+
+            var touch = Touchscreen.current;
+            if (touch != null && touch.primaryTouch.press.wasPressedThisFrame)
+            {
+                TouchControls.ConfirmTouch();
+                enabled = false;
+            }
         }
     }
 

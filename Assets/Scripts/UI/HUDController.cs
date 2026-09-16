@@ -53,6 +53,17 @@ namespace GorillaSurvivors.UI
         static readonly Color RoarColor = new Color(0.85f, 0.75f, 0.25f);
         static readonly Color ChargeColor = new Color(0.25f, 0.8f, 0.85f);
 
+        CanvasScaler _scaler;
+
+        // Re-applies everything Build decided from "is this a touch device"
+        // when that answer arrives late — the first tap on a machine the
+        // browser wouldn't identify as a handheld.
+        public void ApplyTouchLayout()
+        {
+            if (_scaler != null) _scaler.referenceResolution = new Vector2(860, 484);
+            if (_abilityBar != null) _abilityBar.SetActive(false);
+        }
+
         public static HUDController Build(PlayerHealth health, PlayerStats stats)
         {
             EnsureEventSystem();
@@ -78,6 +89,7 @@ namespace GorillaSurvivors.UI
 
             var hud = canvasGO.AddComponent<HUDController>();
             Instance = hud;
+            hud._scaler = scaler;
             hud._health = health;
             hud._stats = stats;
             hud._attack = health.GetComponent<PlayerAttack>();
@@ -115,6 +127,7 @@ namespace GorillaSurvivors.UI
             // strip along the bottom is pure duplication on the part of a
             // phone screen that can least spare it.
             if (TouchControls.Active && hud._abilityBar != null) hud._abilityBar.SetActive(false);
+
 
             health.OnHealthChanged += hud.HandleHealthChanged;
             stats.OnXPChanged += hud.HandleXPChanged;
