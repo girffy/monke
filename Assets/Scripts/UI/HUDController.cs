@@ -62,7 +62,18 @@ namespace GorillaSurvivors.UI
             canvas.renderMode = RenderMode.ScreenSpaceOverlay;
             var scaler = canvasGO.AddComponent<CanvasScaler>();
             scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-            scaler.referenceResolution = new Vector2(1280, 720);
+            // A smaller reference resolution on touch makes every UI element
+            // physically larger, because the canvas is scaled to fit the
+            // width either way. A phone is held at arm's length on a screen
+            // a fraction the size of a monitor, so HUD text and panels sized
+            // for a desktop are genuinely unreadable rather than just small.
+            scaler.referenceResolution = TouchControls.HasTouchScreen()
+                ? new Vector2(860, 484)
+                : new Vector2(1280, 720);
+            // Match on width: the canvas height in reference units then
+            // varies with aspect, which every touch layout here accounts for
+            // by deriving its sizes from real rects rather than constants.
+            scaler.matchWidthOrHeight = 0f;
             canvasGO.AddComponent<GraphicRaycaster>();
 
             var hud = canvasGO.AddComponent<HUDController>();

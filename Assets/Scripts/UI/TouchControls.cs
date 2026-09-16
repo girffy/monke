@@ -50,6 +50,14 @@ namespace GorillaSurvivors.UI
             return Instance != null && Instance._buttons[(int)button].ConsumePress();
         }
 
+        // Height of the reserved control strip, as a fraction of the screen.
+        // The game is rendered only ABOVE it — the camera's viewport is
+        // shrunk to match — so a thumb on a button is never on top of the
+        // fight. Holding controls over the playfield meant the two bottom
+        // corners, where both hands sit, were the two places you most needed
+        // to see.
+        public const float BandFraction = 0.38f;
+
         public static TouchControls Create(Transform parent)
         {
             var go = new GameObject("TouchControls", typeof(RectTransform));
@@ -62,13 +70,28 @@ namespace GorillaSurvivors.UI
 
             var controls = go.AddComponent<TouchControls>();
             Instance = controls;
-            controls.BuildLayout(rect);
 
-            go.SetActive(HasTouchScreen());
+            bool touch = HasTouchScreen();
+            controls.BuildLayout(rect);
+            go.SetActive(touch);
+
+            // Set explicitly either way: the camera object survives a scene
+            // reload, so a rect left over from a previous session would
+            // otherwise persist into a desktop run.
+            var cam = Camera.main;
+            if (cam != null)
+            {
+                cam.rect = touch
+                    ? new Rect(0f, BandFraction, 1f, 1f - BandFraction)
+                    : new Rect(0f, 0f, 1f, 1f);
+            }
+
             return controls;
         }
 
-        static bool HasTouchScreen()
+        // Public so the HUD can size its canvas for a phone before any of
+        // this exists.
+        public static bool HasTouchScreen()
         {
             return Touchscreen.current != null || Application.isMobilePlatform;
         }
@@ -78,8 +101,18 @@ namespace GorillaSurvivors.UI
             if (Instance == this) Instance = null;
         }
 
+        Vector2 _lastBandSize;
+
         void Update()
         {
+            // The strip's size changes with the window and on orientation
+            // change, and the button row is derived from it.
+            if (_bandRect != null && _bandRect.rect.size != _lastBandSize)
+            {
+                _lastBandSize = _bandRect.rect.size;
+                LayoutButtons();
+            }
+
             var player = Player.PlayerController.Instance;
             if (player == null) return;
 
@@ -102,31 +135,102 @@ namespace GorillaSurvivors.UI
 
         void BuildLayout(RectTransform root)
         {
-            _joystick = TouchJoystick.Create(root);
+            // The strip itself. Opaque, because the camera does not clear
+            // outside its own viewport — without something solid here the
+            // bottom of the screen shows whatever was in the buffer last.
+            var band = new GameObject("ControlBand", typeof(RectTransform));
+            band.transform.SetParent(root, false);
+            var bandRect = band.GetComponent<RectTransform>();
+            bandRect.anchorMin = Vector2.zero;
+            bandRect.anchorMax = new Vector2(1f, BandFraction);
+            bandRect.offsetMin = Vector2.zero;
+            bandRect.offsetMax = Vector2.zero;
+            var bandImage = band.AddComponent<Image>();
+            bandImage.color = new Color(0.09f, 0.09f, 0.11f, 1f);
+            // Swallows any tap that misses a control, so a stray thumb can't
+            // fall through to the world behind.
+            bandImage.raycastTarget = true;
 
-            // Abilities on the LEFT, movement on the right. Sizes are much
-            // larger than a mouse cursor would need: a fingertip is about
-            // 45px of real screen, and these are authored against a 1280-wide
-            // reference that a phone scales down, so anything that looks
-            // comfortable on a desktop preview is too small to hit in hand.
-            _buttons[(int)TouchButton.Slam] = TouchButtonWidget.Create(root, "RMB", PixelArtIcons.Slam(),
-                new Vector2(135f, 120f), 148f, new Color(0.55f, 0.55f, 0.55f));
-            _buttons[(int)TouchButton.Swipe] = TouchButtonWidget.Create(root, "LMB", PixelArtIcons.Claw(),
-                new Vector2(292f, 92f), 122f, new Color(0.75f, 0.70f, 0.35f));
-            _buttons[(int)TouchButton.Dash] = TouchButtonWidget.Create(root, "Dash", PixelArtIcons.Dash(),
-                new Vector2(126f, 284f), 118f, new Color(0.25f, 0.50f, 0.85f));
-            _buttons[(int)TouchButton.ChestBeat] = TouchButtonWidget.Create(root, "Q", PixelArtIcons.GorillaShout(),
-                new Vector2(274f, 250f), 106f, new Color(0.62f, 0.45f, 0.72f));
-            _buttons[(int)TouchButton.DungToss] = TouchButtonWidget.Create(root, "E", PixelArtIcons.DungToss(),
-                new Vector2(412f, 152f), 106f, new Color(0.52f, 0.44f, 0.30f));
+            // A lip along the top edge, so the strip reads as a bezel rather
+            // than the picture having been cropped.
+            var lip = new GameObject("BandLip", typeof(RectTransform));
+            lip.transform.SetParent(band.transform, false);
+            var lipRect = lip.GetComponent<RectTransform>();
+            lipRect.anchorMin = new Vector2(0f, 1f);
+            lipRect.anchorMax = new Vector2(1f, 1f);
+            lipRect.pivot = new Vector2(0.5f, 1f);
+            lipRect.sizeDelta = new Vector2(0f, 3f);
+            var lipImage = lip.AddComponent<Image>();
+            lipImage.color = new Color(0.32f, 0.30f, 0.26f, 1f);
+            lipImage.raycastTarget = false;
+
+            _joystick = TouchJoystick.Create(bandRect);
+            _bandRect = bandRect;
+
+            // Abilities in ONE row along the left of the strip, ordered as
+            // they are on a keyboard: the two attacks, then dash, then the
+            // two unlockables. Positions and sizes are computed from the
+            // strip's real height in LayoutButtons — a phone in landscape is
+            // much wider than 16:9, which makes the canvas SHORTER in
+            // reference units, and a two-row layout with fixed sizes stopped
+            // fitting the moment the aspect changed.
+            _buttons[(int)TouchButton.Swipe] = TouchButtonWidget.Create(bandRect, "LMB", PixelArtIcons.Claw(),
+                new Color(0.75f, 0.70f, 0.35f));
+            _buttons[(int)TouchButton.Slam] = TouchButtonWidget.Create(bandRect, "RMB", PixelArtIcons.Slam(),
+                new Color(0.55f, 0.55f, 0.55f));
+            _buttons[(int)TouchButton.Dash] = TouchButtonWidget.Create(bandRect, "Dash", PixelArtIcons.Dash(),
+                new Color(0.25f, 0.50f, 0.85f));
+            _buttons[(int)TouchButton.ChestBeat] = TouchButtonWidget.Create(bandRect, "Q", PixelArtIcons.GorillaShout(),
+                new Color(0.62f, 0.45f, 0.72f));
+            _buttons[(int)TouchButton.DungToss] = TouchButtonWidget.Create(bandRect, "E", PixelArtIcons.DungToss(),
+                new Color(0.52f, 0.44f, 0.30f));
+
+            LayoutButtons();
+        }
+
+        RectTransform _bandRect;
+
+        // Sizes the row to whatever the strip actually is. Buttons take most
+        // of the strip's height and are spread across its left 56%, leaving
+        // the right for the stick.
+        void LayoutButtons()
+        {
+            if (_bandRect == null) return;
+
+            float bandHeight = _bandRect.rect.height;
+            float bandWidth = _bandRect.rect.width;
+            if (bandHeight <= 1f || bandWidth <= 1f) return;
+
+            const int count = 5;
+            const float zoneFraction = 0.56f;
+
+            // A margin at the screen edge, or the first button is half off it.
+            float pad = bandWidth * 0.022f;
+            float usable = bandWidth * zoneFraction - pad * 2f;
+
+            // Whichever constraint binds first: the strip's height, or
+            // fitting five of them plus gaps across the zone.
+            float size = Mathf.Min(bandHeight * 0.70f, usable / (count + 0.5f));
+            float gap = size * 0.14f;
+            float total = count * size + (count - 1) * gap;
+            float startX = pad + (usable - total) * 0.5f + size * 0.5f;
+
+            for (int i = 0; i < _buttons.Length; i++)
+            {
+                var rect = _buttons[i].GetComponent<RectTransform>();
+                rect.sizeDelta = new Vector2(size, size);
+                rect.anchoredPosition = new Vector2(startX + i * (size + gap), 0f);
+            }
         }
     }
 
-    // A floating stick: invisible over the left half of the screen until
-    // touched, then drawn where the thumb landed.
+    // A FIXED stick sitting on the right of the control strip. It used to
+    // float — appearing wherever the thumb landed anywhere in the right half
+    // of the screen — which put it on top of the fight and gave it no
+    // resting place to find without looking.
     public class TouchJoystick : MonoBehaviour, IPointerDownHandler, IDragHandler, IPointerUpHandler
     {
-        const float Radius = 78f;
+        const float Radius = 92f;
 
         RectTransform _self;
         RectTransform _ring;
@@ -137,14 +241,14 @@ namespace GorillaSurvivors.UI
 
         public static TouchJoystick Create(RectTransform parent)
         {
+            // The whole right half of the strip is draggable, so the thumb
+            // doesn't have to land exactly on the stick to steer — but the
+            // stick itself stays put.
             var zone = new GameObject("JoystickZone", typeof(RectTransform));
             zone.transform.SetParent(parent, false);
             var rect = zone.GetComponent<RectTransform>();
-            // RIGHT 46%, stopping short of the very top so it can't swallow
-            // taps meant for the pause button or the HUD. The abilities took
-            // the left side, so movement moved across.
-            rect.anchorMin = new Vector2(0.54f, 0f);
-            rect.anchorMax = new Vector2(1f, 0.88f);
+            rect.anchorMin = new Vector2(0.5f, 0f);
+            rect.anchorMax = new Vector2(1f, 1f);
             rect.offsetMin = Vector2.zero;
             rect.offsetMax = Vector2.zero;
 
@@ -156,9 +260,14 @@ namespace GorillaSurvivors.UI
 
             var stick = zone.AddComponent<TouchJoystick>();
             stick._self = rect;
-            stick._ring = MakeCircle(rect, "Ring", Radius * 2f, new Color(1f, 1f, 1f, 0.18f));
-            stick._knob = MakeCircle(stick._ring, "Knob", Radius * 0.95f, new Color(1f, 1f, 1f, 0.38f));
-            stick._ring.gameObject.SetActive(false);
+
+            stick._ring = MakeCircle(rect, "Ring", Radius * 2f, new Color(1f, 1f, 1f, 0.15f));
+            // Anchored to the right of the strip at a fixed spot, always
+            // visible so there is something to aim a thumb at.
+            stick._ring.anchorMin = stick._ring.anchorMax = new Vector2(1f, 0.5f);
+            stick._ring.anchoredPosition = new Vector2(-150f, 0f);
+
+            stick._knob = MakeCircle(stick._ring, "Knob", Radius * 0.92f, new Color(1f, 1f, 1f, 0.34f));
             return stick;
         }
 
@@ -180,21 +289,29 @@ namespace GorillaSurvivors.UI
         public void OnPointerDown(PointerEventData eventData)
         {
             _pointerId = eventData.pointerId;
-            _ring.gameObject.SetActive(true);
-            PlaceRing(eventData);
-            _knob.anchoredPosition = Vector2.zero;
-            Value = Vector3.zero;
+            Steer(eventData);
         }
 
         public void OnDrag(PointerEventData eventData)
         {
             if (eventData.pointerId != _pointerId) return;
+            Steer(eventData);
+        }
 
+        // Direction is measured from the stick's FIXED centre, so pressing
+        // anywhere in the zone steers immediately rather than needing a drag
+        // to build up an offset.
+        void Steer(PointerEventData eventData)
+        {
             RectTransformUtility.ScreenPointToLocalPointInRectangle(
                 _self, eventData.position, eventData.pressEventCamera, out Vector2 local);
 
-            Vector2 offset = local - _ring.anchoredPosition;
-            Vector2 clamped = Vector2.ClampMagnitude(offset, Radius);
+            // The ring is right-anchored, so its centre in the zone's own
+            // coordinates has to be read from the transform rather than
+            // assumed to be its anchoredPosition.
+            Vector2 centre = _self.InverseTransformPoint(_ring.position);
+
+            Vector2 clamped = Vector2.ClampMagnitude(local - centre, Radius);
             _knob.anchoredPosition = clamped;
 
             // A small dead zone so resting a thumb doesn't drift the gorilla.
@@ -210,14 +327,7 @@ namespace GorillaSurvivors.UI
 
             _pointerId = -99;
             Value = Vector3.zero;
-            _ring.gameObject.SetActive(false);
-        }
-
-        void PlaceRing(PointerEventData eventData)
-        {
-            RectTransformUtility.ScreenPointToLocalPointInRectangle(
-                _self, eventData.position, eventData.pressEventCamera, out Vector2 local);
-            _ring.anchoredPosition = local;
+            _knob.anchoredPosition = Vector2.zero;
         }
     }
 
@@ -262,17 +372,17 @@ namespace GorillaSurvivors.UI
             if (_cooldown != null) _cooldown.fillAmount = Mathf.Clamp01(remaining01);
         }
 
-        public static TouchButtonWidget Create(RectTransform parent, string label, Sprite icon,
-            Vector2 anchoredPosition, float size, Color tint)
+        // Position and size are set by TouchControls.LayoutButtons, which
+        // derives them from the control strip's real dimensions.
+        public static TouchButtonWidget Create(RectTransform parent, string label, Sprite icon, Color tint)
         {
             var go = new GameObject("TouchButton_" + label, typeof(RectTransform));
             go.transform.SetParent(parent, false);
             var rect = go.GetComponent<RectTransform>();
-            // Bottom-LEFT: the ability cluster lives under the left thumb and
-            // the movement stick under the right.
-            rect.anchorMin = rect.anchorMax = rect.pivot = new Vector2(0f, 0f);
-            rect.anchoredPosition = anchoredPosition;
-            rect.sizeDelta = new Vector2(size, size);
+            // Anchored to the strip's left edge, centred vertically in it,
+            // with a CENTRE pivot so the layout code can think in centres.
+            rect.anchorMin = rect.anchorMax = new Vector2(0f, 0.5f);
+            rect.pivot = new Vector2(0.5f, 0.5f);
 
             var background = go.AddComponent<Image>();
             background.sprite = CircleSprite.Get();
@@ -281,10 +391,12 @@ namespace GorillaSurvivors.UI
             var iconGO = new GameObject("Icon", typeof(RectTransform));
             iconGO.transform.SetParent(go.transform, false);
             var iconRect = iconGO.GetComponent<RectTransform>();
-            iconRect.anchorMin = Vector2.zero;
-            iconRect.anchorMax = Vector2.one;
-            iconRect.offsetMin = new Vector2(size * 0.2f, size * 0.2f);
-            iconRect.offsetMax = new Vector2(-size * 0.2f, -size * 0.2f);
+            // Inset by anchor fraction rather than pixels, so the icon keeps
+            // its proportion whatever size the layout gives the button.
+            iconRect.anchorMin = new Vector2(0.19f, 0.19f);
+            iconRect.anchorMax = new Vector2(0.81f, 0.81f);
+            iconRect.offsetMin = Vector2.zero;
+            iconRect.offsetMax = Vector2.zero;
             var iconImage = iconGO.AddComponent<Image>();
             iconImage.sprite = icon;
             iconImage.raycastTarget = false;

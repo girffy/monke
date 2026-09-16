@@ -16,7 +16,10 @@ namespace GorillaSurvivors.UI
     // is what lets a trunk sit centred between the limbs it feeds.
     public class TechTreePanel : MonoBehaviour
     {
-        const float HeaderFraction = 0.085f;
+        // Small: it is a fraction of the SCROLLABLE content, which is taller
+        // than the window, so a generous-looking fraction turns into a large
+        // band of empty space above the trunk.
+        const float HeaderFraction = 0.045f;
         const float PadX = 0.006f;
         const float PadY = 0.012f;
 
@@ -34,11 +37,17 @@ namespace GorillaSurvivors.UI
         {
             public TechBranch Branch;
             public GameObject Page;
+            public RectTransform Content;
+            public int Rows;
             public Button Tab;
             public Image TabImage;
             public Text TabLabel;
             public readonly List<Image> Edges = new List<Image>();
         }
+
+        // Smallest a tree row may be, in canvas units. Three lines of node
+        // text plus padding; below this the descriptions get clipped.
+        const float MinRowHeight = 92f;
 
         readonly List<NodeView> _views = new List<NodeView>();
         readonly List<BranchView> _pages = new List<BranchView>();
@@ -135,6 +144,12 @@ namespace GorillaSurvivors.UI
                 var label = MakeText(tabGO.transform, "Label", Vector2.zero, new Vector2(tabWidth, 34f),
                     15, TextAnchor.MiddleCenter, new Vector2(0.5f, 0.5f));
 
+                // Each page is a scroll view. The tree is six rows deep and
+                // every node carries three lines of text; at the larger UI
+                // scale a phone uses, those lines no longer fit a row sized
+                // to a fraction of the screen and the descriptions were
+                // silently truncated to nothing. Rows get a real minimum
+                // height now and the page scrolls if that overflows.
                 var page = new GameObject("Page_" + branch.Name, typeof(RectTransform));
                 page.transform.SetParent(_root.transform, false);
                 var pageRect = page.GetComponent<RectTransform>();
@@ -143,16 +158,42 @@ namespace GorillaSurvivors.UI
                 pageRect.offsetMin = new Vector2(16f, 56f);
                 pageRect.offsetMax = new Vector2(-16f, -98f);
 
+                // RectMask2D rather than Mask: no stencil buffer, no extra
+                // draw call, and it is all a rectangular clip needs.
+                page.AddComponent<RectMask2D>();
+
+                var content = new GameObject("Content", typeof(RectTransform));
+                content.transform.SetParent(page.transform, false);
+                var contentRect = content.GetComponent<RectTransform>();
+                contentRect.anchorMin = new Vector2(0f, 1f);
+                contentRect.anchorMax = new Vector2(1f, 1f);
+                contentRect.pivot = new Vector2(0.5f, 1f);
+                contentRect.offsetMin = new Vector2(0f, contentRect.offsetMin.y);
+                contentRect.offsetMax = new Vector2(0f, contentRect.offsetMax.y);
+
+                var scroll = page.AddComponent<ScrollRect>();
+                scroll.content = contentRect;
+                scroll.viewport = pageRect;
+                scroll.horizontal = false;
+                scroll.vertical = true;
+                scroll.movementType = ScrollRect.MovementType.Clamped;
+                scroll.scrollSensitivity = 28f;
+                scroll.inertia = true;
+                scroll.decelerationRate = 0.12f;
+
                 _pages.Add(new BranchView
                 {
                     Branch = branch, Page = page, Tab = button, TabImage = image, TabLabel = label,
+                    Content = contentRect,
                 });
             }
         }
 
         void BuildPage(TechBranch branch, BranchView view)
         {
-            var pageRect = view.Page.GetComponent<RectTransform>();
+            // Everything lives in the scrollable content, not the page: the
+            // page is only the window onto it.
+            var pageRect = view.Content;
 
             int rows = 0;
             foreach (var n in branch.Nodes) rows = Mathf.Max(rows, n.Row + 1);
@@ -162,6 +203,7 @@ namespace GorillaSurvivors.UI
             // the convergence invisible.
             int grandRow = rows;
             rows += 1;
+            view.Rows = rows;
             float rowFraction = (1f - HeaderFraction) / rows;
 
             var header = MakeStretched(pageRect, "Header",
@@ -349,6 +391,7 @@ namespace GorillaSurvivors.UI
             // this panel, and uGUI draws later siblings on top.
             _root.transform.SetAsLastSibling();
             _root.SetActive(true);
+            SizeContent();
 
             // Open on a branch the player can actually spend in, so the
             // screen doesn't land on a page where everything is locked.
@@ -360,6 +403,26 @@ namespace GorillaSurvivors.UI
             }
 
             ShowBranch(_active);
+        }
+
+        // The content is as tall as the window, or tall enough to give every
+        // row its minimum height — whichever is more. Done on open rather
+        // than at build time because the viewport has no real size until the
+        // panel is actually shown.
+        void SizeContent()
+        {
+            foreach (var page in _pages)
+            {
+                if (page.Content == null) continue;
+
+                var viewport = page.Page.GetComponent<RectTransform>();
+                float viewportHeight = viewport.rect.height;
+                float needed = page.Rows * MinRowHeight / (1f - HeaderFraction);
+                float height = Mathf.Max(viewportHeight, needed);
+
+                page.Content.sizeDelta = new Vector2(0f, height);
+                page.Content.anchoredPosition = new Vector2(0f, 0f);
+            }
         }
 
         bool BranchHasAffordableNode(TechBranch branch)

@@ -98,14 +98,22 @@ namespace GorillaSurvivors.UI
 
             // The camera looks down a fixed pitch with no yaw, so world X maps
             // to screen X and world Z maps to screen Y directly.
-            Vector2 half = _canvasRect.rect.size * 0.5f - Vector2.one * EdgePadding;
+            //
+            // The arrows ride the edge of the VISIBLE picture, not the edge
+            // of the canvas: on a touch device the bottom of the screen is a
+            // control strip the camera doesn't render into, and arrows placed
+            // against the canvas edge would sit behind it.
+            Vector2 size = _canvasRect.rect.size;
+            float band = TouchControls.Active ? size.y * TouchControls.BandFraction : 0f;
+            Vector2 half = new Vector2(size.x, size.y - band) * 0.5f - Vector2.one * EdgePadding;
+            float centreY = band * 0.5f;
 
             // Push the direction out to whichever edge it hits first.
             float scale = Mathf.Min(
                 half.x / Mathf.Max(0.0001f, Mathf.Abs(dir.x)),
                 half.y / Mathf.Max(0.0001f, Mathf.Abs(dir.y)));
 
-            arrow.anchoredPosition = dir * scale;
+            arrow.anchoredPosition = dir * scale + Vector2.up * centreY;
             // The chevron glyph points along +X, so aiming it is just the
             // heading angle with no extra offset.
             arrow.localRotation = Quaternion.Euler(0f, 0f, Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg);
