@@ -121,7 +121,7 @@ namespace GorillaSurvivors.Core
                     N("slam_dmg", "Heavy Fists", "Slam", "+8 slam damage", 1, 3,
                         p => Get<PlayerAttack>(p).BaseDamage += 8f, 3, "brawler"),
 
-                    N("swipe_arc", "Wide Sweep", "Swipe", "+22° arc and +0.3 reach", 2, 0,
+                    N("swipe_arc", "Wide Sweep", "Swipe", "Swipe covers +22° more arc and reaches 0.3 further", 2, 0,
                         p =>
                         {
                             var s = Get<QuickSwipeAttack>(p);
@@ -155,34 +155,34 @@ namespace GorillaSurvivors.Core
 
                     N("dash_cd", "Light Feet", "Dash", "-20% dash cooldown", 1, 1,
                         p => Get<PlayerController>(p).DashCooldown *= 0.8f, 2, "instinct"),
-                    N("beat_unlock", "Chest Beat", "Unlock Q", "Rear up and pound out shockwaves", 1, 3,
+                    N("beat_unlock", "Chest Beat", "Unlock Q", "Unlocks Chest Beat (Q): rear up and pound out shockwaves", 1, 3,
                         p => Get<ChestBeatAbility>(p).Unlocked = true, 1, "instinct"),
-                    N("dung_unlock", "Dung Toss", "Unlock E", "Hurl dung; splash damage and a slowing patch", 1, 5,
+                    N("dung_unlock", "Dung Toss", "Unlock E", "Unlocks Dung Toss (E): splash damage and a slowing patch", 1, 5,
                         p => Get<DungTossAbility>(p).Unlocked = true, 1, "instinct"),
 
                     N("dash_through", "Barge", "Dash", "Dash passes straight through enemies", 2, 0,
                         p => Get<PlayerController>(p).DashPassesThrough = true, 1, "dash_cd"),
                     N("dash_far", "Ground Eater", "Dash", "+40% dash distance", 2, 2,
                         p => Get<PlayerController>(p).DashDuration *= 1.4f, 1, "dash_cd"),
-                    N("beat_dmg", "Thunderous", "Beat", "+4 damage per pulse", 2, 4,
+                    N("beat_dmg", "Thunderous", "Beat", "+4 chest beat damage per pulse", 2, 4,
                         p => Get<ChestBeatAbility>(p).BaseDamage += 4f, 3, "beat_unlock"),
-                    N("beat_pulses", "Drum Roll", "Beat", "+1 pulse", 2, 6,
+                    N("beat_pulses", "Drum Roll", "Beat", "+1 chest beat pulse", 2, 6,
                         p => Get<ChestBeatAbility>(p).PulseCount += 1, 2, "beat_unlock"),
                     N("dung_dmg", "Packed Tight", "Toss", "+4 dung damage", 2, 8,
                         p => Get<DungTossAbility>(p).BaseDamage += 4f, 3, "dung_unlock"),
-                    N("dung_charges", "Stockpile", "Toss", "+1 stored throw", 2, 10,
+                    N("dung_charges", "Stockpile", "Toss", "+1 stored dung throw", 2, 10,
                         p => Get<DungTossAbility>(p).MaxCharges += 1, 2, "dung_unlock"),
 
                     N("dash_dmg", "Freight Train", "Dash join", "Dashing deals 20 damage to everything you pass through", 3, 1,
                         p => Get<PlayerController>(p).DashDamage += 20f, 1, "dash_through", "dash_far"),
-                    N("beat_march", "Rolling Thunder", "Beat join", "Walk at half speed while beating, and stay invulnerable throughout", 3, 3,
+                    N("beat_march", "Rolling Thunder", "Beat join", "Walk at half speed during a chest beat, and stay invulnerable throughout", 3, 3,
                         p =>
                         {
                             var b = Get<ChestBeatAbility>(p);
                             b.MoveFraction = 0.5f;
                             b.InvulnerableWhileBeating = true;
                         }, 1, "beat_dmg", "beat_pulses"),
-                    N("dung_rot", "Foul", "Toss join", "Throws come as a spread of three, and hits rot for the impact damage again over 3s", 3, 5,
+                    N("dung_rot", "Foul", "Toss join", "Dung comes as a spread of three, and hits rot for the impact damage again over 3s", 3, 5,
                         p =>
                         {
                             var d = Get<DungTossAbility>(p);

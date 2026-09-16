@@ -29,6 +29,7 @@ namespace GorillaSurvivors.UI
             public Button Button;
             public Image Image;
             public Text Label;
+            public Image Frame;
             public Color Tint;
             public GameObject Root;
         }
@@ -43,6 +44,123 @@ namespace GorillaSurvivors.UI
             public Image TabImage;
             public Text TabLabel;
             public readonly List<Image> Edges = new List<Image>();
+            // Computed placement, by node id: see Layout.
+            public Dictionary<string, Slot> Slots;
+        }
+
+        // Where one node sits: centre and width as fractions of the page.
+        public struct Slot
+        {
+            public float X;
+            public float Width;
+            public int Row;
+            public int IndexInRow;
+        }
+
+        // Positions are COMPUTED, not authored.
+        //
+        // Hand-written half-column numbers had every row laid out against the
+        // same fixed grid, which meant a parent only landed above the middle
+        // of its children by luck — mostly it sat off to one side, and the
+        // trunk itself wasn't at the centre of the page.
+        //
+        // So: spread the widest row evenly, then walk outward from it, giving
+        // every other node the average position of the nodes it connects to.
+        // A parent is then always exactly over the centre of its children,
+        // and the trunk lands dead centre because the average of an evenly
+        // spread row is its middle.
+        static Dictionary<string, Slot> Layout(TechBranch branch, int rows)
+        {
+            var byRow = new List<TechNode>[rows];
+            for (int r = 0; r < rows; r++) byRow[r] = new List<TechNode>();
+            foreach (var node in branch.Nodes) byRow[node.Row].Add(node);
+
+            int widest = 0;
+            for (int r = 0; r < rows; r++)
+            {
+                if (byRow[r].Count > byRow[widest].Count) widest = r;
+            }
+
+            var slots = new Dictionary<string, Slot>();
+            var x = new Dictionary<string, float>();
+
+            var seed = byRow[widest];
+            for (int i = 0; i < seed.Count; i++) x[seed[i].Id] = (i + 0.5f) / seed.Count;
+
+            // Above the widest row, a node follows its CHILDREN.
+            for (int r = widest - 1; r >= 0; r--)
+            {
+                foreach (var node in byRow[r]) x[node.Id] = AverageOf(ChildrenOf(branch, node, byRow[r + 1]), x, 0.5f);
+            }
+
+            // Below it, a node follows its PARENTS.
+            for (int r = widest + 1; r < rows; r++)
+            {
+                foreach (var node in byRow[r]) x[node.Id] = AverageOf(ParentsIn(branch, node, byRow[r - 1]), x, 0.5f);
+            }
+
+            for (int r = 0; r < rows; r++)
+            {
+                // A row with fewer nodes gets wider boxes, up to a limit —
+                // this is what un-squashes the trunk and the capstone, which
+                // carry the longest text and previously had to fit the same
+                // narrow column as the leaves.
+                float width = Mathf.Min(0.94f / Mathf.Max(1, byRow[r].Count), 0.32f);
+                for (int i = 0; i < byRow[r].Count; i++)
+                {
+                    var node = byRow[r][i];
+                    slots[node.Id] = new Slot
+                    {
+                        X = x.TryGetValue(node.Id, out float v) ? v : 0.5f,
+                        Width = width, Row = r, IndexInRow = i,
+                    };
+                }
+            }
+
+            return slots;
+        }
+
+        static List<TechNode> ChildrenOf(TechBranch branch, TechNode node, List<TechNode> below)
+        {
+            var found = new List<TechNode>();
+            foreach (var candidate in below)
+            {
+                if (candidate.Parents == null) continue;
+                foreach (var id in candidate.Parents)
+                {
+                    if (id != node.Id) continue;
+                    found.Add(candidate);
+                    break;
+                }
+            }
+            return found;
+        }
+
+        static List<TechNode> ParentsIn(TechBranch branch, TechNode node, List<TechNode> above)
+        {
+            var found = new List<TechNode>();
+            if (node.Parents == null) return found;
+            foreach (var id in node.Parents)
+            {
+                foreach (var candidate in above)
+                {
+                    if (candidate.Id == id) found.Add(candidate);
+                }
+            }
+            return found;
+        }
+
+        static float AverageOf(List<TechNode> nodes, Dictionary<string, float> x, float fallback)
+        {
+            float sum = 0f;
+            int count = 0;
+            foreach (var node in nodes)
+            {
+                if (!x.TryGetValue(node.Id, out float v)) continue;
+                sum += v;
+                count++;
+            }
+            return count == 0 ? fallback : sum / count;
         }
 
         // Smallest a tree row may be, in canvas units. Three lines of node
@@ -58,7 +176,8 @@ namespace GorillaSurvivors.UI
         TechTreeState _state;
         int _active;
 
-        static readonly Color LockedFill = new Color(0.10f, 0.10f, 0.11f, 0.95f);
+        static readonly Color LockedFill = new Color(0.135f, 0.135f, 0.15f, 1f);
+        static readonly Color LockedFrame = new Color(0.27f, 0.27f, 0.30f, 1f);
         static readonly Color MaxedFill = new Color(0.16f, 0.30f, 0.18f, 0.97f);
         static readonly Color EdgeIdle = new Color(0.32f, 0.32f, 0.34f, 0.85f);
 
@@ -201,6 +320,8 @@ namespace GorillaSurvivors.UI
             // foot of every branch because it is the one node all three of
             // them lead to — hiding it on two pages out of three would make
             // the convergence invisible.
+            view.Slots = Layout(branch, rows);
+
             int grandRow = rows;
             rows += 1;
             view.Rows = rows;
@@ -223,7 +344,7 @@ namespace GorillaSurvivors.UI
                 {
                     var parent = TechTree.Find(parentId);
                     if (parent == null || parent.Branch != branch) continue;
-                    BuildEdge(pageRect, view, branch, parent, node, rowFraction);
+                    BuildEdge(pageRect, view, parent, node, rowFraction);
                 }
             }
 
@@ -233,7 +354,7 @@ namespace GorillaSurvivors.UI
             var grand = TechTree.GrandCapstone;
             if (capstone != null)
             {
-                var a = NodeBounds(branch, capstone, rowFraction);
+                var a = NodeBounds(view, capstone, rowFraction);
                 var b = GrandBounds(branch, grandRow, rowFraction);
                 float ax = (a.min.x + a.max.x) * 0.5f;
                 float bx = (b.min.x + b.max.x) * 0.5f;
@@ -246,7 +367,7 @@ namespace GorillaSurvivors.UI
 
             foreach (var node in branch.Nodes)
             {
-                var bounds = NodeBounds(branch, node, rowFraction);
+                var bounds = NodeBounds(view, node, rowFraction);
                 _views.Add(MakeNode(node, branch.Tint, pageRect, bounds.min, bounds.max));
             }
 
@@ -264,34 +385,31 @@ namespace GorillaSurvivors.UI
             return best;
         }
 
-        // Wider than a normal node and centred: it is not part of any one
-        // branch's grid.
+        // Centred, and wider than a normal node: it is not part of any one
+        // branch's layout.
         static (Vector2 min, Vector2 max) GrandBounds(TechBranch branch, int row, float rowFraction)
         {
             float yTop = 1f - HeaderFraction - row * rowFraction;
-            return (new Vector2(0.30f, yTop - rowFraction + PadY),
-                    new Vector2(0.70f, yTop - PadY));
+            return (new Vector2(0.32f, yTop - rowFraction + PadY),
+                    new Vector2(0.68f, yTop - PadY));
         }
 
-        // Half-column units: a node at column C spans half-columns C..C+1 of
-        // the branch's `Columns * 2` total, so odd positions sit centred
-        // between the two below them.
-        static (Vector2 min, Vector2 max) NodeBounds(TechBranch branch, TechNode node, float rowFraction)
+        static (Vector2 min, Vector2 max) NodeBounds(BranchView view, TechNode node, float rowFraction)
         {
-            float half = 1f / (branch.Columns * 2f);
-            float x0 = node.Column * half;
-            float x1 = x0 + half * 2f;
-            float yTop = 1f - HeaderFraction - node.Row * rowFraction;
+            var slot = view.Slots[node.Id];
+            float x0 = slot.X - slot.Width * 0.5f;
+            float x1 = slot.X + slot.Width * 0.5f;
+            float yTop = 1f - HeaderFraction - slot.Row * rowFraction;
 
             return (new Vector2(x0 + PadX, yTop - rowFraction + PadY),
                     new Vector2(x1 - PadX, yTop - PadY));
         }
 
-        void BuildEdge(RectTransform parentRect, BranchView view, TechBranch branch,
+        void BuildEdge(RectTransform parentRect, BranchView view,
             TechNode from, TechNode to, float rowFraction)
         {
-            var a = NodeBounds(branch, from, rowFraction);
-            var b = NodeBounds(branch, to, rowFraction);
+            var a = NodeBounds(view, from, rowFraction);
+            var b = NodeBounds(view, to, rowFraction);
 
             float ax = (a.min.x + a.max.x) * 0.5f;
             float bx = (b.min.x + b.max.x) * 0.5f;
@@ -303,7 +421,7 @@ namespace GorillaSurvivors.UI
             // Dung Toss limb reaching its children on the far right — merged
             // with the short ones into a single bar spanning the page, which
             // read as everything connecting to everything.
-            float lane = 0.34f + 0.16f * (from.Column % 3);
+            float lane = 0.34f + 0.16f * (view.Slots[from.Id].IndexInRow % 3);
             float mid = Mathf.Lerp(byTop, ayBottom, lane);
 
             const float thickness = 0.0022f;
@@ -327,22 +445,33 @@ namespace GorillaSurvivors.UI
 
         NodeView MakeNode(TechNode node, Color tint, RectTransform parent, Vector2 anchorMin, Vector2 anchorMax)
         {
+            // Every option is a BOX, whatever its state. The old locked fill
+            // was within a hair of the panel's background, so a node you
+            // couldn't take yet read as a hole in the tree rather than as
+            // something waiting for you — and the tree looked half-empty on
+            // the screen where you are choosing what to fill it with.
             var rect = MakeStretched(parent, "Node_" + node.Id, anchorMin, anchorMax);
             var go = rect.gameObject;
+            var frame = go.AddComponent<Image>();
 
-            var image = go.AddComponent<Image>();
+            var fillRect = MakeStretched(rect, "Fill", Vector2.zero, Vector2.one);
+            fillRect.offsetMin = new Vector2(2f, 2f);
+            fillRect.offsetMax = new Vector2(-2f, -2f);
+            var image = fillRect.gameObject.AddComponent<Image>();
+
             var button = go.AddComponent<Button>();
             button.targetGraphic = image;
             button.onClick.AddListener(() => Take(node));
 
-            var labelRect = MakeStretched(rect, "Label", Vector2.zero, Vector2.one);
-            labelRect.offsetMin = new Vector2(6f, 4f);
-            labelRect.offsetMax = new Vector2(-6f, -4f);
+            var labelRect = MakeStretched(fillRect, "Label", Vector2.zero, Vector2.one);
+            labelRect.offsetMin = new Vector2(7f, 5f);
+            labelRect.offsetMax = new Vector2(-7f, -5f);
             var label = AddText(labelRect, 12, TextAnchor.MiddleCenter);
 
             return new NodeView
             {
-                Node = node, Button = button, Image = image, Label = label, Tint = tint, Root = go,
+                Node = node, Button = button, Image = image, Label = label,
+                Frame = frame, Tint = tint, Root = go,
             };
         }
 
@@ -509,31 +638,45 @@ namespace GorillaSurvivors.UI
 
                 view.Button.interactable = affordable;
 
-                if (maxed) view.Image.color = MaxedFill;
+                if (maxed)
+                {
+                    view.Image.color = MaxedFill;
+                    view.Frame.color = new Color(0.34f, 0.56f, 0.36f, 1f);
+                }
                 else if (affordable)
                 {
                     view.Image.color = new Color(view.Tint.r * 0.42f, view.Tint.g * 0.42f, view.Tint.b * 0.42f, 0.97f);
+                    view.Frame.color = new Color(view.Tint.r, view.Tint.g, view.Tint.b, 1f);
                 }
-                else if (unlocked) view.Image.color = new Color(0.17f, 0.17f, 0.18f, 0.95f);
-                else view.Image.color = LockedFill;
+                else if (unlocked)
+                {
+                    // Open, but there are no points left to spend on it.
+                    view.Image.color = new Color(0.19f, 0.19f, 0.21f, 1f);
+                    view.Frame.color = new Color(0.40f, 0.40f, 0.43f, 1f);
+                }
+                else
+                {
+                    view.Image.color = LockedFill;
+                    view.Frame.color = LockedFrame;
+                }
 
                 string rankTag = view.Node.MaxRank > 1 ? $"  <color=#9fd0ff>{rank}/{view.Node.MaxRank}</color>" : "";
                 string tick = maxed ? "<color=#8fe08f>✓</color> " : "";
-                string skill = $"<size=9><color=#8d8d8d>{view.Node.Skill.ToUpper()}</color></size>\n";
 
+                // No skill tag and no "needs X" line. Both were saying what
+                // the diagram already says — which limb you are on, and what
+                // sits above this node — and between them they took two of
+                // the three lines a box has room for.
                 if (!unlocked)
                 {
-                    string reason = _state.LockReason(view.Node);
                     view.Label.text =
-                        skill + $"<color=#6e6e6e><b>{view.Node.Title}</b>{rankTag}\n"
-                        + $"<size=10>{view.Node.Description}</size>"
-                        + (reason == null ? "" : $"\n<size=9><color=#4f4f4f>{reason}</color></size>")
-                        + "</color>";
+                        $"<color=#7b7b7b><b>{view.Node.Title}</b>{rankTag}\n"
+                        + $"<size=10>{view.Node.Description}</size></color>";
                 }
                 else
                 {
                     string body = maxed ? "<color=#7f9a7f>" : "<color=#c8c8c8>";
-                    view.Label.text = skill + $"{tick}<b>{view.Node.Title}</b>{rankTag}\n{body}<size=10>{view.Node.Description}</size></color>";
+                    view.Label.text = $"{tick}<b>{view.Node.Title}</b>{rankTag}\n{body}<size=10>{view.Node.Description}</size></color>";
                 }
             }
         }
