@@ -50,13 +50,26 @@ namespace GorillaSurvivors.UI
             return Instance != null && Instance._buttons[(int)button].ConsumePress();
         }
 
-        // Height of the reserved control strip, as a fraction of the screen.
-        // The game is rendered only ABOVE it — the camera's viewport is
-        // shrunk to match — so a thumb on a button is never on top of the
-        // fight. Holding controls over the playfield meant the two bottom
-        // corners, where both hands sit, were the two places you most needed
-        // to see.
-        public const float BandFraction = 0.38f;
+        // Height of the reserved control strip. The game is rendered only
+        // ABOVE it — the camera's viewport is shrunk to match — so a thumb
+        // on a button is never on top of the fight.
+        //
+        // Capped against screen WIDTH, not just height. A thumb is a fixed
+        // physical size, so the strip only ever needs to be about as tall as
+        // a hand is wide; taking a flat third of a tall portrait phone hands
+        // over far more of the screen than the controls can use, and leaves
+        // the buttons swimming in empty space.
+        public static float CurrentBandFraction { get; private set; } = 0.3f;
+
+        static float ComputeBandFraction()
+        {
+            float w = Screen.width;
+            float h = Screen.height;
+            if (h <= 1f || w <= 1f) return 0.3f;
+
+            float height = Mathf.Min(h * 0.34f, w * 0.46f);
+            return Mathf.Clamp(height / h, 0.14f, 0.38f);
+        }
 
         public static TouchControls Create(Transform parent)
         {
@@ -72,19 +85,10 @@ namespace GorillaSurvivors.UI
             Instance = controls;
 
             bool touch = HasTouchScreen();
+            controls._touch = touch;
             controls.BuildLayout(rect);
             go.SetActive(touch);
-
-            // Set explicitly either way: the camera object survives a scene
-            // reload, so a rect left over from a previous session would
-            // otherwise persist into a desktop run.
-            var cam = Camera.main;
-            if (cam != null)
-            {
-                cam.rect = touch
-                    ? new Rect(0f, BandFraction, 1f, 1f - BandFraction)
-                    : new Rect(0f, 0f, 1f, 1f);
-            }
+            controls.ApplyBandSize();
 
             return controls;
         }
@@ -105,8 +109,10 @@ namespace GorillaSurvivors.UI
 
         void Update()
         {
-            // The strip's size changes with the window and on orientation
-            // change, and the button row is derived from it.
+            // Rotating a phone changes both how tall the strip should be and
+            // how the buttons fit in it.
+            if (_lastScreen.x != Screen.width || _lastScreen.y != Screen.height) ApplyBandSize();
+
             if (_bandRect != null && _bandRect.rect.size != _lastBandSize)
             {
                 _lastBandSize = _bandRect.rect.size;
@@ -142,7 +148,9 @@ namespace GorillaSurvivors.UI
             band.transform.SetParent(root, false);
             var bandRect = band.GetComponent<RectTransform>();
             bandRect.anchorMin = Vector2.zero;
-            bandRect.anchorMax = new Vector2(1f, BandFraction);
+            // Overwritten immediately by ApplyBandSize, which derives the
+            // real height from the screen.
+            bandRect.anchorMax = new Vector2(1f, CurrentBandFraction);
             bandRect.offsetMin = Vector2.zero;
             bandRect.offsetMax = Vector2.zero;
             var bandImage = band.AddComponent<Image>();
@@ -189,6 +197,34 @@ namespace GorillaSurvivors.UI
         }
 
         RectTransform _bandRect;
+        bool _touch;
+        Vector2 _lastScreen;
+
+        // Recomputes the strip's height and hands the rest of the screen to
+        // the camera. Called on build and whenever the screen changes, which
+        // on a phone includes rotating it.
+        void ApplyBandSize()
+        {
+            CurrentBandFraction = ComputeBandFraction();
+
+            if (_bandRect != null)
+            {
+                _bandRect.anchorMax = new Vector2(1f, CurrentBandFraction);
+            }
+
+            // Set explicitly either way: the camera object survives a scene
+            // reload, so a rect left over from a previous session would
+            // otherwise persist into a desktop run.
+            var cam = Camera.main;
+            if (cam != null)
+            {
+                cam.rect = _touch
+                    ? new Rect(0f, CurrentBandFraction, 1f, 1f - CurrentBandFraction)
+                    : new Rect(0f, 0f, 1f, 1f);
+            }
+
+            _lastScreen = new Vector2(Screen.width, Screen.height);
+        }
 
         // Sizes the row to whatever the strip actually is. Buttons take most
         // of the strip's height and are spread across its left 56%, leaving
@@ -201,26 +237,68 @@ namespace GorillaSurvivors.UI
             float bandWidth = _bandRect.rect.width;
             if (bandHeight <= 1f || bandWidth <= 1f) return;
 
-            const int count = 5;
-            const float zoneFraction = 0.56f;
-
             // A margin at the screen edge, or the first button is half off it.
             float pad = bandWidth * 0.022f;
-            float usable = bandWidth * zoneFraction - pad * 2f;
+            // Most of the strip's width: the stick needs far less room than
+            // five buttons do, and the buttons were sitting a long way from
+            // it with dead space between.
+            float usable = bandWidth * 0.70f - pad * 2f;
 
-            // Whichever constraint binds first: the strip's height, or
-            // fitting five of them plus gaps across the zone.
-            float size = Mathf.Min(bandHeight * 0.70f, usable / (count + 0.5f));
+            // Two candidate arrangements, and whichever gives BIGGER buttons
+            // wins. On a wide landscape screen the strip is short and one row
+            // is best; on a tall portrait one it is deep enough that two rows
+            // roughly doubles how big each button can be, which is the whole
+            // difference between comfortable and fiddly.
+            float oneRow = Mathf.Min(bandHeight * 0.80f, usable / 5.4f);
+            float twoRow = Mathf.Min(bandHeight * 0.46f, usable / 3.4f);
+
+            if (twoRow > oneRow) LayoutTwoRows(twoRow, pad, usable);
+            else LayoutOneRow(oneRow, pad, usable);
+
+            _joystick?.Resize(Mathf.Min(bandHeight * 0.42f, bandWidth * 0.12f));
+        }
+
+        void LayoutOneRow(float size, float pad, float usable)
+        {
             float gap = size * 0.14f;
-            float total = count * size + (count - 1) * gap;
+            float total = _buttons.Length * size + (_buttons.Length - 1) * gap;
             float startX = pad + (usable - total) * 0.5f + size * 0.5f;
 
             for (int i = 0; i < _buttons.Length; i++)
             {
-                var rect = _buttons[i].GetComponent<RectTransform>();
-                rect.sizeDelta = new Vector2(size, size);
-                rect.anchoredPosition = new Vector2(startX + i * (size + gap), 0f);
+                Place(_buttons[i], size, new Vector2(startX + i * (size + gap), 0f));
             }
+        }
+
+        // Three on the bottom — the attacks and the dash, the ones reached
+        // for constantly — with the two unlockables above them.
+        void LayoutTwoRows(float size, float pad, float usable)
+        {
+            float gap = size * 0.16f;
+            float rowOffset = (size + gap) * 0.5f;
+
+            var bottom = new[] { TouchButton.Swipe, TouchButton.Slam, TouchButton.Dash };
+            float bottomTotal = bottom.Length * size + (bottom.Length - 1) * gap;
+            float bottomStart = pad + (usable - bottomTotal) * 0.5f + size * 0.5f;
+            for (int i = 0; i < bottom.Length; i++)
+            {
+                Place(_buttons[(int)bottom[i]], size, new Vector2(bottomStart + i * (size + gap), -rowOffset));
+            }
+
+            var top = new[] { TouchButton.ChestBeat, TouchButton.DungToss };
+            float topTotal = top.Length * size + (top.Length - 1) * gap;
+            float topStart = pad + (usable - topTotal) * 0.5f + size * 0.5f;
+            for (int i = 0; i < top.Length; i++)
+            {
+                Place(_buttons[(int)top[i]], size, new Vector2(topStart + i * (size + gap), rowOffset));
+            }
+        }
+
+        static void Place(TouchButtonWidget button, float size, Vector2 position)
+        {
+            var rect = button.GetComponent<RectTransform>();
+            rect.sizeDelta = new Vector2(size, size);
+            rect.anchoredPosition = position;
         }
     }
 
@@ -230,7 +308,9 @@ namespace GorillaSurvivors.UI
     // resting place to find without looking.
     public class TouchJoystick : MonoBehaviour, IPointerDownHandler, IDragHandler, IPointerUpHandler
     {
-        const float Radius = 92f;
+        // Set by Resize from the strip's real size; this is only the value
+        // used before the first layout pass runs.
+        float _radius = 92f;
 
         RectTransform _self;
         RectTransform _ring;
@@ -247,7 +327,8 @@ namespace GorillaSurvivors.UI
             var zone = new GameObject("JoystickZone", typeof(RectTransform));
             zone.transform.SetParent(parent, false);
             var rect = zone.GetComponent<RectTransform>();
-            rect.anchorMin = new Vector2(0.5f, 0f);
+            // The buttons take the left 70%, so the stick owns what's left.
+            rect.anchorMin = new Vector2(0.70f, 0f);
             rect.anchorMax = new Vector2(1f, 1f);
             rect.offsetMin = Vector2.zero;
             rect.offsetMax = Vector2.zero;
@@ -261,13 +342,13 @@ namespace GorillaSurvivors.UI
             var stick = zone.AddComponent<TouchJoystick>();
             stick._self = rect;
 
-            stick._ring = MakeCircle(rect, "Ring", Radius * 2f, new Color(1f, 1f, 1f, 0.15f));
-            // Anchored to the right of the strip at a fixed spot, always
-            // visible so there is something to aim a thumb at.
-            stick._ring.anchorMin = stick._ring.anchorMax = new Vector2(1f, 0.5f);
-            stick._ring.anchoredPosition = new Vector2(-150f, 0f);
+            stick._ring = MakeCircle(rect, "Ring", stick._radius * 2f, new Color(1f, 1f, 1f, 0.15f));
+            // Centred in its zone at a fixed spot, always visible so there is
+            // something to aim a thumb at without looking.
+            stick._ring.anchorMin = stick._ring.anchorMax = new Vector2(0.5f, 0.5f);
+            stick._ring.anchoredPosition = Vector2.zero;
 
-            stick._knob = MakeCircle(stick._ring, "Knob", Radius * 0.92f, new Color(1f, 1f, 1f, 0.34f));
+            stick._knob = MakeCircle(stick._ring, "Knob", stick._radius * 0.92f, new Color(1f, 1f, 1f, 0.34f));
             return stick;
         }
 
@@ -284,6 +365,16 @@ namespace GorillaSurvivors.UI
             image.raycastTarget = false;
             image.sprite = CircleSprite.Get();
             return rect;
+        }
+
+        // Scaled with the strip, like the buttons are.
+        public void Resize(float radius)
+        {
+            if (radius <= 1f || Mathf.Approximately(radius, _radius)) return;
+
+            _radius = radius;
+            _ring.sizeDelta = new Vector2(radius * 2f, radius * 2f);
+            _knob.sizeDelta = new Vector2(radius * 0.92f, radius * 0.92f);
         }
 
         public void OnPointerDown(PointerEventData eventData)
@@ -311,11 +402,11 @@ namespace GorillaSurvivors.UI
             // assumed to be its anchoredPosition.
             Vector2 centre = _self.InverseTransformPoint(_ring.position);
 
-            Vector2 clamped = Vector2.ClampMagnitude(local - centre, Radius);
+            Vector2 clamped = Vector2.ClampMagnitude(local - centre, _radius);
             _knob.anchoredPosition = clamped;
 
             // A small dead zone so resting a thumb doesn't drift the gorilla.
-            Vector2 normalized = clamped / Radius;
+            Vector2 normalized = clamped / _radius;
             Value = normalized.magnitude < 0.16f
                 ? Vector3.zero
                 : new Vector3(normalized.x, 0f, normalized.y);

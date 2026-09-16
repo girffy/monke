@@ -104,7 +104,7 @@ namespace GorillaSurvivors.UI
             // control strip the camera doesn't render into, and arrows placed
             // against the canvas edge would sit behind it.
             Vector2 size = _canvasRect.rect.size;
-            float band = TouchControls.Active ? size.y * TouchControls.BandFraction : 0f;
+            float band = TouchControls.Active ? size.y * TouchControls.CurrentBandFraction : 0f;
             Vector2 half = new Vector2(size.x, size.y - band) * 0.5f - Vector2.one * EdgePadding;
             float centreY = band * 0.5f;
 
