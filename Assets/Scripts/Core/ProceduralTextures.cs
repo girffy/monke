@@ -40,6 +40,7 @@ namespace GorillaSurvivors.Core
             var paleSand = new Color(0.74f, 0.65f, 0.47f);
             var trodden = new Color(0.34f, 0.27f, 0.19f);
             var grit = new Color(0.56f, 0.54f, 0.50f);
+            var crackDark = new Color(0.21f, 0.16f, 0.11f);
 
             var pixels = new Color32[size * size];
             var rng = new System.Random(776611);
@@ -51,6 +52,8 @@ namespace GorillaSurvivors.Core
             float o5 = (float)rng.NextDouble() * 100f;
             float o6 = (float)rng.NextDouble() * 100f;
             float o7 = (float)rng.NextDouble() * 100f;
+            float o8 = (float)rng.NextDouble() * 100f;
+            float o9 = (float)rng.NextDouble() * 100f;
 
             for (int y = 0; y < size; y++)
             {
@@ -95,9 +98,37 @@ namespace GorillaSurvivors.Core
                     float scuff = Mathf.InverseLerp(0.63f, 0.82f, medium);
                     if (scuff > 0f) c = Color.Lerp(c, paleSand, scuff * 0.45f);
 
+                    // Cracks in the dried-out ground. Ridged noise — folding
+                    // the noise about its midpoint — turns smooth blobs into
+                    // thin branching seams, which is the one feature that
+                    // stops a sand texture reading as pure fuzz.
+                    // The frequencies here have to be HIGH. The floor is 30
+                    // metres across and the texture tiles barely more than
+                    // once over it, so a crack drawn at the same frequency as
+                    // the broad shading is metres wide on the ground — the
+                    // first attempt read as dark scribbles crawling across
+                    // the arena rather than as cracked earth.
+                    float ridge = 1f - Mathf.Abs(TileableNoise(u, v, 48f, o8) * 2f - 1f);
+                    float crack = Mathf.InverseLerp(0.955f, 1f, ridge);
+                    if (crack > 0f) c = Color.Lerp(c, crackDark, crack * 0.22f);
+
+                    // A second, finer set at a different scale so the seams
+                    // read as a network rather than one wandering line.
+                    float ridge2 = 1f - Mathf.Abs(TileableNoise(u, v, 96f, o9) * 2f - 1f);
+                    float crack2 = Mathf.InverseLerp(0.965f, 1f, ridge2);
+                    if (crack2 > 0f) c = Color.Lerp(c, crackDark, crack2 * 0.14f);
+
                     if (speckle > 0.74f && rng.NextDouble() < 0.28)
                     {
                         c = Color.Lerp(c, grit, Mathf.Lerp(0.3f, 0.7f, (float)rng.NextDouble()));
+                    }
+
+                    // Scattered whole stones pressed into the floor: a few
+                    // pixels across, dark-rimmed, and rare enough to read as
+                    // individual objects rather than noise.
+                    if (rng.NextDouble() < 0.0016)
+                    {
+                        c = Color.Lerp(grit, packed, (float)rng.NextDouble() * 0.5f);
                     }
 
                     float grain = (float)rng.NextDouble() * 0.07f - 0.035f;

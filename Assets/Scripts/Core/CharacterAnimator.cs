@@ -25,7 +25,13 @@ namespace GorillaSurvivors.Core
         // Quadruped stance: a gorilla stands and moves on its knuckles, and
         // only rears up for moves that need it (see StandUpright).
         public bool KnuckleWalk;
-        public float KnuckleWalkPitch = 30f;    // degrees nose-down on all fours
+        // Degrees nose-down on all fours. Deliberately SMALL now. At 30 the
+        // pitch rotated the whole model far enough that the RUMP ended up
+        // higher than the head — a point at the back swings up as much as a
+        // point at the front swings down — so the gorilla read as a
+        // hunchback no matter how its body was sculpted. The body's own
+        // topline carries the shape; this is only a lean on top of it.
+        public float KnuckleWalkPitch = 10f;
         public float KnuckleWalkCrouch = -0.16f;// body drops as it goes down
         public float KnuckleArmForward = 20f;   // arms reach ahead to plant
 

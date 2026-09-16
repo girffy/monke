@@ -243,6 +243,10 @@ namespace GorillaSurvivors.Environment
                     continue;
                 }
 
+                // The low wall stays SOLID all the way round, including the
+                // near arc: it is short enough never to hide the gorilla, and
+                // it is what keeps the ring reading as an enclosure rather
+                // than a floating floor.
                 var block = CreateBlock("Wall" + i, basePos + Vector3.up * (WallHeight * 0.5f),
                     new Vector3(1.7f, WallHeight, 1.4f), i % 2 == 0 ? Stone : StoneDark);
                 block.transform.rotation = facing;
@@ -258,42 +262,56 @@ namespace GorillaSurvivors.Environment
 
         // Tiered stands stepping up and outward behind the wall.
         //
-        // Their height is driven by how far around the ring the segment is
-        // from the camera. The camera is fixed: it sits south of the player
-        // looking north, so the southern arc is always the near edge and
-        // always between the camera and the fight. Stands there would block
-        // the view, so they taper to nothing across the south and rise to
-        // full height across the north — you look over a low rail in the
-        // foreground at a full amphitheatre on the far side.
+        // Tiered stands stepping up and outward behind the wall.
+        //
+        // The ring is FULL HEIGHT the whole way round, including the southern
+        // arc the fixed camera looks in over.
+        //
+        // That arc is the hard case: the camera sits south of the player and
+        // outside the wall, so those stands are between it and the fight.
+        // Two earlier answers both failed — tapering them to nothing made the
+        // colosseum visibly stop being a colosseum at the bottom of the
+        // screen, and rendering them translucent was worse still, because the
+        // camera is physically INSIDE them and five stacked layers of glass
+        // hid the gorilla completely.
+        //
+        // So they are built solid and handed to HideWhenBlockingCamera, which
+        // culls a piece only while it actually sits between the camera and
+        // the player. Stand anywhere but the south wall and the ring is
+        // whole; walk up to it and the few blocks in front of you get out of
+        // the way.
         void BuildStands(int index, Vector3 dir, Vector3 basePos, Quaternion facing, float baseY = 0f)
         {
             float northness = Vector3.Dot(dir, Vector3.forward);
-            float tall = Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(-0.15f, 0.55f, northness));
-            if (tall <= 0.02f) return;
+            bool near = northness < 0.35f;
 
             basePos += Vector3.up * baseY;
 
-            // Five tiers rather than three: the ring read as a low fence with
-            // a step behind it. A colosseum's whole character is that it
-            // keeps going up — and going higher costs nothing, because the
-            // tapering above already keeps the near side out of the shot.
+            // Five tiers: a colosseum's whole character is that it keeps
+            // going up.
             const int tiers = 5;
             for (int t = 0; t < tiers; t++)
             {
                 float outward = 1.5f + t * 1.5f;
-                float height = (WallHeight + 0.8f + t * 1.5f) * tall;
-                if (height < 0.3f) continue;
+                float height = WallHeight + 0.8f + t * 1.5f;
 
                 var tier = CreateBlock("Tier" + index + "_" + t,
                     basePos + dir * outward + Vector3.up * (height * 0.5f),
                     new Vector3(1.8f, height, 1.6f),
                     (index + t) % 2 == 0 ? Stone : StoneDark);
                 tier.transform.rotation = facing;
+                if (near) _occluders?.Register(tier);
 
-                // A crowd watching the fight. Small unlit cubes in a row are
-                // enough at this distance, and they do more for "colosseum"
-                // than any amount of extra stonework.
-                if (tall > 0.35f && index % 2 == 0) BuildCrowdRow(basePos + dir * outward, dir, height, facing);
+                // A crowd watching the fight. Small cubes in a row are enough
+                // at this distance, and they do more for "colosseum" than any
+                // amount of extra stonework. Near-arc rows are registered
+                // with the occluder alongside the tier they stand on, so a
+                // culled tier doesn't leave its spectators floating.
+                if (index % 2 == 0)
+                {
+                    var row = BuildCrowdRow(basePos + dir * outward, dir, height, facing);
+                    if (near) foreach (var person in row) _occluders?.Register(person);
+                }
             }
         }
 
@@ -304,8 +322,11 @@ namespace GorillaSurvivors.Environment
             new Color(0.60f, 0.40f, 0.62f), new Color(0.85f, 0.82f, 0.76f),
         };
 
-        void BuildCrowdRow(Vector3 tierPos, Vector3 dir, float tierHeight, Quaternion facing)
+        readonly System.Collections.Generic.List<GameObject> _crowdScratch = new System.Collections.Generic.List<GameObject>();
+
+        System.Collections.Generic.List<GameObject> BuildCrowdRow(Vector3 tierPos, Vector3 dir, float tierHeight, Quaternion facing)
         {
+            _crowdScratch.Clear();
             Vector3 side = Vector3.Cross(Vector3.up, dir).normalized;
             for (int s = -1; s <= 1; s++)
             {
@@ -315,7 +336,10 @@ namespace GorillaSurvivors.Environment
                 var head = CreateBlock("CrowdHead", tierPos + side * (s * 0.55f) + Vector3.up * (tierHeight + 0.54f),
                     Vector3.one * 0.2f, new Color(0.72f, 0.56f, 0.42f));
                 head.transform.rotation = facing;
+                _crowdScratch.Add(person);
+                _crowdScratch.Add(head);
             }
+            return _crowdScratch;
         }
 
         static bool IsGateAngle(float angle)
@@ -431,7 +455,11 @@ namespace GorillaSurvivors.Environment
         // is actually in front of the gorilla.
         void BuildArch(Vector3 center, Vector3 dir, Vector3 side, Quaternion rotation)
         {
-            const int voussoirs = 13;
+            // EVEN number of steps, so k = voussoirs/2 lands at exactly 90
+            // degrees and the keystone actually sits at the crown. With an
+            // odd count the "keystone" was a block at 83 degrees — visibly
+            // off to one side of the top of every arch.
+            const int voussoirs = 12;
             for (int k = 0; k <= voussoirs; k++)
             {
                 float theta = Mathf.PI * k / voussoirs;
@@ -440,12 +468,32 @@ namespace GorillaSurvivors.Environment
 
                 bool keystone = k == voussoirs / 2;
                 var block = CreateBlock(keystone ? "GateKeystone" : "GateVoussoir", pos,
-                    new Vector3(0.62f, keystone ? 0.80f : 0.62f, 2.1f),
+                    new Vector3(0.62f, keystone ? 0.86f : 0.62f, 2.2f),
                     keystone ? StoneLight : (k % 2 == 0 ? Sandstone : Stone));
                 // Long axis radial, face pointing out of the arena.
                 block.transform.rotation = Quaternion.LookRotation(dir, radial);
                 _occluders?.Register(block);
+
+                // An archivolt: a second, thinner ring of stone outside the
+                // first, which is what gives a real arch its depth.
+                var outer = CreateBlock("GateArchivolt",
+                    center + Vector3.up * GateSpring + radial * (GateHalfWidth + 0.82f),
+                    new Vector3(0.58f, 0.40f, 1.5f), k % 2 == 0 ? Stone : StoneDark);
+                outer.transform.rotation = Quaternion.LookRotation(dir, radial);
+                _occluders?.Register(outer);
             }
+
+            // The keystone proud of the ring, and a boss on its face.
+            Vector3 crown = center + Vector3.up * (GateSpring + GateHalfWidth + 0.28f);
+            var crownBlock = CreateBlock("GateKeystoneCap", crown + Vector3.up * 0.42f,
+                new Vector3(0.78f, 0.44f, 2.4f), StoneLight);
+            crownBlock.transform.rotation = rotation;
+            _occluders?.Register(crownBlock);
+
+            var boss = CreateBlock("GateBoss", crown - dir * 1.15f + Vector3.up * 0.1f,
+                new Vector3(0.44f, 0.44f, 0.22f), Sandstone);
+            boss.transform.rotation = rotation;
+            _occluders?.Register(boss);
         }
 
         // The passage the enemies come out of. Side walls and a roof run

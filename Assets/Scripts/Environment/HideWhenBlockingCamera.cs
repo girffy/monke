@@ -20,7 +20,10 @@ namespace GorillaSurvivors.Environment
     {
         // How far from the camera-to-player line a piece can be and still be
         // considered in the way. Roughly the on-screen width of the gorilla.
-        public float BlockRadius = 2.6f;
+        // Generous, because the things it hides are now whole tiers of
+        // seating several metres wide: clearing a narrow corridor through a
+        // stand leaves its neighbours still standing in the shot.
+        public float BlockRadius = 4.2f;
 
         readonly List<Renderer> _watched = new List<Renderer>();
         readonly List<bool> _hidden = new List<bool>();
