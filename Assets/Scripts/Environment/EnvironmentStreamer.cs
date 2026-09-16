@@ -76,6 +76,21 @@ namespace GorillaSurvivors.Environment
         // ground that has to already be dressed.
         public void PopulateInitial()
         {
+            // Inside an arena the whole playfield is populated at once and
+            // the per-kind targets are scaled to its area — the streaming
+            // radius was sized for an endless map, and reusing it would pack
+            // an arena-sized space with several times the intended clutter.
+            var arena = Arena.Instance;
+            if (arena != null)
+            {
+                foreach (var kind in _kinds)
+                {
+                    kind.Target = Mathf.Max(3, Mathf.RoundToInt(kind.Target * ArenaDensityScale(arena)));
+                    for (int i = 0; i < kind.Target; i++) Place(kind, RandomArenaPoint(arena));
+                }
+                return;
+            }
+
             Vector3 origin = PlayerPosition();
             foreach (var kind in _kinds)
             {
@@ -88,11 +103,48 @@ namespace GorillaSurvivors.Environment
             }
         }
 
+        float ArenaDensityScale(Arena arena)
+        {
+            float streamed = Mathf.PI * KeepRadius * KeepRadius;
+            float arenaArea = Mathf.PI * arena.Radius * arena.Radius;
+            return Mathf.Clamp01(arenaArea / streamed);
+        }
+
+        // Refills prefer somewhere off camera so props don't blink into
+        // existence in front of the player, but in a small arena that isn't
+        // always possible — fall back to anywhere inside rather than stall.
+        static Vector3 PickArenaRefillPoint(Arena arena)
+        {
+            var cam = Camera.main;
+            for (int attempt = 0; attempt < 12; attempt++)
+            {
+                Vector3 candidate = RandomArenaPoint(arena);
+                if (cam == null) return candidate;
+
+                Vector3 viewport = cam.WorldToViewportPoint(candidate);
+                bool onScreen = viewport.z > 0f
+                    && viewport.x > -0.05f && viewport.x < 1.05f
+                    && viewport.y > -0.05f && viewport.y < 1.05f;
+                if (!onScreen) return candidate;
+            }
+            return RandomArenaPoint(arena);
+        }
+
+        static Vector3 RandomArenaPoint(Arena arena)
+        {
+            // sqrt on the radius keeps the scatter even instead of bunching
+            // everything toward the middle.
+            var dir = UnityEngine.Random.insideUnitCircle.normalized;
+            float dist = Mathf.Sqrt(UnityEngine.Random.value) * (arena.Radius - 2.5f);
+            return arena.Center + new Vector3(dir.x * dist, 0f, dir.y * dist);
+        }
+
         void Update()
         {
             if (Time.time < _nextMaintenance) return;
             _nextMaintenance = Time.time + MaintenanceInterval;
 
+            var arena = Arena.Instance;
             Vector3 origin = PlayerPosition();
             int budget = SpawnBudgetPerPass;
 
@@ -102,20 +154,26 @@ namespace GorillaSurvivors.Environment
                 // itself up, a boulder that exploded).
                 kind.Live.RemoveAll(go => go == null);
 
-                for (int i = kind.Live.Count - 1; i >= 0; i--)
+                // Culling only applies to an endless map. In an arena nothing
+                // is ever far away, and the refill below just replaces props
+                // the player consumed.
+                if (arena == null)
                 {
-                    var go = kind.Live[i];
-                    if (kind.IsBusy != null && kind.IsBusy(go)) continue;
-                    if (Vector3.Distance(go.transform.position, origin) <= CullRadius) continue;
+                    for (int i = kind.Live.Count - 1; i >= 0; i--)
+                    {
+                        var go = kind.Live[i];
+                        if (kind.IsBusy != null && kind.IsBusy(go)) continue;
+                        if (Vector3.Distance(go.transform.position, origin) <= CullRadius) continue;
 
-                    Destroy(go);
-                    kind.Live.RemoveAt(i);
+                        Destroy(go);
+                        kind.Live.RemoveAt(i);
+                    }
                 }
 
                 while (kind.Live.Count < kind.Target && budget > 0)
                 {
                     budget--;
-                    Place(kind, WorldScatter.OffscreenPosition(18f, KeepRadius));
+                    Place(kind, arena != null ? PickArenaRefillPoint(arena) : WorldScatter.OffscreenPosition(18f, KeepRadius));
                 }
             }
         }

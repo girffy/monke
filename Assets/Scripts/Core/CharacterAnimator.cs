@@ -73,6 +73,14 @@ namespace GorillaSurvivors.Core
             _legR = _model.Find("LegR");
         }
 
+        static void StraightenElbow(Transform arm)
+        {
+            if (arm == null) return;
+            var lower = arm.Find("Lower");
+            if (lower == null || lower.localRotation == Quaternion.identity) return;
+            lower.localRotation = Quaternion.Slerp(lower.localRotation, Quaternion.identity, Time.deltaTime * 8f);
+        }
+
         void LateUpdate()
         {
             if (_model == null) return;
@@ -114,6 +122,13 @@ namespace GorillaSurvivors.Core
                 float armBase = -KnuckleArmForward * stance * _armBlend;
                 if (_armL != null) _armL.localRotation = Quaternion.Euler(armBase - swing * armAmount, 0f, 0f);
                 if (_armR != null) _armR.localRotation = Quaternion.Euler(armBase + swing * armAmount, 0f, 0f);
+
+                // Straighten the elbows the walk cycle doesn't use. Abilities
+                // that bend them (the chest beat) restore them on their own,
+                // but this is the safety net if one is interrupted mid-pose
+                // — otherwise the gorilla walks away permanently folded.
+                StraightenElbow(_armL);
+                StraightenElbow(_armR);
             }
 
             // Idle breathing keeps a standing character from looking frozen.

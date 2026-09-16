@@ -18,6 +18,11 @@ namespace GorillaSurvivors.Core
 
         public static void Spawn(Vector3 worldPos, float amount, Color color, float size)
         {
+            SpawnText(worldPos, $"-{Mathf.CeilToInt(amount)}", color, size);
+        }
+
+        public static void SpawnText(Vector3 worldPos, string text, Color color, float size)
+        {
             var go = new GameObject("DamagePopup");
             // Scatter sideways a little so several numbers in the same moment
             // don't stack into one unreadable smear.
@@ -25,7 +30,7 @@ namespace GorillaSurvivors.Core
             go.transform.rotation = CameraFollow.LabelRotation;
 
             var mesh = go.AddComponent<TextMesh>();
-            mesh.text = $"-{Mathf.CeilToInt(amount)}";
+            mesh.text = text;
             mesh.fontSize = 48;
             mesh.characterSize = size;
             mesh.anchor = TextAnchor.LowerCenter;

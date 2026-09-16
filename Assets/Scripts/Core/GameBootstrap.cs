@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using GorillaSurvivors.Player;
 using GorillaSurvivors.Player.Abilities;
 using GorillaSurvivors.Enemies;
@@ -15,18 +16,41 @@ namespace GorillaSurvivors.Core
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         static void Setup()
         {
+            // RuntimeInitializeOnLoadMethod fires once per application start,
+            // NOT per scene load — so "Press R to restart" (which reloads the
+            // scene) used to drop the player into a completely empty world
+            // with no ground, player or spawner. Subscribing here rebuilds on
+            // every subsequent load. The unsubscribe guards against a double
+            // subscription if this ever runs twice.
+            SceneManager.sceneLoaded -= HandleSceneLoaded;
+            SceneManager.sceneLoaded += HandleSceneLoaded;
+
+            Build();
+        }
+
+        static void HandleSceneLoaded(Scene scene, LoadSceneMode mode)
+        {
+            Build();
+        }
+
+        static void Build()
+        {
             Sfx.ResetForNewSession();
             Sfx.WarmUp();
             CameraShake.Reset();
             SetupLighting();
-            var ground = Blocky3DArt.Ground();
-            ground.AddComponent<GroundFollower>();
+            Blocky3DArt.Ground();
+
+            // The fight is confined to a walled arena, so the ground plane no
+            // longer needs to chase the player to stay under them.
+            var arenaGO = new GameObject("Arena");
+            var arena = arenaGO.AddComponent<Arena>();
+            arena.Build();
 
             var player = CreatePlayer();
 
-            // Props stream around the player rather than being scattered once,
-            // so the world never runs out however far the run travels. Created
-            // after the player because it seeds the first batch around them.
+            // Seeds props across the arena and refills anything the player
+            // consumes (felled trees, launched boulders).
             var streamerGO = new GameObject("EnvironmentStreamer");
             streamerGO.AddComponent<EnvironmentStreamer>().PopulateInitial();
 
@@ -115,8 +139,10 @@ namespace GorillaSurvivors.Core
             RenderSettings.fog = true;
             RenderSettings.fogMode = FogMode.Linear;
             RenderSettings.fogColor = new Color(0.44f, 0.52f, 0.46f);
-            RenderSettings.fogStartDistance = 34f;
-            RenderSettings.fogEndDistance = 78f;
+            // Reaches past the arena wall so the colosseum reads clearly
+            // and the fog only softens what is beyond it.
+            RenderSettings.fogStartDistance = 55f;
+            RenderSettings.fogEndDistance = 120f;
         }
 
         static void SetupCamera(Transform target)

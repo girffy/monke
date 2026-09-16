@@ -38,24 +38,33 @@ namespace GorillaSurvivors.Core
             var hide = new Color(0.11f, 0.10f, 0.12f);
             var muzzle = new Color(0.16f, 0.15f, 0.17f);
 
-            // Upright, hunched-forward silverback rather than a quadruped
-            // crouch: the fixed camera looks down the character's back, and a
-            // horizontal body just reads as a shapeless mass from there. A
-            // vertical stack of hips / chest / shoulders / head gives the
-            // camera four distinct tiers to separate.
-            AddPart(root.transform, "Hips", PrimitiveType.Sphere, new Vector3(0f, 0.54f, -0.10f), new Vector3(0.86f, 0.66f, 0.76f), fur);
-            AddPart(root.transform, "Torso", PrimitiveType.Sphere, new Vector3(0f, 0.98f, 0.02f), new Vector3(1.10f, 1.00f, 0.90f), furMid);
-            AddPart(root.transform, "Saddle", PrimitiveType.Sphere, new Vector3(0f, 1.20f, -0.22f), new Vector3(0.80f, 0.46f, 0.54f), silver);
-            AddPart(root.transform, "ChestL", PrimitiveType.Sphere, new Vector3(-0.24f, 1.02f, 0.36f), new Vector3(0.46f, 0.42f, 0.28f), hide);
-            AddPart(root.transform, "ChestR", PrimitiveType.Sphere, new Vector3(0.24f, 1.02f, 0.36f), new Vector3(0.46f, 0.42f, 0.28f), hide);
-            AddPart(root.transform, "ShoulderL", PrimitiveType.Sphere, new Vector3(-0.58f, 1.34f, 0f), Vector3.one * 0.50f, furLight);
-            AddPart(root.transform, "ShoulderR", PrimitiveType.Sphere, new Vector3(0.58f, 1.34f, 0f), Vector3.one * 0.50f, furLight);
-            AddPart(root.transform, "Trap", PrimitiveType.Sphere, new Vector3(0f, 1.42f, -0.08f), new Vector3(0.80f, 0.34f, 0.46f), furMid);
-            AddPart(root.transform, "Neck", PrimitiveType.Sphere, new Vector3(0f, 1.50f, 0.10f), new Vector3(0.40f, 0.30f, 0.34f), fur);
+            // Ape build, not a hunched man. The defining difference is where
+            // the mass sits: a gorilla's shoulder girdle is pushed FORWARD
+            // and carries most of the bulk, the spine slopes down and back to
+            // small hips, and the head hangs low in FRONT of the shoulders
+            // rather than perched on top. Shoulders level with the ribcage
+            // with arms at the sides is exactly the human read.
+            //
+            // So the body is built as a wedge: narrow rump at the back, deep
+            // barrel chest forward, and a shoulder hump that is the highest
+            // point of the animal — higher than the head.
+            AddPart(root.transform, "Rump", PrimitiveType.Sphere, new Vector3(0f, 0.52f, -0.34f), new Vector3(0.82f, 0.64f, 0.74f), fur);
+            AddPart(root.transform, "Torso", PrimitiveType.Sphere, new Vector3(0f, 0.82f, -0.06f), new Vector3(1.04f, 0.92f, 0.92f), furMid);
+            AddPart(root.transform, "Chest", PrimitiveType.Sphere, new Vector3(0f, 1.02f, 0.24f), new Vector3(1.24f, 1.00f, 0.98f), furMid);
+            AddPart(root.transform, "Saddle", PrimitiveType.Sphere, new Vector3(0f, 1.16f, -0.18f), new Vector3(0.94f, 0.46f, 0.74f), silver);
+            // The hump over the shoulders — the peak of the silhouette.
+            AddPart(root.transform, "Hump", PrimitiveType.Sphere, new Vector3(0f, 1.34f, 0.06f), new Vector3(1.02f, 0.54f, 0.70f), furLight);
+            AddPart(root.transform, "ShoulderL", PrimitiveType.Sphere, new Vector3(-0.60f, 1.18f, 0.24f), Vector3.one * 0.56f, furLight);
+            AddPart(root.transform, "ShoulderR", PrimitiveType.Sphere, new Vector3(0.60f, 1.18f, 0.24f), Vector3.one * 0.56f, furLight);
+            AddPart(root.transform, "PecL", PrimitiveType.Sphere, new Vector3(-0.27f, 0.94f, 0.55f), new Vector3(0.44f, 0.40f, 0.28f), hide);
+            AddPart(root.transform, "PecR", PrimitiveType.Sphere, new Vector3(0.27f, 0.94f, 0.55f), new Vector3(0.44f, 0.40f, 0.28f), hide);
+            // Barely any neck: the head sits straight off the chest, slung
+            // forward and low between the shoulders.
+            AddPart(root.transform, "Neck", PrimitiveType.Sphere, new Vector3(0f, 1.28f, 0.34f), new Vector3(0.44f, 0.32f, 0.36f), fur);
 
-            // Facial features parent to Head so RoarAbility's head pulse
+            // Facial features parent to Head so the chest-beat head pulse
             // scales the whole face, not a bare skull sphere.
-            var head = AddPart(root.transform, "Head", PrimitiveType.Sphere, new Vector3(0f, 1.74f, 0.14f), new Vector3(0.62f, 0.60f, 0.58f), furMid);
+            var head = AddPart(root.transform, "Head", PrimitiveType.Sphere, new Vector3(0f, 1.36f, 0.54f), new Vector3(0.62f, 0.60f, 0.58f), furMid);
             AddPart(head.transform, "Crest", PrimitiveType.Sphere, new Vector3(0f, 0.34f, -0.08f), new Vector3(0.60f, 0.52f, 0.72f), furLight);
             AddPart(head.transform, "Brow", PrimitiveType.Sphere, new Vector3(0f, 0.16f, 0.40f), new Vector3(0.90f, 0.26f, 0.42f), hide);
             AddPart(head.transform, "Muzzle", PrimitiveType.Sphere, new Vector3(0f, -0.20f, 0.44f), new Vector3(0.62f, 0.46f, 0.52f), muzzle);
@@ -69,13 +78,15 @@ namespace GorillaSurvivors.Core
             AddPart(head.transform, "EarL", PrimitiveType.Sphere, new Vector3(-0.50f, 0.10f, -0.04f), new Vector3(0.18f, 0.24f, 0.12f), muzzle);
             AddPart(head.transform, "EarR", PrimitiveType.Sphere, new Vector3(0.50f, 0.10f, -0.04f), new Vector3(0.18f, 0.24f, 0.12f), muzzle);
 
-            // Long, heavy ape arms — they hang nearly to the ground, which is
-            // most of what makes the silhouette read as "gorilla".
-            AddLimb(root.transform, "ArmL", new Vector3(-0.64f, 1.34f, 0.02f), 0.19f, 0.50f, 0.17f, 0.46f, 0.22f, furMid, furLight, hide);
-            AddLimb(root.transform, "ArmR", new Vector3(0.64f, 1.34f, 0.02f), 0.19f, 0.50f, 0.17f, 0.46f, 0.22f, furMid, furLight, hide);
-            // Short, stocky legs tucked under the bulk.
-            AddLimb(root.transform, "LegL", new Vector3(-0.30f, 0.56f, -0.04f), 0.19f, 0.28f, 0.17f, 0.22f, 0.19f, fur, fur, hide);
-            AddLimb(root.transform, "LegR", new Vector3(0.30f, 0.56f, -0.04f), 0.19f, 0.28f, 0.17f, 0.22f, 0.19f, fur, fur, hide);
+            // Arms hang from the FORWARD shoulders, so they fall in front of
+            // the chest and plant ahead of the body rather than beside it.
+            // Forearms are thicker than the upper arms — the heavy-wristed
+            // taper is a big part of reading as an ape.
+            AddLimb(root.transform, "ArmL", new Vector3(-0.64f, 1.20f, 0.26f), 0.18f, 0.44f, 0.19f, 0.40f, 0.21f, furMid, furLight, hide);
+            AddLimb(root.transform, "ArmR", new Vector3(0.64f, 1.20f, 0.26f), 0.18f, 0.44f, 0.19f, 0.40f, 0.21f, furMid, furLight, hide);
+            // Short, stocky legs tucked well back under the small hips.
+            AddLimb(root.transform, "LegL", new Vector3(-0.30f, 0.54f, -0.22f), 0.19f, 0.24f, 0.17f, 0.20f, 0.18f, fur, fur, hide);
+            AddLimb(root.transform, "LegR", new Vector3(0.30f, 0.54f, -0.22f), 0.19f, 0.24f, 0.17f, 0.20f, 0.18f, fur, fur, hide);
 
             return root;
         }

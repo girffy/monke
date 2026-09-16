@@ -1,5 +1,6 @@
 using UnityEngine;
 using GorillaSurvivors.Core;
+using GorillaSurvivors.Environment;
 using GorillaSurvivors.Player;
 
 namespace GorillaSurvivors.Enemies
@@ -89,16 +90,50 @@ namespace GorillaSurvivors.Enemies
         void SpawnOne()
         {
             Vector3 playerPos = PlayerController.Instance.transform.position;
-            Vector2 offset2D = Random.insideUnitCircle.normalized * SpawnRadius;
-            var offset = new Vector3(offset2D.x, 0f, offset2D.y);
 
             float difficultyScale = (CurrentRound - 1) * 1.4f;
             var type = ChooseEnemyType(CurrentRound);
 
-            EnemyFactory.Create(type, playerPos + offset, difficultyScale, CurrentRound);
+            EnemyFactory.Create(type, ChooseSpawnPosition(playerPos), difficultyScale, CurrentRound);
             _spawnedThisRound++;
             _aliveThisRound++;
         }
+
+        // Enemies pour in through a gate when the player can see one, which
+        // is what makes the arena read as a colosseum rather than enemies
+        // materialising out of thin air. When no gate is in view, they spawn
+        // on a ring around the player exactly as before — keeping the
+        // pacing and swarm pressure the same wherever the player stands.
+        Vector3 ChooseSpawnPosition(Vector3 playerPos)
+        {
+            var arena = Arena.Instance;
+            if (arena != null)
+            {
+                var cam = Camera.main;
+                _visibleGates.Clear();
+                for (int i = 0; i < Arena.GateDirections.Length; i++)
+                {
+                    if (arena.IsGateOnScreen(i, cam)) _visibleGates.Add(i);
+                }
+
+                if (_visibleGates.Count > 0)
+                {
+                    int gate = _visibleGates[Random.Range(0, _visibleGates.Count)];
+                    Vector3 gatePos = arena.GatePosition(gate);
+                    Vector3 side = Vector3.Cross(Vector3.up, Arena.GateDirections[gate]);
+                    // Spread across the width of the opening so they file in
+                    // rather than stacking on one point.
+                    Vector3 spread = side * Random.Range(-2.4f, 2.4f);
+                    return arena.ClampInside(gatePos + spread, 1.2f);
+                }
+            }
+
+            Vector2 offset2D = Random.insideUnitCircle.normalized * SpawnRadius;
+            var ringPos = playerPos + new Vector3(offset2D.x, 0f, offset2D.y);
+            return arena != null ? arena.ClampInside(ringPos, 1.2f) : ringPos;
+        }
+
+        readonly System.Collections.Generic.List<int> _visibleGates = new System.Collections.Generic.List<int>();
 
         // Each specialist enters the mix at the round where the player has
         // plausibly unlocked a tool that answers it, then becomes steadily

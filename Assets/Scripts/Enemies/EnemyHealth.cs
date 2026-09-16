@@ -18,6 +18,15 @@ namespace GorillaSurvivors.Enemies
         public float CurrentHP => _currentHP;
         public System.Action<EnemyHealth> OnDied;
 
+        // Counted rather than a bool so overlapping medics can't undo each
+        // other: the shield lifts only when the last one drops.
+        public bool IsShielded => _shieldSources > 0;
+        public void AddShield() => _shieldSources++;
+        public void RemoveShield() => _shieldSources = Mathf.Max(0, _shieldSources - 1);
+
+        int _shieldSources;
+        float _nextShieldSoundTime;
+
         float _currentHP;
         bool _initialized;
         bool _dead;
@@ -71,6 +80,20 @@ namespace GorillaSurvivors.Enemies
         public void TakeDamage(float amount, Vector3? knockbackDirection, float knockbackForce)
         {
             if (_dead) return;
+
+            // Tethered to a live medic: nothing gets through until the medic
+            // is dealt with. Rate-limited feedback so a crowd of attacks on a
+            // shielded target doesn't machine-gun the sound.
+            if (IsShielded)
+            {
+                if (Time.time >= _nextShieldSoundTime)
+                {
+                    _nextShieldSoundTime = Time.time + 0.2f;
+                    Sfx.ShieldBlock(transform.position);
+                    DamagePopup.SpawnText(transform.position, "0", new Color(0.45f, 1f, 0.55f), 0.07f);
+                }
+                return;
+            }
 
             // A directional hit arriving from the front (the knockback would
             // shove this enemy backwards) gets soaked by the shield.

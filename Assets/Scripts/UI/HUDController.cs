@@ -92,6 +92,7 @@ namespace GorillaSurvivors.UI
             hud._upgradePanel.SetActive(false);
 
             hud.CreatePauseButton(canvasGO.transform);
+            OffscreenEnemyMarkers.Create(canvasGO.transform);
             hud._toastText = CreateToastText(canvasGO.transform);
             hud._roundBannerText = CreateRoundBannerText(canvasGO.transform);
             hud.CreateAbilityBar(canvasGO.transform);

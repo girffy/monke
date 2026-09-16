@@ -127,9 +127,8 @@ namespace GorillaSurvivors.Enemies
                     baseMoveSpeed = 1.7f;
                     isRanged = true;
                     preferredRange = 8f;
-                    baseProjectileInterval = 999f; // never throws; it heals
-                    var healer = go.AddComponent<HealerAura>();
-                    healer.HealAmount = 8f + 0.8f * Mathf.Min(difficultyScale, 10f);
+                    baseProjectileInterval = 999f; // never throws; it shields
+                    go.AddComponent<MedicTether>();
                     break;
 
                 default: // Grunt

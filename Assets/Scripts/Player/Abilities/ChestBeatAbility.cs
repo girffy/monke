@@ -19,7 +19,9 @@ namespace GorillaSurvivors.Player.Abilities
         public bool Unlocked;
         public float Cooldown = 7f;
         public float Radius = 4.5f;
-        public float BaseDamage = 13f;
+        // Two thirds of its original 13: three pulses of area damage that
+        // also ignore shields was carrying fights on its own.
+        public float BaseDamage = 8.7f;
         public float KnockbackForce = 10f;
         public float KnockbackDuration = 0.35f;
 
@@ -43,9 +45,19 @@ namespace GorillaSurvivors.Player.Abilities
 
         static readonly Collider[] HitBuffer = new Collider[64];
 
-        // Arms swing wide, then slam in against the chest.
-        static readonly Vector3 ArmsWideDir = new Vector3(0.78f, 0.42f, 0.18f).normalized;
-        static readonly Vector3 ArmsInDir = new Vector3(-0.22f, 0.50f, 0.62f).normalized;
+        // Upper-arm directions for the RIGHT arm (the left mirrors on X),
+        // paired with an elbow bend. The bend is the part that makes this
+        // read as beating a chest rather than waving: the shoulder swings
+        // the upper arm forward and in, and folding the forearm brings the
+        // fist back against the chest. Rotating only the shoulder — as this
+        // did before — can only ever point a straight arm outward, which is
+        // why it looked like arms raised in the air.
+        static readonly Vector3 RestDir = Vector3.down;
+        static readonly Vector3 ArmsWideDir = new Vector3(0.80f, 0.16f, 0.30f).normalized;
+        static readonly Vector3 ArmsChestDir = new Vector3(0.26f, -0.30f, 0.92f).normalized;
+        const float RestElbow = 0f;
+        const float ReadyElbow = 42f;
+        const float StrikeElbow = 118f;
 
         public bool IsBeating => _isBeating;
 
@@ -114,27 +126,36 @@ namespace GorillaSurvivors.Player.Abilities
                 _animator.StandUpright = true;
             }
 
-            // Rear up onto the hind legs.
-            yield return Pose(Vector3.down, ArmsWideDir, RiseTime, 0f, 0.20f, 0f, -12f);
+            // Rear up onto the hind legs, both arms cocked out wide.
+            yield return Pose(RestDir, ArmsWideDir, RestElbow, ReadyElbow, true, true, RiseTime, 0f, 0.20f, 0f, -12f);
 
+            // Alternating single-arm strikes, right then left then right —
+            // a gorilla drums its chest one fist at a time, and alternating
+            // reads as drumming where both arms moving together reads as a
+            // shrug. Each strike lands one of the three damage pulses.
             for (int i = 0; i < PulseCount; i++)
             {
-                yield return Pose(ArmsWideDir, ArmsInDir, PoundTime, 0.20f, 0.14f, -12f, -4f);
+                bool right = i % 2 == 0;
+
+                // Fist in against the chest, body dipping into the blow.
+                yield return Pose(ArmsWideDir, ArmsChestDir, ReadyElbow, StrikeElbow, right, !right, PoundTime, 0.20f, 0.16f, -12f, -6f);
 
                 Pulse();
                 StartCoroutine(HeadPulse());
 
-                yield return Pose(ArmsInDir, ArmsWideDir, ArmsOutTime, 0.14f, 0.20f, -4f, -12f);
+                // ...and back out to the cocked position.
+                yield return Pose(ArmsChestDir, ArmsWideDir, StrikeElbow, ReadyElbow, right, !right, ArmsOutTime, 0.16f, 0.20f, -6f, -12f);
                 yield return new WaitForSeconds(HoldTime);
             }
 
-            yield return Pose(ArmsWideDir, Vector3.down, SettleTime, 0.20f, 0f, -12f, 0f);
+            yield return Pose(ArmsWideDir, RestDir, ReadyElbow, RestElbow, true, true, SettleTime, 0.20f, 0f, -12f, 0f);
             EndBeat();
         }
 
         void EndBeat()
         {
-            SetArms(Vector3.down);
+            SetArm(_armR, RestDir, RestElbow, false);
+            SetArm(_armL, RestDir, RestElbow, true);
             _isBeating = false;
             if (_animator != null)
             {
@@ -187,7 +208,10 @@ namespace GorillaSurvivors.Player.Abilities
             go.AddComponent<GorillaSurvivors.Environment.ExpandingDisc>().Play(radius * 2f, duration);
         }
 
-        IEnumerator Pose(Vector3 fromDir, Vector3 toDir, float duration,
+        // Animates whichever arms are flagged; the others hold their pose,
+        // which is what lets the strikes alternate.
+        IEnumerator Pose(Vector3 fromDir, Vector3 toDir, float fromElbow, float toElbow,
+            bool moveRight, bool moveLeft, float duration,
             float fromHeight, float toHeight, float fromPitch, float toPitch)
         {
             float t = 0f;
@@ -195,7 +219,12 @@ namespace GorillaSurvivors.Player.Abilities
             {
                 t += Time.deltaTime;
                 float p = Mathf.Clamp01(t / duration);
-                SetArms(Vector3.Slerp(fromDir, toDir, p));
+                var dir = Vector3.Slerp(fromDir, toDir, p);
+                float elbow = Mathf.Lerp(fromElbow, toElbow, p);
+
+                if (moveRight) SetArm(_armR, dir, elbow, false);
+                if (moveLeft) SetArm(_armL, dir, elbow, true);
+
                 if (_animator != null)
                 {
                     _animator.BodyHeightOffset = Mathf.Lerp(fromHeight, toHeight, p);
@@ -203,15 +232,24 @@ namespace GorillaSurvivors.Player.Abilities
                 }
                 yield return null;
             }
-            SetArms(toDir);
+
+            if (moveRight) SetArm(_armR, toDir, toElbow, false);
+            if (moveLeft) SetArm(_armL, toDir, toElbow, true);
         }
 
-        // Mirrored on X so the arms pound in toward the chest from both
-        // sides rather than both pointing the same way.
-        void SetArms(Vector3 dir)
+        // Directions are authored for the right arm; the left mirrors on X
+        // so both fists come in toward the chest rather than both pointing
+        // the same way. The elbow is the limb's "Lower" joint (Blocky3DArt
+        // builds every limb as shoulder -> Lower -> hand).
+        void SetArm(Transform arm, Vector3 dir, float elbowDegrees, bool mirror)
         {
-            if (_armL != null) _armL.localRotation = Quaternion.FromToRotation(Vector3.down, new Vector3(-dir.x, dir.y, dir.z));
-            if (_armR != null) _armR.localRotation = Quaternion.FromToRotation(Vector3.down, dir);
+            if (arm == null) return;
+
+            var d = mirror ? new Vector3(-dir.x, dir.y, dir.z) : dir;
+            arm.localRotation = Quaternion.FromToRotation(Vector3.down, d);
+
+            var lower = arm.Find("Lower");
+            if (lower != null) lower.localRotation = Quaternion.Euler(-elbowDegrees, 0f, 0f);
         }
 
         IEnumerator HeadPulse()

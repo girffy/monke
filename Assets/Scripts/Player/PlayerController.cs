@@ -35,6 +35,7 @@ namespace GorillaSurvivors.Player
         public bool IsExternallyControlled { get; set; }
 
         Rigidbody _rb;
+        Collider _collider;
         PlayerHealth _health;
         PlayerStats _stats;
         PlayerAttack _attackCache;
@@ -62,6 +63,7 @@ namespace GorillaSurvivors.Player
         {
             Instance = this;
             _rb = GetComponent<Rigidbody>();
+            _collider = GetComponent<Collider>();
             _health = GetComponent<PlayerHealth>();
             _stats = GetComponent<PlayerStats>();
             _model = transform.Find("GorillaModel");
@@ -88,17 +90,25 @@ namespace GorillaSurvivors.Player
 
             if (MovementLocked && dashPressed)
             {
-                // A dash press cuts the ground-slam animation short (the
-                // damage still lands right away instead of being lost) and
-                // fires the dash immediately, rather than only buffering it
-                // for when the animation would have ended on its own.
-                bool cancelled = (Attack != null && Attack.TryCancelWithDash())
-                              || (ChestBeat != null && ChestBeat.TryCancelWithDash());
+                // A dash press cuts a rooted animation short (its damage
+                // still lands instead of being lost) and dashes immediately.
+                //
+                // The cooldown is checked BEFORE cancelling: cancelling first
+                // and then finding the dash unavailable threw the ability
+                // away for nothing, which is easy to hit because a chest
+                // beat usually follows a dash and the dash is still cooling
+                // down when you try to cancel out of it. If there's no dash
+                // to be had, the press buffers instead.
+                bool dashReady = Time.time >= _dashReadyTime;
+                bool cancelled = dashReady
+                    && ((Attack != null && Attack.TryCancelWithDash())
+                        || (ChestBeat != null && ChestBeat.TryCancelWithDash()));
+
                 if (cancelled)
                 {
                     Vector3 dashDir = _moveInput.sqrMagnitude > 0.01f ? _moveInput.normalized : FacingDirection;
                     _moveInput = dashDir;
-                    if (Time.time >= _dashReadyTime) StartDash();
+                    StartDash();
                 }
                 else
                 {
@@ -130,6 +140,10 @@ namespace GorillaSurvivors.Player
             if (IsDashing && Time.time >= _dashEndTime)
             {
                 IsDashing = false;
+                // Solid again. If the dash ended inside something, the
+                // physics engine pushes the gorilla back out over the next
+                // few steps rather than trapping it.
+                if (_collider != null) _collider.enabled = true;
             }
 
             if (_model != null && !MovementLocked)
@@ -181,7 +195,11 @@ namespace GorillaSurvivors.Player
 
         void FixedUpdate()
         {
-            if (IsExternallyControlled) return;
+            if (IsExternallyControlled)
+            {
+                ConfineToArena();
+                return;
+            }
 
             float speed = MoveSpeed * (_stats != null ? _stats.MoveSpeedMultiplier : 1f);
 
@@ -200,6 +218,33 @@ namespace GorillaSurvivors.Player
             {
                 _rb.linearVelocity = _moveInput * speed;
             }
+
+            ConfineToArena();
+        }
+
+        // The arena wall is enforced here rather than with colliders, so it
+        // holds even through a dash (which drops the player's collider) and
+        // through Charge-style scripted movement.
+        void ConfineToArena()
+        {
+            var arena = Environment.Arena.Instance;
+            if (arena == null) return;
+
+            Vector3 clamped = arena.ClampInside(_rb.position, 0.9f);
+            if (clamped == _rb.position) return;
+
+            _rb.position = clamped;
+
+            // Strip the outward part of the velocity so the gorilla slides
+            // along the wall instead of grinding into it.
+            Vector3 outward = clamped - arena.Center;
+            outward.y = 0f;
+            if (outward.sqrMagnitude < 0.0001f) return;
+
+            outward.Normalize();
+            Vector3 v = _rb.linearVelocity;
+            float into = Vector3.Dot(v, outward);
+            if (into > 0f) _rb.linearVelocity = v - outward * into;
         }
 
         void ReadInput()
@@ -242,6 +287,13 @@ namespace GorillaSurvivors.Player
         void StartDash()
         {
             IsDashing = true;
+            // Dash goes THROUGH the crowd. Barging a hundred bodies is the
+            // whole fantasy, and being stopped dead by the wall of men you
+            // were trying to escape made the dash useless exactly when it
+            // mattered. Dropping the collider for the dash also means trees
+            // and rocks don't block the escape; whatever the gorilla lands
+            // inside of, physics shoves it clear afterwards.
+            if (_collider != null) _collider.enabled = false;
             _dashDirection = _moveInput.normalized;
             _dashEndTime = Time.time + DashDuration;
             _dashReadyTime = Time.time + DashCooldown * (_stats != null ? _stats.AbilityCooldownMultiplier : 1f);
