@@ -46,6 +46,30 @@ namespace GorillaSurvivors.Environment
             if (Instance == this) Instance = null;
         }
 
+        // A walled well in the middle of the floor. Solid, not a pit — you
+        // can't fall in, you just can't walk through it. It exists to break
+        // up an otherwise featureless disc: without something at the centre
+        // the arena has no landmark and every position in it is the same
+        // position.
+        public float CoreRadius = 3.2f;
+
+        // Pushes a point OUT of the central well, the mirror of ClampInside.
+        public Vector3 ClampOutsideCore(Vector3 position, float margin)
+        {
+            Vector3 flat = position - Center;
+            flat.y = 0f;
+
+            float limit = CoreRadius + margin;
+            if (flat.sqrMagnitude >= limit * limit) return position;
+
+            // Dead centre: no direction to push along, so pick one.
+            if (flat.sqrMagnitude < 0.0001f) flat = Vector3.forward;
+
+            Vector3 pushed = Center + flat.normalized * limit;
+            pushed.y = position.y;
+            return pushed;
+        }
+
         public Vector3 GatePosition(int index)
         {
             return Center + GateDirections[index] * (Radius - 0.8f);
@@ -95,6 +119,7 @@ namespace GorillaSurvivors.Environment
             _occluders = gameObject.AddComponent<HideWhenBlockingCamera>();
 
             BuildFloor();
+            BuildCore();
             BuildRing();
 
             for (int g = 0; g < GateDirections.Length; g++)
@@ -127,7 +152,51 @@ namespace GorillaSurvivors.Environment
             // them and left everyone standing shin-deep in sand; the grass
             // plane is dropped slightly to make room (Blocky3DArt.GroundY).
             AddFloorDisc("ArenaFloor", Radius, 0.3f, 0f,
-                MaterialCache.GetTextured(ProceduralTextures.Sand(), Color.white, new Vector2(Radius / 3f, Radius / 3f)));
+                // Tiled barely more than once across the whole floor, so the
+                // repeat is invisible: at the old Radius/3 the same square
+                // of sand appeared ten times and the grid was obvious.
+                MaterialCache.GetTextured(ProceduralTextures.Sand(), Color.white, new Vector2(1.35f, 1.35f)));
+        }
+
+        // The central well: a low stone kerb ringing a black void. The void
+        // is unlit and reads as bottomless, but nothing ever enters it —
+        // players and enemies are both pushed out at the kerb.
+        void BuildCore()
+        {
+            const int segments = 28;
+            const float kerbHeight = 0.75f;
+
+            for (int i = 0; i < segments; i++)
+            {
+                float angle = i * 360f / segments;
+                Vector3 dir = Quaternion.Euler(0f, angle, 0f) * Vector3.forward;
+                var facing = Quaternion.LookRotation(dir, Vector3.up);
+
+                var block = CreateBlock("CoreKerb" + i,
+                    Center + dir * CoreRadius + Vector3.up * (kerbHeight * 0.5f),
+                    new Vector3(0.95f, kerbHeight, 0.7f), i % 2 == 0 ? Stone : StoneDark);
+                block.transform.rotation = facing;
+
+                var cap = CreateBlock("CoreCap" + i,
+                    Center + dir * CoreRadius + Vector3.up * (kerbHeight + 0.09f),
+                    new Vector3(1.0f, 0.18f, 0.95f), StoneLight);
+                cap.transform.rotation = facing;
+            }
+
+            // The dark inside. Sunk a little so the kerb reads as a rim
+            // around it rather than a ring sitting on the floor.
+            var pit = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            pit.name = "CoreVoid";
+            Destroy(pit.GetComponent<Collider>());
+            pit.transform.SetParent(transform, false);
+            // Just ABOVE the sand slab, whose top is y=0. Sinking it below
+            // the slab simply hid it — the floor is solid and drew over it,
+            // so the well read as a stone ring around more sand.
+            pit.transform.position = Center + Vector3.up * 0.03f;
+            pit.transform.localScale = new Vector3(CoreRadius * 2f, 0.02f, CoreRadius * 2f);
+            var mr = pit.GetComponent<MeshRenderer>();
+            mr.sharedMaterial = MaterialCache.GetUnlit(new Color(0.02f, 0.02f, 0.028f));
+            mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
         }
 
         void AddFloorDisc(string name, float radius, float thickness, float topY, Material material)
@@ -285,9 +354,30 @@ namespace GorillaSurvivors.Environment
                 // arch lands on the pillars instead of floating past them.
                 Vector3 jamb = center + side * (s * (GateHalfWidth + 0.28f));
 
-                var pillar = CreateBlock("GatePillar", jamb + Vector3.up * (GateSpring * 0.5f),
+                // Plinth, fluted shaft, capital: a real column rather than a
+                // single slab. Both sides take the SAME colours — the jambs
+                // and casings used to alternate stone/dark by side, which
+                // made every gate visibly lopsided.
+                var plinth = CreateBlock("GatePlinth", jamb + Vector3.up * 0.17f,
+                    new Vector3(1.4f, 0.34f, 2.4f), StoneDark);
+                plinth.transform.rotation = rotation;
+
+                var pillar = CreateBlock("GatePillar", jamb + Vector3.up * (GateSpring * 0.5f + 0.17f),
                     new Vector3(1.1f, GateSpring, 2.1f), Sandstone);
                 pillar.transform.rotation = rotation;
+
+                // Three shallow flutes down the inner face of each column.
+                for (int f = -1; f <= 1; f++)
+                {
+                    var flute = CreateBlock("GateFlute",
+                        jamb + side * (s * -0.46f) + dir * (f * 0.6f) + Vector3.up * (GateSpring * 0.5f + 0.17f),
+                        new Vector3(0.22f, GateSpring * 0.88f, 0.22f), StoneLight);
+                    flute.transform.rotation = rotation;
+                }
+
+                var capital = CreateBlock("GateCapital", jamb + Vector3.up * (GateSpring + 0.3f),
+                    new Vector3(1.45f, 0.28f, 2.45f), StoneLight);
+                capital.transform.rotation = rotation;
 
                 // A hanging banner on the inner face of each pillar. Cloth is
                 // the cheapest way to break up a wall of grey blocks.
@@ -295,7 +385,30 @@ namespace GorillaSurvivors.Environment
                     center + side * (s * (GateHalfWidth - 0.1f)) - dir * 0.4f + Vector3.up * (GateSpring * 0.62f),
                     new Vector3(0.42f, GateSpring * 0.8f, 0.08f), new Color(0.62f, 0.16f, 0.15f));
                 banner.transform.rotation = rotation;
+
+                var bannerHem = CreateBlock("GateBannerHem",
+                    center + side * (s * (GateHalfWidth - 0.1f)) - dir * 0.4f + Vector3.up * (GateSpring * 0.23f),
+                    new Vector3(0.42f, 0.14f, 0.085f), new Color(0.80f, 0.64f, 0.24f));
+                bannerHem.transform.rotation = rotation;
+
+                // A finial standing on each capital, above the arch line.
+                var finial = CreateBlock("GateFinial", jamb + Vector3.up * (GateStructureTop + 0.32f),
+                    new Vector3(0.52f, 0.64f, 0.52f), Sandstone);
+                finial.transform.rotation = rotation;
+                var finialCap = CreateBlock("GateFinialCap", jamb + Vector3.up * (GateStructureTop + 0.76f),
+                    Vector3.one * 0.36f, StoneLight);
+                finialCap.transform.rotation = rotation;
+                _occluders?.Register(finial);
+                _occluders?.Register(finialCap);
             }
+
+            // A cornice course across the top of the arch, tying the two
+            // columns into one facade.
+            var cornice = CreateBlock("GateCornice",
+                center + Vector3.up * (GateStructureTop - 0.2f),
+                new Vector3(GateHalfWidth * 2f + 2.6f, 0.38f, 2.6f), StoneLight);
+            cornice.transform.rotation = rotation;
+            _occluders?.Register(cornice);
 
             BuildArch(center, dir, side, rotation);
             BuildTunnel(center, dir, side, rotation);
@@ -363,7 +476,7 @@ namespace GorillaSurvivors.Environment
                 // the arena the gate is masonry with a dark hole in it.
                 var jamb = CreateBlock("GateJamb",
                     center + dir * 0.5f + side * (s * (GateHalfWidth + 0.75f)) + Vector3.up * (height * 0.5f),
-                    new Vector3(1.5f, height, 1.2f), s < 0 ? Stone : StoneDark);
+                    new Vector3(1.5f, height, 1.2f), Stone);
                 jamb.transform.rotation = rotation;
 
                 // Lit masonry casing wrapping the unlit liner. Without it the
@@ -372,7 +485,7 @@ namespace GorillaSurvivors.Environment
                 // stands have tapered away.
                 var casing = CreateBlock("TunnelCasing",
                     center + dir * (TunnelDepth * 0.5f) + side * (s * (GateHalfWidth + 1.85f)) + Vector3.up * (height * 0.5f),
-                    new Vector3(1.0f, height, TunnelDepth + 1.4f), s < 0 ? StoneDark : Stone);
+                    new Vector3(1.0f, height, TunnelDepth + 1.4f), StoneDark);
                 casing.transform.rotation = rotation;
             }
 

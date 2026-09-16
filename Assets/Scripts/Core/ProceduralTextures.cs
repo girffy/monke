@@ -18,7 +18,10 @@ namespace GorillaSurvivors.Core
         // The colosseum floor: raked sand over packed earth, with darker
         // trodden patches and scattered grit. Warm enough to sit against the
         // grey stone of the ring without the two greying into each other.
-        public static Texture2D Sand(int size = 512)
+        // 1024 rather than 512, and tiled far more slowly by the arena, so
+        // the repeat is a patch the size of the whole floor rather than an
+        // obvious grid of identical squares.
+        public static Texture2D Sand(int size = 1024)
         {
             return GetOrCreate($"sand_{size}", () => BuildSand(size));
         }
@@ -45,6 +48,9 @@ namespace GorillaSurvivors.Core
             float o2 = (float)rng.NextDouble() * 100f;
             float o3 = (float)rng.NextDouble() * 100f;
             float o4 = (float)rng.NextDouble() * 100f;
+            float o5 = (float)rng.NextDouble() * 100f;
+            float o6 = (float)rng.NextDouble() * 100f;
+            float o7 = (float)rng.NextDouble() * 100f;
 
             for (int y = 0; y < size; y++)
             {
@@ -53,27 +59,45 @@ namespace GorillaSurvivors.Core
                     float u = x / (float)size;
                     float v = y / (float)size;
 
+                    // Five octaves rather than three. The low frequencies are
+                    // what stop the floor reading as one flat tone, and the
+                    // very low one (1.7) is deliberately below the tile size
+                    // so a single repeat still has large light and dark
+                    // regions rather than uniform speckle.
+                    float sweep = TileableNoise(u, v, 1.7f, o5);
                     float broad = TileableNoise(u, v, 3.5f, o1);
+                    float medium = TileableNoise(u, v, 6.5f, o6);
                     float detail = TileableNoise(u, v, 11f, o2);
                     float speckle = TileableNoise(u, v, 30f, o3);
                     // Stretched heavily along one axis so it reads as rake
                     // lines dragged across the floor.
                     float rake = TileableNoise(u * 0.18f, v * 2.2f, 46f, o4);
+                    // A second rake at a different angle and scale, so the
+                    // lines cross rather than running as one corduroy grain.
+                    float rakeCross = TileableNoise(u * 1.9f, v * 0.22f, 38f, o7);
 
-                    float shade = broad * 0.44f + detail * 0.26f + speckle * 0.12f + rake * 0.18f;
+                    float shade = sweep * 0.26f + broad * 0.24f + medium * 0.16f
+                                  + detail * 0.16f + speckle * 0.08f
+                                  + rake * 0.12f + rakeCross * 0.08f;
 
                     Color c = shade < 0.47f
-                        ? Color.Lerp(packed, midSand, Mathf.InverseLerp(0.26f, 0.47f, shade))
-                        : Color.Lerp(midSand, paleSand, Mathf.InverseLerp(0.47f, 0.74f, shade));
+                        ? Color.Lerp(packed, midSand, Mathf.InverseLerp(0.24f, 0.47f, shade))
+                        : Color.Lerp(midSand, paleSand, Mathf.InverseLerp(0.47f, 0.76f, shade));
 
                     // Churned, darker ground where the broad noise dips —
                     // the places the fight has been over and over.
-                    float wornMask = Mathf.InverseLerp(0.34f, 0.18f, broad);
-                    if (wornMask > 0f) c = Color.Lerp(c, trodden, wornMask * 0.75f);
+                    float wornMask = Mathf.InverseLerp(0.36f, 0.18f, broad * 0.6f + sweep * 0.4f);
+                    if (wornMask > 0f) c = Color.Lerp(c, trodden, wornMask * 0.8f);
 
-                    if (speckle > 0.78f && rng.NextDouble() < 0.22)
+                    // Scuffed pale patches where the sand has been kicked up,
+                    // keyed off a different octave so they never coincide
+                    // with the worn ones.
+                    float scuff = Mathf.InverseLerp(0.63f, 0.82f, medium);
+                    if (scuff > 0f) c = Color.Lerp(c, paleSand, scuff * 0.45f);
+
+                    if (speckle > 0.74f && rng.NextDouble() < 0.28)
                     {
-                        c = Color.Lerp(c, grit, 0.5f);
+                        c = Color.Lerp(c, grit, Mathf.Lerp(0.3f, 0.7f, (float)rng.NextDouble()));
                     }
 
                     float grain = (float)rng.NextDouble() * 0.07f - 0.035f;

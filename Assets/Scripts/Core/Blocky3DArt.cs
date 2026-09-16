@@ -77,29 +77,36 @@ namespace GorillaSurvivors.Core
             // The heights below deliberately go 0.44 -> 0.86 -> 1.20 -> 1.34
             // -> 1.30 -> 1.24: up fast, over the top, and back DOWN into the
             // neck. That turnover is the whole read.
-            AddPart(root.transform, "Rump", PrimitiveType.Sphere, new Vector3(0f, 0.44f, -0.44f), new Vector3(0.72f, 0.56f, 0.66f), fur);
-            AddPart(root.transform, "Loin", PrimitiveType.Sphere, new Vector3(0f, 0.86f, -0.36f), new Vector3(0.86f, 0.72f, 0.62f), fur);
-            AddPart(root.transform, "Torso", PrimitiveType.Sphere, new Vector3(0f, 1.10f, -0.14f), new Vector3(1.06f, 0.86f, 0.80f), furMid);
-            AddPart(root.transform, "Chest", PrimitiveType.Sphere, new Vector3(0f, 1.02f, 0.26f), new Vector3(1.26f, 1.02f, 1.00f), furMid);
-            // The crown of the arch, over the MIDDLE of the back rather than
-            // over the shoulders.
-            AddPart(root.transform, "Withers", PrimitiveType.Sphere, new Vector3(0f, 1.34f, -0.10f), new Vector3(0.96f, 0.46f, 0.74f), furLight);
-            // The saddle follows the curve down the back of the arch.
-            AddPart(root.transform, "Saddle", PrimitiveType.Sphere, new Vector3(0f, 1.22f, -0.30f), new Vector3(0.88f, 0.48f, 0.80f), silver);
-            // Shoulders sit BELOW the crown, so the line falls away forward.
-            AddPart(root.transform, "Hump", PrimitiveType.Sphere, new Vector3(0f, 1.24f, 0.12f), new Vector3(1.06f, 0.50f, 0.74f), furLight);
+            // The high point of the back belongs over the SHOULDERS, with the
+            // line falling away to small hips behind it. An earlier pass put
+            // the crown over the middle of the back chasing "concave-down",
+            // which put a bulge directly above the hind legs — and a lump
+            // over the hips is the exact silhouette of a hunchback, however
+            // curved the topline is.
+            //
+            // So: long, low, tapering rear; mass carried forward.
+            AddPart(root.transform, "Rump", PrimitiveType.Sphere, new Vector3(0f, 0.42f, -0.52f), new Vector3(0.68f, 0.52f, 0.60f), fur);
+            AddPart(root.transform, "Loin", PrimitiveType.Sphere, new Vector3(0f, 0.72f, -0.40f), new Vector3(0.80f, 0.60f, 0.62f), fur);
+            AddPart(root.transform, "Torso", PrimitiveType.Sphere, new Vector3(0f, 0.98f, -0.16f), new Vector3(1.02f, 0.84f, 0.82f), furMid);
+            AddPart(root.transform, "Chest", PrimitiveType.Sphere, new Vector3(0f, 1.04f, 0.24f), new Vector3(1.26f, 1.02f, 1.00f), furMid);
+            // Smaller and further forward than it was: it reads as the top of
+            // the shoulder girdle now, not a hump on the spine.
+            AddPart(root.transform, "Withers", PrimitiveType.Sphere, new Vector3(0f, 1.22f, 0.02f), new Vector3(0.92f, 0.42f, 0.80f), furLight);
+            // The saddle runs down the sloping back behind the shoulders.
+            AddPart(root.transform, "Saddle", PrimitiveType.Sphere, new Vector3(0f, 1.10f, -0.28f), new Vector3(0.86f, 0.44f, 0.88f), silver);
+            AddPart(root.transform, "Hump", PrimitiveType.Sphere, new Vector3(0f, 1.22f, 0.16f), new Vector3(1.04f, 0.48f, 0.74f), furLight);
             AddPart(root.transform, "ShoulderL", PrimitiveType.Sphere, new Vector3(-0.60f, 1.14f, 0.26f), Vector3.one * 0.58f, furLight);
             AddPart(root.transform, "ShoulderR", PrimitiveType.Sphere, new Vector3(0.60f, 1.14f, 0.26f), Vector3.one * 0.58f, furLight);
             AddPart(root.transform, "PecL", PrimitiveType.Sphere, new Vector3(-0.27f, 0.94f, 0.55f), new Vector3(0.44f, 0.40f, 0.28f), hide);
             AddPart(root.transform, "PecR", PrimitiveType.Sphere, new Vector3(0.27f, 0.94f, 0.55f), new Vector3(0.44f, 0.40f, 0.28f), hide);
             // Barely any neck: the head sits straight off the chest, slung
             // forward and low between the shoulders.
-            AddPart(root.transform, "Neck", PrimitiveType.Sphere, new Vector3(0f, 1.18f, 0.38f), new Vector3(0.46f, 0.32f, 0.36f), fur);
+            AddPart(root.transform, "Neck", PrimitiveType.Sphere, new Vector3(0f, 1.12f, 0.40f), new Vector3(0.46f, 0.32f, 0.36f), fur);
 
             // Facial features parent to Head so the chest-beat head pulse
             // scales the whole face, not a bare skull sphere.
             // Slung low and forward, well below the crown of the back.
-            var head = AddPart(root.transform, "Head", PrimitiveType.Sphere, new Vector3(0f, 1.24f, 0.60f), new Vector3(0.62f, 0.60f, 0.58f), furMid);
+            var head = AddPart(root.transform, "Head", PrimitiveType.Sphere, new Vector3(0f, 1.16f, 0.62f), new Vector3(0.62f, 0.60f, 0.58f), furMid);
             AddPart(head.transform, "Crest", PrimitiveType.Sphere, new Vector3(0f, 0.34f, -0.08f), new Vector3(0.60f, 0.52f, 0.72f), furLight);
             AddPart(head.transform, "Brow", PrimitiveType.Sphere, new Vector3(0f, 0.16f, 0.40f), new Vector3(0.90f, 0.26f, 0.42f), hide);
             AddPart(head.transform, "Muzzle", PrimitiveType.Sphere, new Vector3(0f, -0.20f, 0.44f), new Vector3(0.62f, 0.46f, 0.52f), muzzle);

@@ -319,21 +319,38 @@ namespace GorillaSurvivors.Player
             var arena = Environment.Arena.Instance;
             if (arena == null) return;
 
-            Vector3 clamped = arena.ClampInside(_rb.position, 0.9f);
-            if (clamped == _rb.position) return;
+            // Two surfaces, handled separately: the ring wall pushes in, the
+            // central well pushes out. Both are clamps rather than colliders
+            // so they hold through a dash, which drops the collider.
+            Vector3 inside = arena.ClampInside(_rb.position, 0.9f);
+            if (inside != _rb.position)
+            {
+                _rb.position = inside;
+                StripRadialVelocity(inside - arena.Center, outward: true);
+            }
 
-            _rb.position = clamped;
+            Vector3 outside = arena.ClampOutsideCore(_rb.position, 0.9f);
+            if (outside != _rb.position)
+            {
+                _rb.position = outside;
+                StripRadialVelocity(outside - arena.Center, outward: false);
+            }
+        }
 
-            // Strip the outward part of the velocity so the gorilla slides
-            // along the wall instead of grinding into it.
-            Vector3 outward = clamped - arena.Center;
-            outward.y = 0f;
-            if (outward.sqrMagnitude < 0.0001f) return;
+        // Removes the part of the velocity heading into a surface, so the
+        // gorilla slides along it instead of grinding into it.
+        void StripRadialVelocity(Vector3 radial, bool outward)
+        {
+            radial.y = 0f;
+            if (radial.sqrMagnitude < 0.0001f) return;
 
-            outward.Normalize();
+            radial.Normalize();
             Vector3 v = _rb.linearVelocity;
-            float into = Vector3.Dot(v, outward);
-            if (into > 0f) _rb.linearVelocity = v - outward * into;
+            float into = Vector3.Dot(v, radial);
+
+            // Into the ring wall means moving further out; into the well
+            // means moving further in.
+            if (outward ? into > 0f : into < 0f) _rb.linearVelocity = v - radial * into;
         }
 
         void ReadInput()

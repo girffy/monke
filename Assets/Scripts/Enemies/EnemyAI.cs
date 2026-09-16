@@ -164,19 +164,32 @@ namespace GorillaSurvivors.Enemies
             var arena = Environment.Arena.Instance;
             if (arena == null) return;
 
-            Vector3 clamped = arena.ClampInside(_rb.position, 0.5f);
-            if (clamped == _rb.position) return;
+            // The ring wall holds them in; the central well keeps them out of
+            // the middle, the same as it does the player.
+            Vector3 inside = arena.ClampInside(_rb.position, 0.5f);
+            if (inside != _rb.position)
+            {
+                _rb.position = inside;
+                StripRadial(inside - arena.Center, outward: true);
+            }
 
-            _rb.position = clamped;
+            Vector3 outside = arena.ClampOutsideCore(_rb.position, 0.5f);
+            if (outside != _rb.position)
+            {
+                _rb.position = outside;
+                StripRadial(outside - arena.Center, outward: false);
+            }
+        }
 
-            Vector3 outward = clamped - arena.Center;
-            outward.y = 0f;
-            if (outward.sqrMagnitude < 0.0001f) return;
+        void StripRadial(Vector3 radial, bool outward)
+        {
+            radial.y = 0f;
+            if (radial.sqrMagnitude < 0.0001f) return;
 
-            outward.Normalize();
+            radial.Normalize();
             Vector3 v = _rb.linearVelocity;
-            float into = Vector3.Dot(v, outward);
-            if (into > 0f) _rb.linearVelocity = v - outward * into;
+            float into = Vector3.Dot(v, radial);
+            if (outward ? into > 0f : into < 0f) _rb.linearVelocity = v - radial * into;
         }
 
         void AcquireTarget()
