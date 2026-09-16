@@ -53,13 +53,19 @@ namespace GorillaSurvivors.Environment
         // position.
         public float CoreRadius = 3.2f;
 
+        // CoreRadius is the CENTRELINE of the kerb, not its face: the blocks
+        // are 0.7 deep with a 0.95 cap on top, so stone sticks out almost
+        // half a metre past it. Clamping to the centreline let everyone walk
+        // their front half into the wall.
+        public float CoreKeepOutRadius => CoreRadius + 0.5f;
+
         // Pushes a point OUT of the central well, the mirror of ClampInside.
         public Vector3 ClampOutsideCore(Vector3 position, float margin)
         {
             Vector3 flat = position - Center;
             flat.y = 0f;
 
-            float limit = CoreRadius + margin;
+            float limit = CoreKeepOutRadius + margin;
             if (flat.sqrMagnitude >= limit * limit) return position;
 
             // Dead centre: no direction to push along, so pick one.
@@ -561,8 +567,13 @@ namespace GorillaSurvivors.Environment
 
             // A floor for the passage, shading from the lit threshold into
             // the dark so enemies walk OUT of shadow rather than appearing.
+            // Its top sat 1cm above the sand slab, which at this distance
+            // from the camera is well inside what the depth buffer can
+            // resolve — the two surfaces traded places as the camera moved
+            // and the threshold strobed black against the sand. 5cm is
+            // still an invisible step and is comfortably clear of it.
             var floor = CreateUnlitBlock("TunnelFloor",
-                center + dir * (TunnelDepth * 0.5f) + Vector3.up * -0.04f,
+                center + dir * (TunnelDepth * 0.5f) + Vector3.up * 0f,
                 new Vector3(GateHalfWidth * 2f, 0.1f, TunnelDepth), new Color(0.10f, 0.09f, 0.08f));
             floor.transform.rotation = rotation;
         }

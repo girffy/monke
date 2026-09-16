@@ -160,9 +160,16 @@ namespace GorillaSurvivors.Environment
         static Vector3 RandomArenaPoint(Arena arena)
         {
             // sqrt on the radius keeps the scatter even instead of bunching
-            // everything toward the middle.
+            // everything toward the middle — here it maps onto an ANNULUS,
+            // because the middle of the arena is the well. Rocks and columns
+            // landing on it hung over a black void, in the one part of the
+            // floor nobody can reach.
+            float outer = Mathf.Max(1f, arena.Radius - 2.5f);
+            float inner = Mathf.Min(arena.CoreKeepOutRadius + 1.2f, outer - 0.5f);
+
             var dir = UnityEngine.Random.insideUnitCircle.normalized;
-            float dist = Mathf.Sqrt(UnityEngine.Random.value) * (arena.Radius - 2.5f);
+            float t = UnityEngine.Random.Range(inner * inner / (outer * outer), 1f);
+            float dist = Mathf.Sqrt(t) * outer;
             return arena.Center + new Vector3(dir.x * dist, 0f, dir.y * dist);
         }
 

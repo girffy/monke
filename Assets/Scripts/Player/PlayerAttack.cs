@@ -21,7 +21,10 @@ namespace GorillaSurvivors.Player
         // wrong shape for it. The swipe keeps the arc; that one really is a
         // swung arm.
         public float Radius = 1.9f;
-        public float BaseCooldown = 0.4f;
+        // How far forward the circle sits, as a fraction of its own radius.
+        // Enough that the back edge is roughly at the gorilla's heels.
+        public const float CenterOffset = 0.45f;
+        public float BaseCooldown = 0.48f;
         public const float SlamDuration = 0.5f;
 
         // Tech tree.
@@ -190,6 +193,16 @@ namespace GorillaSurvivors.Player
             _chargeFill = Blocky3DArt.SwipeDisc(new Color(1f, 0.86f, 0.35f));
         }
 
+        // Where the held slam is currently pointed, flattened. The gorilla
+        // turns to face this while charging, so his own forward is the
+        // honest answer.
+        Vector3 ChargeAim()
+        {
+            Vector3 dir = transform.forward;
+            dir.y = 0f;
+            return dir.sqrMagnitude < 0.0001f ? Vector3.forward : dir.normalized;
+        }
+
         // Arms cocked overhead, rising with the charge, so the size of the
         // blow you are holding is visible before you throw it.
         void HoldChargePose()
@@ -205,15 +218,19 @@ namespace GorillaSurvivors.Player
             // The ring shows the reach a FULL charge will have, so holding
             // longer visibly fills toward the area it is going to cover.
             float full = Radius * _stats.LevelAttackRadiusBonus * _stats.AreaMultiplier * MaxChargeReach;
+            // Sits where the blow will actually land — forward of the body,
+            // same as the hit test — so the preview isn't promising an area
+            // the slam won't cover.
+            Vector3 center = transform.position + ChargeAim() * (full * CenterOffset);
             if (_chargeRim != null)
             {
-                _chargeRim.transform.position = transform.position + Vector3.up * 0.05f;
+                _chargeRim.transform.position = center + Vector3.up * 0.05f;
                 _chargeRim.transform.localScale = new Vector3(full * 2f, 0.02f, full * 2f);
             }
             if (_chargeFill != null)
             {
                 float filled = full * 2f * c;
-                _chargeFill.transform.position = transform.position + Vector3.up * 0.07f;
+                _chargeFill.transform.position = center + Vector3.up * 0.07f;
                 _chargeFill.transform.localScale = new Vector3(filled, 0.02f, filled);
             }
         }
@@ -432,7 +449,11 @@ namespace GorillaSurvivors.Player
             float damage = BaseDamage * _stats.LevelDamageBonus * _stats.DamageMultiplier * chargeMultiplier * perkMultiplier;
             float radius = Radius * _stats.LevelAttackRadiusBonus * _stats.AreaMultiplier
                            * Mathf.Lerp(1f, MaxChargeReach, Mathf.InverseLerp(1f, MaxChargeDamage, chargeMultiplier));
-            Vector3 hitCenter = transform.position;
+            // Pushed out in front rather than centred on the gorilla. His
+            // fists land ahead of the body, so a circle on the body's centre
+            // spent half its area behind him where nothing was ever hit, and
+            // fell short of what he was visibly reaching for.
+            Vector3 hitCenter = transform.position + aimDirection * (radius * CenterOffset);
 
             int count = Physics.OverlapSphereNonAlloc(hitCenter, radius, HitBuffer);
             for (int i = 0; i < count; i++)
@@ -480,7 +501,7 @@ namespace GorillaSurvivors.Player
                 }
             }
 
-            SpawnSlamEffect(radius);
+            SpawnSlamEffect(hitCenter, radius);
             Sfx.Slam(hitCenter);
 
             // 1.5x the slam, not the whole arena. At the original figure the
@@ -512,12 +533,12 @@ namespace GorillaSurvivors.Player
             ring.AddComponent<GorillaSurvivors.Environment.ExpandingDisc>().Play(radius * 2f, 0.3f);
         }
 
-        // A ring going out from the gorilla's feet, matching the circular
-        // hit test.
-        void SpawnSlamEffect(float radius)
+        // A ring going out from where the fists land, matching the circular
+        // hit test — including its offset forward.
+        void SpawnSlamEffect(Vector3 center, float radius)
         {
             var go = Blocky3DArt.SwipeDisc(new Color(1f, 0.97f, 0.88f));
-            go.transform.position = transform.position + Vector3.up * 0.05f;
+            go.transform.position = center + Vector3.up * 0.05f;
             go.transform.localScale = new Vector3(0.2f, 0.02f, 0.2f);
             go.AddComponent<GorillaSurvivors.Environment.ExpandingDisc>().Play(radius * 2f, 0.18f);
         }

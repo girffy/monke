@@ -29,7 +29,9 @@ namespace GorillaSurvivors.Player
         public float Reach = 1.15f;
         public float ArcDegrees = 105f;
         public float BandWidth = 0.65f;
-        public const float SwipeDuration = 0.22f;
+        // Slowed 20% from 0.22: at the old speed the arm was a blur and the
+        // swing read as a flicker rather than a swipe.
+        public const float SwipeDuration = 0.264f;
 
         // Tech tree.
         public float BleedFraction;       // "Rake"

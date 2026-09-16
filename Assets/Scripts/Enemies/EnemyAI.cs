@@ -173,7 +173,9 @@ namespace GorillaSurvivors.Enemies
                 StripRadial(inside - arena.Center, outward: true);
             }
 
-            Vector3 outside = arena.ClampOutsideCore(_rb.position, 0.5f);
+            // Half a metre of body radius on top of the wall's own footprint,
+            // or the wide ones stand with their shoulders inside the stone.
+            Vector3 outside = arena.ClampOutsideCore(_rb.position, 0.55f);
             if (outside != _rb.position)
             {
                 _rb.position = outside;

@@ -25,8 +25,21 @@ namespace GorillaSurvivors.Environment
         // stand leaves its neighbours still standing in the shot.
         public float BlockRadius = 4.2f;
 
+        // Hysteresis. A single threshold made this a coin flip for anything
+        // sitting exactly at it: standing by a gate, the camera-to-player
+        // line grazed the roof and the near stands, and the test came out
+        // differently on consecutive frames as the gorilla breathed. The
+        // result was the archway strobing black against the stone behind it.
+        //
+        // So a piece hides at BlockRadius and does not come back until it is
+        // clearly outside — and either way it has to hold still for a
+        // moment first.
+        public float UnblockRadius = 5.3f;
+        public float MinHoldSeconds = 0.25f;
+
         readonly List<Renderer> _watched = new List<Renderer>();
         readonly List<bool> _hidden = new List<bool>();
+        readonly List<float> _changedAt = new List<float>();
 
         public void Register(GameObject piece)
         {
@@ -34,6 +47,7 @@ namespace GorillaSurvivors.Environment
             {
                 _watched.Add(r);
                 _hidden.Add(false);
+                _changedAt.Add(0f);
             }
         }
 
@@ -60,11 +74,20 @@ namespace GorillaSurvivors.Environment
 
                 // Only pieces actually BETWEEN the two count — something
                 // behind the camera or past the player is never in the way.
-                bool blocking = projected > 0.5f && projected < length
-                                && Vector3.Distance(toPiece, along * projected) < BlockRadius;
+                bool between = projected > 0.5f && projected < length;
+                float offset = Vector3.Distance(toPiece, along * projected);
+
+                // The threshold to cross depends on which side it is already
+                // on, so a piece hovering on the line stays where it is.
+                bool blocking = _hidden[i]
+                    ? between && offset < UnblockRadius
+                    : between && offset < BlockRadius;
 
                 if (blocking == _hidden[i]) continue;
+                if (Time.time - _changedAt[i] < MinHoldSeconds) continue;
+
                 _hidden[i] = blocking;
+                _changedAt[i] = Time.time;
                 r.enabled = !blocking;
             }
         }
