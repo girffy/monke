@@ -19,9 +19,16 @@ namespace GorillaSurvivors.Player
         public float BaseDamage = 10f;
         // The swing itself: an arc drawn at Reach in front of the gorilla,
         // catching anything within BandWidth of it (see MeleeArc).
-        public float Reach = 1.6f;
-        public float ArcDegrees = 110f;
-        public float BandWidth = 0.85f;
+        //
+        // Deliberately short and close. The arc used to be drawn at 1.6 with
+        // a 0.85 band, which covered 0.75 to 2.45 metres out — enormous for
+        // a light poke, and the inner edge sat far enough forward that an
+        // enemy pressed against the gorilla could fall inside it and be
+        // missed. This reaches from about 0.5 to 1.8, so contact range is
+        // always covered.
+        public float Reach = 1.15f;
+        public float ArcDegrees = 105f;
+        public float BandWidth = 0.65f;
         public const float SwipeDuration = 0.22f;
 
         // Tech tree.

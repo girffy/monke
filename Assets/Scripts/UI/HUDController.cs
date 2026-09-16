@@ -4,6 +4,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem.UI;
+using UnityEngine.SceneManagement;
 using GorillaSurvivors.Core;
 using GorillaSurvivors.Player;
 using GorillaSurvivors.Player.Abilities;
@@ -98,6 +99,12 @@ namespace GorillaSurvivors.UI
             // only shows itself on a device with a touch screen.
             TouchControls.Create(canvasGO.transform);
 
+            // On touch, the on-screen buttons ARE the ability bar — they show
+            // the same five abilities and their cooldowns — so the desktop
+            // strip along the bottom is pure duplication on the part of a
+            // phone screen that can least spare it.
+            if (TouchControls.Active && hud._abilityBar != null) hud._abilityBar.SetActive(false);
+
             health.OnHealthChanged += hud.HandleHealthChanged;
             stats.OnXPChanged += hud.HandleXPChanged;
             stats.OnLevelUp += hud.HandleLevelUp;
@@ -175,16 +182,33 @@ namespace GorillaSurvivors.UI
             float totalWidth = count * iconSize + (count - 1) * spacing;
             float startX = -totalWidth / 2f + iconSize / 2f;
 
+            // Grouped under one object so the whole bar can be switched off
+            // on a touch device, where the on-screen ability buttons already
+            // show the same five abilities and their cooldowns — and where
+            // this bar is sitting on the bottom of a phone screen doing
+            // nothing but taking up room.
+            var barGO = new GameObject("AbilityBar", typeof(RectTransform));
+            barGO.transform.SetParent(parent, false);
+            var barRect = barGO.GetComponent<RectTransform>();
+            barRect.anchorMin = Vector2.zero;
+            barRect.anchorMax = Vector2.one;
+            barRect.offsetMin = Vector2.zero;
+            barRect.offsetMax = Vector2.zero;
+            _abilityBar = barGO;
+
             // Every slot uses hand-drawn pixel art (PixelArtIcons); the
             // sprites carry their own palette, so no tint is applied.
             // Order matches the buttons: the quick swipe is the primary
             // (left) attack, the committed slam the secondary (right) one.
-            _swipeIcon = CreateAbilityIcon(parent, "AbilitySwipe", "LMB", SwipeColor, startX + 0 * (iconSize + spacing), iconSize, PixelArtIcons.Claw());
-            _atkIcon = CreateAbilityIcon(parent, "AbilityAttack", "RMB", AttackColor, startX + 1 * (iconSize + spacing), iconSize, PixelArtIcons.Slam());
-            _dashIcon = CreateAbilityIcon(parent, "AbilityDash", "SPC", DashColor, startX + 2 * (iconSize + spacing), iconSize, PixelArtIcons.Dash());
-            _roarIcon = CreateAbilityIcon(parent, "AbilityChestBeat", "Q", RoarColor, startX + 3 * (iconSize + spacing), iconSize, PixelArtIcons.GorillaShout());
-            _chargeIcon = CreateAbilityIcon(parent, "AbilityDungToss", "E", ChargeColor, startX + 4 * (iconSize + spacing), iconSize, PixelArtIcons.DungToss());
+            var bar = barGO.transform;
+            _swipeIcon = CreateAbilityIcon(bar, "AbilitySwipe", "LMB", SwipeColor, startX + 0 * (iconSize + spacing), iconSize, PixelArtIcons.Claw());
+            _atkIcon = CreateAbilityIcon(bar, "AbilityAttack", "RMB", AttackColor, startX + 1 * (iconSize + spacing), iconSize, PixelArtIcons.Slam());
+            _dashIcon = CreateAbilityIcon(bar, "AbilityDash", "SPC", DashColor, startX + 2 * (iconSize + spacing), iconSize, PixelArtIcons.Dash());
+            _roarIcon = CreateAbilityIcon(bar, "AbilityChestBeat", "Q", RoarColor, startX + 3 * (iconSize + spacing), iconSize, PixelArtIcons.GorillaShout());
+            _chargeIcon = CreateAbilityIcon(bar, "AbilityDungToss", "E", ChargeColor, startX + 4 * (iconSize + spacing), iconSize, PixelArtIcons.DungToss());
         }
+
+        GameObject _abilityBar;
 
         static AbilityIcon CreateAbilityIcon(Transform parent, string name, string label, Color color, float xOffset, float size, Sprite glyphSprite)
         {
@@ -429,10 +453,66 @@ namespace GorillaSurvivors.UI
         public void ShowGameOver()
         {
             _gameOverPanel.SetActive(true);
+            _gameOverPanel.transform.SetAsLastSibling();
+
             int minutes = Mathf.FloorToInt(GameManager.Instance.SurvivalTime / 60f);
             int seconds = Mathf.FloorToInt(GameManager.Instance.SurvivalTime % 60f);
-            _gameOverText.text = $"THE HORDE WINS\nSurvived {minutes}:{seconds:00} — Lv.{_stats.Level}\n\nPress R to restart";
+            _gameOverText.text = $"THE HORDE WINS\nSurvived {minutes}:{seconds:00} — Lv.{_stats.Level}";
+
+            EnsureRestartButton();
         }
+
+        // "Press R to restart" is unreachable on a phone, and on the web it
+        // also needs the canvas to have keyboard focus — so the restart is a
+        // real button. Same reasoning as the pause button: the pointer is the
+        // one input every platform is guaranteed to deliver.
+        void EnsureRestartButton()
+        {
+            if (_restartButton != null)
+            {
+                _restartButton.SetActive(true);
+                return;
+            }
+
+            var go = new GameObject("RestartButton", typeof(RectTransform));
+            go.transform.SetParent(_gameOverPanel.transform, false);
+            var rect = go.GetComponent<RectTransform>();
+            rect.anchorMin = rect.anchorMax = rect.pivot = new Vector2(0.5f, 0.5f);
+            rect.anchoredPosition = new Vector2(0f, -110f);
+            rect.sizeDelta = new Vector2(280f, 62f);
+
+            var image = go.AddComponent<Image>();
+            image.color = new Color(0.24f, 0.28f, 0.22f, 0.98f);
+
+            var button = go.AddComponent<Button>();
+            button.targetGraphic = image;
+            var colors = button.colors;
+            colors.highlightedColor = new Color(0.36f, 0.42f, 0.32f);
+            colors.pressedColor = new Color(0.16f, 0.19f, 0.14f);
+            button.colors = colors;
+            button.onClick.AddListener(() =>
+                SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex));
+
+            var labelGO = new GameObject("Label", typeof(RectTransform));
+            labelGO.transform.SetParent(go.transform, false);
+            var labelRect = labelGO.GetComponent<RectTransform>();
+            labelRect.anchorMin = Vector2.zero;
+            labelRect.anchorMax = Vector2.one;
+            labelRect.offsetMin = Vector2.zero;
+            labelRect.offsetMax = Vector2.zero;
+
+            var label = labelGO.AddComponent<Text>();
+            label.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            label.fontSize = 26;
+            label.alignment = TextAnchor.MiddleCenter;
+            label.color = Color.white;
+            label.text = "Restart";
+            label.raycastTarget = false;
+
+            _restartButton = go;
+        }
+
+        GameObject _restartButton;
 
         void HandleHealthChanged(float current, float max)
         {

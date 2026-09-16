@@ -85,26 +85,40 @@ namespace GorillaSurvivors.UI
 
             var beat = player.GetComponent<Player.Abilities.ChestBeatAbility>();
             var dung = player.GetComponent<Player.Abilities.DungTossAbility>();
-            _buttons[(int)TouchButton.ChestBeat].SetAvailable(beat != null && beat.Unlocked);
-            _buttons[(int)TouchButton.DungToss].SetAvailable(dung != null && dung.Unlocked);
+            var slam = player.GetComponent<Player.PlayerAttack>();
+            var swipe = player.GetComponent<Player.QuickSwipeAttack>();
+
+            bool beatReady = beat != null && beat.Unlocked;
+            bool dungReady = dung != null && dung.Unlocked;
+            _buttons[(int)TouchButton.ChestBeat].SetAvailable(beatReady);
+            _buttons[(int)TouchButton.DungToss].SetAvailable(dungReady);
+
+            _buttons[(int)TouchButton.Slam].SetCooldown(slam != null ? slam.AttackCooldownRemaining01() : 0f);
+            _buttons[(int)TouchButton.Swipe].SetCooldown(swipe != null ? swipe.SwipeCooldownRemaining01() : 0f);
+            _buttons[(int)TouchButton.Dash].SetCooldown(player.DashCooldownRemaining01());
+            _buttons[(int)TouchButton.ChestBeat].SetCooldown(beatReady ? beat.CooldownRemaining01() : 0f);
+            _buttons[(int)TouchButton.DungToss].SetCooldown(dungReady ? dung.CooldownRemaining01() : 0f);
         }
 
         void BuildLayout(RectTransform root)
         {
             _joystick = TouchJoystick.Create(root);
 
-            // Bottom-right cluster, arranged so the primary attack sits
-            // where the thumb rests and the rest fan up and left.
-            _buttons[(int)TouchButton.Swipe] = TouchButtonWidget.Create(root, "LMB", PixelArtIcons.Claw(),
-                new Vector2(-230f, 86f), 96f, new Color(0.75f, 0.70f, 0.35f));
+            // Abilities on the LEFT, movement on the right. Sizes are much
+            // larger than a mouse cursor would need: a fingertip is about
+            // 45px of real screen, and these are authored against a 1280-wide
+            // reference that a phone scales down, so anything that looks
+            // comfortable on a desktop preview is too small to hit in hand.
             _buttons[(int)TouchButton.Slam] = TouchButtonWidget.Create(root, "RMB", PixelArtIcons.Slam(),
-                new Vector2(-104f, 104f), 116f, new Color(0.55f, 0.55f, 0.55f));
+                new Vector2(135f, 120f), 148f, new Color(0.55f, 0.55f, 0.55f));
+            _buttons[(int)TouchButton.Swipe] = TouchButtonWidget.Create(root, "LMB", PixelArtIcons.Claw(),
+                new Vector2(292f, 92f), 122f, new Color(0.75f, 0.70f, 0.35f));
             _buttons[(int)TouchButton.Dash] = TouchButtonWidget.Create(root, "Dash", PixelArtIcons.Dash(),
-                new Vector2(-96f, 232f), 88f, new Color(0.25f, 0.50f, 0.85f));
+                new Vector2(126f, 284f), 118f, new Color(0.25f, 0.50f, 0.85f));
             _buttons[(int)TouchButton.ChestBeat] = TouchButtonWidget.Create(root, "Q", PixelArtIcons.GorillaShout(),
-                new Vector2(-218f, 212f), 80f, new Color(0.62f, 0.45f, 0.72f));
+                new Vector2(274f, 250f), 106f, new Color(0.62f, 0.45f, 0.72f));
             _buttons[(int)TouchButton.DungToss] = TouchButtonWidget.Create(root, "E", PixelArtIcons.DungToss(),
-                new Vector2(-318f, 132f), 80f, new Color(0.52f, 0.44f, 0.30f));
+                new Vector2(412f, 152f), 106f, new Color(0.52f, 0.44f, 0.30f));
         }
     }
 
@@ -126,10 +140,11 @@ namespace GorillaSurvivors.UI
             var zone = new GameObject("JoystickZone", typeof(RectTransform));
             zone.transform.SetParent(parent, false);
             var rect = zone.GetComponent<RectTransform>();
-            // Left 46%, stopping short of the very top so it can't swallow
-            // taps meant for the pause button or the HUD.
-            rect.anchorMin = new Vector2(0f, 0f);
-            rect.anchorMax = new Vector2(0.46f, 0.88f);
+            // RIGHT 46%, stopping short of the very top so it can't swallow
+            // taps meant for the pause button or the HUD. The abilities took
+            // the left side, so movement moved across.
+            rect.anchorMin = new Vector2(0.54f, 0f);
+            rect.anchorMax = new Vector2(1f, 0.88f);
             rect.offsetMin = Vector2.zero;
             rect.offsetMax = Vector2.zero;
 
@@ -239,13 +254,23 @@ namespace GorillaSurvivors.UI
             _background.raycastTarget = available;
         }
 
+        Image _cooldown;
+
+        // 1 = just used, 0 = ready.
+        public void SetCooldown(float remaining01)
+        {
+            if (_cooldown != null) _cooldown.fillAmount = Mathf.Clamp01(remaining01);
+        }
+
         public static TouchButtonWidget Create(RectTransform parent, string label, Sprite icon,
             Vector2 anchoredPosition, float size, Color tint)
         {
             var go = new GameObject("TouchButton_" + label, typeof(RectTransform));
             go.transform.SetParent(parent, false);
             var rect = go.GetComponent<RectTransform>();
-            rect.anchorMin = rect.anchorMax = rect.pivot = new Vector2(1f, 0f);
+            // Bottom-LEFT: the ability cluster lives under the left thumb and
+            // the movement stick under the right.
+            rect.anchorMin = rect.anchorMax = rect.pivot = new Vector2(0f, 0f);
             rect.anchoredPosition = anchoredPosition;
             rect.sizeDelta = new Vector2(size, size);
 
@@ -265,9 +290,31 @@ namespace GorillaSurvivors.UI
             iconImage.raycastTarget = false;
             iconImage.preserveAspect = true;
 
+            // Cooldown sweep over the whole button. The desktop ability bar
+            // is hidden on touch devices (it duplicates these and eats the
+            // bottom of a phone screen), and it was the only cooldown
+            // readout — so the buttons have to carry it themselves.
+            var cooldownGO = new GameObject("Cooldown", typeof(RectTransform));
+            cooldownGO.transform.SetParent(go.transform, false);
+            var cdRect = cooldownGO.GetComponent<RectTransform>();
+            cdRect.anchorMin = Vector2.zero;
+            cdRect.anchorMax = Vector2.one;
+            cdRect.offsetMin = Vector2.zero;
+            cdRect.offsetMax = Vector2.zero;
+            var cooldown = cooldownGO.AddComponent<Image>();
+            cooldown.sprite = CircleSprite.Get();
+            cooldown.color = new Color(0f, 0f, 0f, 0.62f);
+            cooldown.raycastTarget = false;
+            cooldown.type = Image.Type.Filled;
+            cooldown.fillMethod = Image.FillMethod.Radial360;
+            cooldown.fillOrigin = (int)Image.Origin360.Top;
+            cooldown.fillClockwise = false;
+            cooldown.fillAmount = 0f;
+
             var widget = go.AddComponent<TouchButtonWidget>();
             widget._background = background;
             widget._idleColor = background.color;
+            widget._cooldown = cooldown;
             return widget;
         }
 

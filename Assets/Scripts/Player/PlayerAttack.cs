@@ -15,12 +15,12 @@ namespace GorillaSurvivors.Player
     public class PlayerAttack : MonoBehaviour
     {
         public float BaseDamage = 22f;
-        // The arc the two fists come down through (see MeleeArc). Wider and
-        // deeper than the swipe's — it's a two-handed overhead smash, so the
-        // band is thick enough to be a zone in front rather than a line.
-        public float Reach = 1.9f;
-        public float ArcDegrees = 120f;
-        public float BandWidth = 1.25f;
+        // A CIRCLE centred on the gorilla, not an arc. This is a two-handed
+        // overhead smash into the ground — the force goes out in every
+        // direction from the point of impact, so a wedge in front was the
+        // wrong shape for it. The swipe keeps the arc; that one really is a
+        // swung arm.
+        public float Radius = 1.9f;
         public float BaseCooldown = 0.4f;
         public const float SlamDuration = 0.5f;
 
@@ -202,7 +202,9 @@ namespace GorillaSurvivors.Player
                 _animator.BodyPitch = Mathf.Lerp(0f, -12f, c);
             }
 
-            float full = (Reach + BandWidth) * _stats.LevelAttackRadiusBonus * _stats.AreaMultiplier * MaxChargeReach;
+            // The ring shows the reach a FULL charge will have, so holding
+            // longer visibly fills toward the area it is going to cover.
+            float full = Radius * _stats.LevelAttackRadiusBonus * _stats.AreaMultiplier * MaxChargeReach;
             if (_chargeRim != null)
             {
                 _chargeRim.transform.position = transform.position + Vector3.up * 0.05f;
@@ -428,12 +430,11 @@ namespace GorillaSurvivors.Player
 
             float perkMultiplier = Perks != null ? Perks.MeleeDamageMultiplier : 1f;
             float damage = BaseDamage * _stats.LevelDamageBonus * _stats.DamageMultiplier * chargeMultiplier * perkMultiplier;
-            float reach = Reach * _stats.LevelAttackRadiusBonus * _stats.AreaMultiplier
-                          * Mathf.Lerp(1f, MaxChargeReach, Mathf.InverseLerp(1f, MaxChargeDamage, chargeMultiplier));
-            float band = BandWidth * _stats.AreaMultiplier;
-            Vector3 hitCenter = transform.position + aimDirection * reach;
+            float radius = Radius * _stats.LevelAttackRadiusBonus * _stats.AreaMultiplier
+                           * Mathf.Lerp(1f, MaxChargeReach, Mathf.InverseLerp(1f, MaxChargeDamage, chargeMultiplier));
+            Vector3 hitCenter = transform.position;
 
-            int count = MeleeArc.Overlap(transform.position, aimDirection, reach, ArcDegrees, band, HitBuffer);
+            int count = Physics.OverlapSphereNonAlloc(hitCenter, radius, HitBuffer);
             for (int i = 0; i < count; i++)
             {
                 var enemyHealth = HitBuffer[i].GetComponentInParent<EnemyHealth>();
@@ -473,20 +474,20 @@ namespace GorillaSurvivors.Player
             foreach (var projectile in Projectile.Active)
             {
                 if (projectile == null) continue;
-                if (Vector3.Distance(projectile.transform.position, hitCenter) <= band + 0.5f)
+                if (Vector3.Distance(projectile.transform.position, hitCenter) <= radius)
                 {
                     projectile.Deflect(aimDirection);
                 }
             }
 
-            SpawnSlamEffect(aimDirection, reach, band);
+            SpawnSlamEffect(radius);
             Sfx.Slam(hitCenter);
 
-            // 1.3x the swing, not 1.9x. At the old figure the ring reached
-            // most of the arena from anywhere in it, which made the node an
-            // "erase the screen" button rather than an answer to being
-            // surrounded.
-            if (QuakeEnabled) Quake(damage * 0.5f, (reach + band) * 1.3f);
+            // 1.5x the slam, not the whole arena. At the original figure the
+            // ring reached most of the floor from anywhere in it, which made
+            // the node an "erase the screen" button rather than an answer to
+            // being surrounded.
+            if (QuakeEnabled) Quake(damage * 0.5f, radius * 1.5f);
         }
 
         // "Earthshaker": a ring going out in EVERY direction for half damage.
@@ -511,31 +512,14 @@ namespace GorillaSurvivors.Player
             ring.AddComponent<GorillaSurvivors.Environment.ExpandingDisc>().Play(radius * 2f, 0.3f);
         }
 
-        // The band the fists actually came down through, same shape the hit
-        // test used.
-        void SpawnSlamEffect(Vector3 aimDirection, float reach, float band)
+        // A ring going out from the gorilla's feet, matching the circular
+        // hit test.
+        void SpawnSlamEffect(float radius)
         {
-            var go = Blocky3DArt.SwipeArc(new Color(1f, 0.97f, 0.88f), reach, ArcDegrees, band);
-            go.transform.position = transform.position;
-            go.transform.rotation = Quaternion.LookRotation(aimDirection, Vector3.up);
-
-            StartCoroutine(AnimateSlamEffect(go));
-        }
-
-        IEnumerator AnimateSlamEffect(GameObject go)
-        {
-            const float duration = 0.18f;
-            float t = 0f;
-            var baseScale = go.transform.localScale;
-
-            while (t < duration)
-            {
-                t += Time.deltaTime;
-                go.transform.localScale = baseScale * Mathf.Lerp(0.88f, 1.12f, t / duration);
-                yield return null;
-            }
-
-            Destroy(go);
+            var go = Blocky3DArt.SwipeDisc(new Color(1f, 0.97f, 0.88f));
+            go.transform.position = transform.position + Vector3.up * 0.05f;
+            go.transform.localScale = new Vector3(0.2f, 0.02f, 0.2f);
+            go.AddComponent<GorillaSurvivors.Environment.ExpandingDisc>().Play(radius * 2f, 0.18f);
         }
     }
 }
