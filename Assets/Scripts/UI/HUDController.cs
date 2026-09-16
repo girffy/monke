@@ -93,6 +93,10 @@ namespace GorillaSurvivors.UI
             hud._roundBannerText = CreateRoundBannerText(canvasGO.transform);
             hud.CreateAbilityBar(canvasGO.transform);
 
+            // Built last so its buttons sit above the rest of the HUD, and
+            // only shows itself on a device with a touch screen.
+            TouchControls.Create(canvasGO.transform);
+
             health.OnHealthChanged += hud.HandleHealthChanged;
             stats.OnXPChanged += hud.HandleXPChanged;
             stats.OnLevelUp += hud.HandleLevelUp;

@@ -118,7 +118,7 @@ namespace GorillaSurvivors.Player.Abilities
             var gp = Gamepad.current;
             if (gp != null && gp.buttonEast.wasPressedThisFrame) return true;
 
-            return false;
+            return UI.TouchControls.ConsumePress(UI.TouchButton.DungToss);
         }
 
         IEnumerator ThrowSequence()

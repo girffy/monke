@@ -256,7 +256,7 @@ namespace GorillaSurvivors.Player
             var gp = Gamepad.current;
             if (gp != null && gp.rightTrigger.wasPressedThisFrame) return true;
 
-            return false;
+            return UI.TouchControls.ConsumePress(UI.TouchButton.Slam);
         }
 
         // Whether the attack input is still down, for the charge.
@@ -271,7 +271,7 @@ namespace GorillaSurvivors.Player
             var gp = Gamepad.current;
             if (gp != null && gp.rightTrigger.isPressed) return true;
 
-            return false;
+            return UI.TouchControls.Held(UI.TouchButton.Slam);
         }
 
         IEnumerator SlamSequence(Vector3 aimDirection, float chargeMultiplier = 1f)

@@ -102,7 +102,7 @@ namespace GorillaSurvivors.Player.Abilities
             var gp = Gamepad.current;
             if (gp != null && gp.buttonNorth.wasPressedThisFrame) return true;
 
-            return false;
+            return UI.TouchControls.ConsumePress(UI.TouchButton.ChestBeat);
         }
 
         // Called by PlayerController when dash is pressed mid-beat. Mirrors

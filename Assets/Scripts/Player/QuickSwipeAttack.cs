@@ -85,7 +85,7 @@ namespace GorillaSurvivors.Player
             var gp = Gamepad.current;
             if (gp != null && (gp.buttonWest.wasPressedThisFrame || gp.leftTrigger.wasPressedThisFrame)) return true;
 
-            return false;
+            return UI.TouchControls.ConsumePress(UI.TouchButton.Swipe);
         }
 
         IEnumerator SwipeSequence(Vector3 aim)

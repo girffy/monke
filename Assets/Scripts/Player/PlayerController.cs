@@ -199,6 +199,17 @@ namespace GorillaSurvivors.Player
         // Shared by the model-facing above and by attack/ability aiming.
         public Vector3 GetAimDirection()
         {
+            // On a touch screen there is no second stick to aim with, so the
+            // gorilla aims itself at whatever is closest. Without this the
+            // whole game is unplayable on a phone: every attack would fire
+            // along the last direction walked.
+            if (UI.TouchControls.Active)
+            {
+                Vector3 auto = NearestEnemyDirection();
+                if (auto.sqrMagnitude > 0.0001f) return auto;
+                return _moveInput.sqrMagnitude > 0.01f ? _moveInput.normalized : FacingDirection;
+            }
+
             var gp = Gamepad.current;
             if (gp != null)
             {
@@ -226,6 +237,39 @@ namespace GorillaSurvivors.Player
             }
 
             return FacingDirection;
+        }
+
+        // Nearest living enemy on the ground plane, within a generous range.
+        // Refreshed a few times a second rather than every call: the aim is
+        // read by the facing code every frame and by every attack, and a
+        // scene-wide scan at that rate in a hundred-enemy round is not free.
+        static readonly Collider[] AimBuffer = new Collider[64];
+        Vector3 _cachedAim;
+        float _nextAimRefresh;
+
+        Vector3 NearestEnemyDirection()
+        {
+            if (Time.time < _nextAimRefresh) return _cachedAim;
+            _nextAimRefresh = Time.time + 0.12f;
+
+            int count = Physics.OverlapSphereNonAlloc(transform.position, 14f, AimBuffer);
+            float bestSqr = float.MaxValue;
+            _cachedAim = Vector3.zero;
+
+            for (int i = 0; i < count; i++)
+            {
+                if (AimBuffer[i].GetComponentInParent<Enemies.EnemyHealth>() == null) continue;
+
+                Vector3 toEnemy = AimBuffer[i].transform.position - transform.position;
+                toEnemy.y = 0f;
+                float sqr = toEnemy.sqrMagnitude;
+                if (sqr < 0.0001f || sqr >= bestSqr) continue;
+
+                bestSqr = sqr;
+                _cachedAim = toEnemy.normalized;
+            }
+
+            return _cachedAim;
         }
 
         void FixedUpdate()
@@ -301,6 +345,9 @@ namespace GorillaSurvivors.Player
                 if (stick.sqrMagnitude > 0.01f) input = new Vector3(stick.x, 0f, stick.y);
             }
 
+            var touch = UI.TouchControls.MoveInput;
+            if (touch.sqrMagnitude > 0.01f) input = touch;
+
             _moveInput = Vector3.ClampMagnitude(input, 1f);
             if (_moveInput.sqrMagnitude > 0.01f)
             {
@@ -316,7 +363,7 @@ namespace GorillaSurvivors.Player
             var gp = Gamepad.current;
             bool gpDash = gp != null && gp.buttonSouth.wasPressedThisFrame;
 
-            return kbDash || gpDash;
+            return kbDash || gpDash || UI.TouchControls.ConsumePress(UI.TouchButton.Dash);
         }
 
         // "Freight Train": everything the dash passes through takes a hit,
