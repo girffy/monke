@@ -30,6 +30,16 @@ namespace GorillaSurvivors.Environment
             public float MinScale = 1f;
             public float MaxScale = 1f;
             public bool RandomYaw = true;
+            // Lush undergrowth belongs on the grass outside; the arena floor
+            // is raked sand, and carpeting it in flowers and ferns undoes
+            // that read. Props that are gameplay (trees to fell, rocks to
+            // launch) stay regardless.
+            // How many to keep inside an arena. The streaming targets above
+            // were sized for an endless map and scaling them by area gives
+            // one or two of everything, which is too sparse for props the
+            // player is meant to use; 0 means "grass only, keep it out".
+            public int ArenaTarget;
+            public bool AllowedInArena => ArenaTarget > 0;
             // Props mid-use (a launched boulder, a toppling tree) must never
             // be culled out from under the effect that is driving them.
             public Func<GameObject, bool> IsBusy;
@@ -45,6 +55,7 @@ namespace GorillaSurvivors.Environment
             {
                 Name = "Tree",
                 Target = 26,
+                ArenaTarget = 6,
                 MinScale = 0.85f,
                 MaxScale = 1.3f,
                 Create = () => { var t = Blocky3DArt.Tree(); t.AddComponent<FellableTree>(); return t; },
@@ -55,6 +66,7 @@ namespace GorillaSurvivors.Environment
             {
                 Name = "Rock",
                 Target = 24,
+                ArenaTarget = 8,
                 MinScale = 0.8f,
                 MaxScale = 1.2f,
                 Create = () => { var r = Blocky3DArt.Rock(); r.AddComponent<AttackableRock>(); return r; },
@@ -65,10 +77,10 @@ namespace GorillaSurvivors.Environment
             _kinds.Add(new PropKind { Name = "GrassTuft", Target = 220, MinScale = 0.8f, MaxScale = 1.5f, Create = Blocky3DArt.GrassTuft });
             _kinds.Add(new PropKind { Name = "Flower", Target = 60, MinScale = 0.85f, MaxScale = 1.25f, Create = Blocky3DArt.Flower });
             _kinds.Add(new PropKind { Name = "Mushroom", Target = 24, MinScale = 0.8f, MaxScale = 1.4f, Create = Blocky3DArt.Mushroom });
-            _kinds.Add(new PropKind { Name = "Stump", Target = 10, Create = Blocky3DArt.Stump });
-            _kinds.Add(new PropKind { Name = "Log", Target = 12, MinScale = 0.85f, MaxScale = 1.25f, Create = Blocky3DArt.Log });
+            _kinds.Add(new PropKind { Name = "Stump", Target = 10, ArenaTarget = 3, Create = Blocky3DArt.Stump });
+            _kinds.Add(new PropKind { Name = "Log", Target = 12, ArenaTarget = 4, MinScale = 0.85f, MaxScale = 1.25f, Create = Blocky3DArt.Log });
             _kinds.Add(new PropKind { Name = "Fern", Target = 45, MinScale = 0.85f, MaxScale = 1.35f, Create = Blocky3DArt.Fern });
-            _kinds.Add(new PropKind { Name = "Pebbles", Target = 40, MinScale = 0.8f, MaxScale = 1.4f, Create = Blocky3DArt.Pebbles });
+            _kinds.Add(new PropKind { Name = "Pebbles", Target = 40, ArenaTarget = 12, MinScale = 0.8f, MaxScale = 1.4f, Create = Blocky3DArt.Pebbles });
         }
 
         // Fills the starting area. Unlike the streaming passes this ignores
@@ -85,7 +97,7 @@ namespace GorillaSurvivors.Environment
             {
                 foreach (var kind in _kinds)
                 {
-                    kind.Target = Mathf.Max(3, Mathf.RoundToInt(kind.Target * ArenaDensityScale(arena)));
+                    kind.Target = kind.ArenaTarget;
                     for (int i = 0; i < kind.Target; i++) Place(kind, RandomArenaPoint(arena));
                 }
                 return;
@@ -101,13 +113,6 @@ namespace GorillaSurvivors.Environment
                     Place(kind, origin + new Vector3(dir.x * dist, 0f, dir.y * dist));
                 }
             }
-        }
-
-        float ArenaDensityScale(Arena arena)
-        {
-            float streamed = Mathf.PI * KeepRadius * KeepRadius;
-            float arenaArea = Mathf.PI * arena.Radius * arena.Radius;
-            return Mathf.Clamp01(arenaArea / streamed);
         }
 
         // Refills prefer somewhere off camera so props don't blink into

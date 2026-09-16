@@ -15,6 +15,81 @@ namespace GorillaSurvivors.Core
             return GetOrCreate($"grass_{size}", () => BuildGrass(size));
         }
 
+        // The colosseum floor: raked sand over packed earth, with darker
+        // trodden patches and scattered grit. Warm enough to sit against the
+        // grey stone of the ring without the two greying into each other.
+        public static Texture2D Sand(int size = 512)
+        {
+            return GetOrCreate($"sand_{size}", () => BuildSand(size));
+        }
+
+        static Texture2D BuildSand(int size)
+        {
+            var tex = new Texture2D(size, size, TextureFormat.RGBA32, true)
+            {
+                wrapMode = TextureWrapMode.Repeat,
+                filterMode = FilterMode.Bilinear,
+                anisoLevel = 4,
+            };
+
+            var packed = new Color(0.44f, 0.36f, 0.25f);
+            var midSand = new Color(0.60f, 0.51f, 0.35f);
+            var paleSand = new Color(0.74f, 0.65f, 0.47f);
+            var trodden = new Color(0.34f, 0.27f, 0.19f);
+            var grit = new Color(0.56f, 0.54f, 0.50f);
+
+            var pixels = new Color32[size * size];
+            var rng = new System.Random(776611);
+
+            float o1 = (float)rng.NextDouble() * 100f;
+            float o2 = (float)rng.NextDouble() * 100f;
+            float o3 = (float)rng.NextDouble() * 100f;
+            float o4 = (float)rng.NextDouble() * 100f;
+
+            for (int y = 0; y < size; y++)
+            {
+                for (int x = 0; x < size; x++)
+                {
+                    float u = x / (float)size;
+                    float v = y / (float)size;
+
+                    float broad = TileableNoise(u, v, 3.5f, o1);
+                    float detail = TileableNoise(u, v, 11f, o2);
+                    float speckle = TileableNoise(u, v, 30f, o3);
+                    // Stretched heavily along one axis so it reads as rake
+                    // lines dragged across the floor.
+                    float rake = TileableNoise(u * 0.18f, v * 2.2f, 46f, o4);
+
+                    float shade = broad * 0.44f + detail * 0.26f + speckle * 0.12f + rake * 0.18f;
+
+                    Color c = shade < 0.47f
+                        ? Color.Lerp(packed, midSand, Mathf.InverseLerp(0.26f, 0.47f, shade))
+                        : Color.Lerp(midSand, paleSand, Mathf.InverseLerp(0.47f, 0.74f, shade));
+
+                    // Churned, darker ground where the broad noise dips —
+                    // the places the fight has been over and over.
+                    float wornMask = Mathf.InverseLerp(0.34f, 0.18f, broad);
+                    if (wornMask > 0f) c = Color.Lerp(c, trodden, wornMask * 0.75f);
+
+                    if (speckle > 0.78f && rng.NextDouble() < 0.22)
+                    {
+                        c = Color.Lerp(c, grit, 0.5f);
+                    }
+
+                    float grain = (float)rng.NextDouble() * 0.07f - 0.035f;
+                    c.r = Mathf.Clamp01(c.r + grain);
+                    c.g = Mathf.Clamp01(c.g + grain);
+                    c.b = Mathf.Clamp01(c.b + grain);
+
+                    pixels[y * size + x] = c;
+                }
+            }
+
+            tex.SetPixels32(pixels);
+            tex.Apply(true);
+            return tex;
+        }
+
         static Texture2D GetOrCreate(string key, System.Func<Texture2D> factory)
         {
             if (Cache.TryGetValue(key, out var tex) && tex != null) return tex;

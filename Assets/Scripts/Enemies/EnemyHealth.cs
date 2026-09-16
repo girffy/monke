@@ -133,6 +133,12 @@ namespace GorillaSurvivors.Enemies
             }
         }
 
+        // Removes the enemy outright, ignoring shields and armour. For deaths
+        // the enemy inflicts on itself — a Bomber reaching the player and
+        // going off — where routing through TakeDamage would let a medic's
+        // tether block a detonation that has already happened.
+        public void Kill() => Die();
+
         void Die()
         {
             // A lethal hit and, in the same frame, another source (e.g. a

@@ -40,6 +40,19 @@ namespace GorillaSurvivors.Enemies
             anim.BobHeight = 0.05f;
             anim.LeanDegrees = 8f;
 
+            // Contact/projectile damage is written against the ROUND rather
+            // than difficultyScale, because it is tuned against how much HP
+            // the player is expected to have by then.
+            //
+            // The player gains ~10 levels in round 1 alone (100 kills is a
+            // lot of XP) and roughly +10 max HP per level, so expected HP is
+            // about 200 by the end of round 1 and climbs ~12 a round after
+            // that. The targets are ~15 hits to die from the weak enemies and
+            // ~6 from the heavy ones, which is where these numbers come from:
+            // the old figures were set when the player had ~100 HP and had
+            // quietly become unable to kill anyone.
+            float r = round - 1;
+
             float baseHP, baseXP, baseMoveSpeed;
             float baseContactDamage = 0f, baseProjectileDamage = 0f, baseProjectileInterval = 0f, preferredRange = 0f;
             bool isRanged = false;
@@ -55,7 +68,9 @@ namespace GorillaSurvivors.Enemies
                     baseHP = 7f + 0.7f * difficultyScale;
                     baseXP = 2f;
                     baseMoveSpeed = 3.4f + 0.4f * Mathf.Min(difficultyScale, 4f);
-                    baseContactDamage = 4f + 1f * Mathf.Min(difficultyScale, 3f);
+                    // The lightest touch in the game — but it comes at you
+                    // fast and in numbers, so it still adds up.
+                    baseContactDamage = 10f + 0.7f * r;
                     break;
 
                 case HumanVariant.Brute:
@@ -68,7 +83,9 @@ namespace GorillaSurvivors.Enemies
                     baseHP = 34f + 3.0f * difficultyScale;
                     baseXP = 7f;
                     baseMoveSpeed = 1.1f + 0.2f * Mathf.Min(difficultyScale, 4f);
-                    baseContactDamage = 13f + 3f * Mathf.Min(difficultyScale, 4f);
+                    // The heaviest hitter that walks: about six of these and
+                    // you are dead, so being cornered by one is a real loss.
+                    baseContactDamage = 34f + 2.2f * r;
                     break;
 
                 case HumanVariant.Thrower:
@@ -80,7 +97,7 @@ namespace GorillaSurvivors.Enemies
                     baseMoveSpeed = 1.6f;
                     isRanged = true;
                     preferredRange = 5f;
-                    baseProjectileDamage = 5f + 1f * Mathf.Min(difficultyScale, 4f);
+                    baseProjectileDamage = 12f + 0.9f * r;
                     baseProjectileInterval = Mathf.Max(0.8f, 2f - 0.1f * difficultyScale);
                     break;
 
@@ -94,7 +111,7 @@ namespace GorillaSurvivors.Enemies
                     baseHP = 20f + 1.5f * difficultyScale;
                     baseXP = 5f;
                     baseMoveSpeed = 1.35f + 0.18f * Mathf.Min(difficultyScale, 4f);
-                    baseContactDamage = 8f + 2f * Mathf.Min(difficultyScale, 3f);
+                    baseContactDamage = 22f + 1.5f * r;
                     // 60%, not more: EnemyAI keeps these turned toward the
                     // player, so the front arc is where hits normally land
                     // and a higher figure turns them into damage sponges
@@ -111,9 +128,11 @@ namespace GorillaSurvivors.Enemies
                     baseHP = 6f + 0.5f * difficultyScale;
                     baseXP = 5f;
                     baseMoveSpeed = 2.2f + 0.3f * Mathf.Min(difficultyScale, 4f);
-                    baseContactDamage = 4f;
+                    // Touching one barely hurts — the blast is the whole
+                    // threat, and it hits as hard as a Brute's fist.
+                    baseContactDamage = 8f + 0.5f * r;
                     var bomb = go.AddComponent<ExplodeOnDeath>();
-                    bomb.Damage = 26f + 2.5f * Mathf.Min(difficultyScale, 8f);
+                    bomb.Damage = 40f + 2.6f * r;
                     break;
 
                 case HumanVariant.Medic:
@@ -144,7 +163,9 @@ namespace GorillaSurvivors.Enemies
                     baseHP = 9f + 0.9f * difficultyScale;
                     baseXP = 3f;
                     baseMoveSpeed = 1.8f + 0.35f * Mathf.Min(difficultyScale, 4f);
-                    baseContactDamage = 6f + 2f * Mathf.Min(difficultyScale, 3f);
+                    // The reference "weak enemy": about fifteen of these is
+                    // a death, which is what every other figure is set from.
+                    baseContactDamage = 13f + 0.9f * r;
                     break;
             }
 

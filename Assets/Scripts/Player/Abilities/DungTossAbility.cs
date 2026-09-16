@@ -18,7 +18,11 @@ namespace GorillaSurvivors.Player.Abilities
     {
         public bool Unlocked;
         public float Cooldown = 4.5f;
-        public float BaseDamage = 14f;
+        // Deliberately below the RMB slam's 22. This is the ability that
+        // reaches things you aren't standing next to and leaves a slowing
+        // patch behind; if it also hit harder than the committed melee swing
+        // there was no reason to ever close the distance.
+        public float BaseDamage = 8f;
         public float Range = 11f;
         public float ImpactRadius = 1.4f;
         public float AimAssistAngle = 18f;

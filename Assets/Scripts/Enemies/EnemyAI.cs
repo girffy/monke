@@ -79,6 +79,9 @@ namespace GorillaSurvivors.Enemies
             if (Time.time < _knockbackUntil)
             {
                 _rb.linearVelocity = _knockbackVelocity;
+                // Knockback is the likeliest thing to put an enemy through
+                // the wall, so it has to be clamped too, not just walking.
+                ConfineToArena();
                 return;
             }
 
@@ -131,6 +134,32 @@ namespace GorillaSurvivors.Enemies
             {
                 _model.rotation = Quaternion.LookRotation(dir, Vector3.up);
             }
+
+            ConfineToArena();
+        }
+
+        // Same position clamp the player is held by (PlayerController). The
+        // wall has no colliders, so without this enemies walked straight out
+        // through it — most visibly Throwers and Medics, which back away from
+        // the player and so reverse into the wall on purpose.
+        void ConfineToArena()
+        {
+            var arena = Environment.Arena.Instance;
+            if (arena == null) return;
+
+            Vector3 clamped = arena.ClampInside(_rb.position, 0.5f);
+            if (clamped == _rb.position) return;
+
+            _rb.position = clamped;
+
+            Vector3 outward = clamped - arena.Center;
+            outward.y = 0f;
+            if (outward.sqrMagnitude < 0.0001f) return;
+
+            outward.Normalize();
+            Vector3 v = _rb.linearVelocity;
+            float into = Vector3.Dot(v, outward);
+            if (into > 0f) _rb.linearVelocity = v - outward * into;
         }
 
         void AcquireTarget()

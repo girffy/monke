@@ -15,8 +15,12 @@ namespace GorillaSurvivors.Player
     public class PlayerAttack : MonoBehaviour
     {
         public float BaseDamage = 22f;
-        public float HitRadius = 1.4f;
-        public float ForwardOffset = 1.3f;
+        // A wedge in front of the gorilla rather than a circle floating ahead
+        // of it: the slam used to hit things off to the side and miss things
+        // pressed right up against the chest, which read as the hitbox being
+        // somewhere other than where the arms were.
+        public float Reach = 2.7f;
+        public float ArcDegrees = 110f;
         public float BaseCooldown = 0.4f;
         public const float SlamDuration = 0.5f;
 
@@ -241,10 +245,12 @@ namespace GorillaSurvivors.Player
         void PerformSlamHit(Vector3 aimDirection)
         {
             float damage = BaseDamage * _stats.LevelDamageBonus * _stats.DamageMultiplier;
-            float radius = HitRadius * _stats.LevelAttackRadiusBonus * _stats.AreaMultiplier;
-            Vector3 hitCenter = transform.position + aimDirection * ForwardOffset;
+            float reach = Reach * _stats.LevelAttackRadiusBonus * _stats.AreaMultiplier;
+            // Effects still play out in front of the gorilla; only the hit
+            // test is the wedge.
+            Vector3 hitCenter = transform.position + aimDirection * (reach * 0.5f);
 
-            int count = Physics.OverlapSphereNonAlloc(hitCenter, radius, HitBuffer);
+            int count = MeleeArc.Overlap(transform.position, aimDirection, reach, ArcDegrees, HitBuffer);
             for (int i = 0; i < count; i++)
             {
                 var enemyHealth = HitBuffer[i].GetComponentInParent<EnemyHealth>();
@@ -282,13 +288,13 @@ namespace GorillaSurvivors.Player
             foreach (var projectile in Projectile.Active)
             {
                 if (projectile == null) continue;
-                if (Vector3.Distance(projectile.transform.position, hitCenter) <= radius)
+                if (Vector3.Distance(projectile.transform.position, hitCenter) <= reach * 0.5f)
                 {
                     projectile.Deflect(aimDirection);
                 }
             }
 
-            SpawnSlamEffect(hitCenter, radius);
+            SpawnSlamEffect(hitCenter, reach * 0.5f);
             Sfx.Slam(hitCenter);
         }
 

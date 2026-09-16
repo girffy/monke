@@ -15,8 +15,10 @@ namespace GorillaSurvivors.Environment
     {
         public static Arena Instance { get; private set; }
 
-        // Roughly three screen widths across at the fixed camera height.
-        public float Radius = 30f;
+        // Roughly a screen and a half across at the fixed camera height. The
+        // first pass at twice this left too much empty floor to retreat into,
+        // which is the kiting problem the walls were meant to remove.
+        public float Radius = 15f;
         // Deliberately low. The camera sits behind and above the player, so
         // at the near edge of the arena it looks in from OUTSIDE the ring —
         // a tall wall puts itself between the camera and the gorilla.
@@ -29,8 +31,10 @@ namespace GorillaSurvivors.Environment
             Vector3.forward, Vector3.right, Vector3.back, Vector3.left,
         };
 
-        // Half-width of each gate opening, in degrees around the ring.
-        const float GateHalfAngle = 11f;
+        // Half-width of each gate opening, in degrees around the ring. Wider
+        // than it looks: the ring got half as big, so the same opening in
+        // metres is twice the angle.
+        const float GateHalfAngle = 13f;
 
         void Awake()
         {
@@ -79,17 +83,69 @@ namespace GorillaSurvivors.Environment
                 && viewport.y > -0.05f && viewport.y < 1.05f;
         }
 
+        static readonly Color Stone = new Color(0.60f, 0.57f, 0.50f);
+        static readonly Color StoneDark = new Color(0.47f, 0.44f, 0.40f);
+        static readonly Color StoneLight = new Color(0.72f, 0.69f, 0.61f);
+        static readonly Color Sandstone = new Color(0.69f, 0.60f, 0.44f);
+
+        HideWhenBlockingCamera _occluders;
+
         public void Build()
         {
-            var stone = new Color(0.56f, 0.53f, 0.47f);
-            var stoneDark = new Color(0.44f, 0.42f, 0.38f);
-            var stoneLight = new Color(0.66f, 0.63f, 0.56f);
-            var sand = new Color(0.55f, 0.48f, 0.36f);
+            _occluders = gameObject.AddComponent<HideWhenBlockingCamera>();
 
-            // Blocks around the ring, skipping the gate arcs. Each block is
-            // turned to face the centre so the wall reads as a curve rather
-            // than a polygon.
-            const int segments = 96;
+            BuildFloor();
+            BuildRing();
+
+            for (int g = 0; g < GateDirections.Length; g++)
+            {
+                BuildGate(GateDirections[g]);
+            }
+        }
+
+        // A raked-sand floor laid over the grass. Rendered as a disc rather
+        // than as part of the ground plane so the grass still shows outside
+        // the walls, which is what sells the ring as a built structure
+        // dropped into the landscape.
+        void BuildFloor()
+        {
+            // The apron first and lowest, so it shows only as a dark stone
+            // border around the sand.
+            AddFloorDisc("FloorRim", Radius + 1.1f, 0.22f, 0.03f,
+                MaterialCache.Get(new Color(0.38f, 0.35f, 0.31f)));
+
+            // Deliberately a SOLID slab rather than a paper-thin disc. A
+            // near-zero-thickness cylinder sitting a hair above the ground
+            // plane z-fights with it and self-shadows along its facets,
+            // which showed up as bright radial wedges fanning across the
+            // floor — the arena looked like a broken texture.
+            // Top only 6 cm proud of the grass: any higher and the fighters,
+            // whose feet sit at y=0, visibly sink into the sand.
+            AddFloorDisc("ArenaFloor", Radius, 0.3f, 0.06f,
+                MaterialCache.GetTextured(ProceduralTextures.Sand(), Color.white, new Vector2(Radius / 3f, Radius / 3f)));
+        }
+
+        void AddFloorDisc(string name, float radius, float thickness, float topY, Material material)
+        {
+            var go = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            go.name = name;
+            Destroy(go.GetComponent<Collider>());
+            go.transform.SetParent(transform, false);
+            go.transform.position = Center + Vector3.up * (topY - thickness * 0.5f);
+            go.transform.localScale = new Vector3(radius * 2f, thickness, radius * 2f);
+            var mr = go.GetComponent<MeshRenderer>();
+            mr.sharedMaterial = material;
+            // Receives shadows (props and fighters need to sit on it) but
+            // casts none — a disc lying on the ground has nothing to cast on.
+            mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        }
+
+        // Blocks around the ring, skipping the gate arcs. Each block is
+        // turned to face the centre so the wall reads as a curve rather than
+        // a polygon.
+        void BuildRing()
+        {
+            const int segments = 64;
             for (int i = 0; i < segments; i++)
             {
                 float angle = i * 360f / segments;
@@ -97,29 +153,74 @@ namespace GorillaSurvivors.Environment
 
                 Vector3 dir = Quaternion.Euler(0f, angle, 0f) * Vector3.forward;
                 Vector3 basePos = Center + dir * Radius;
+                var facing = Quaternion.LookRotation(dir, Vector3.up);
 
                 var block = CreateBlock("Wall" + i, basePos + Vector3.up * (WallHeight * 0.5f),
-                    new Vector3(2.4f, WallHeight, 1.4f), i % 2 == 0 ? stone : stoneDark);
-                block.transform.rotation = Quaternion.LookRotation(dir, Vector3.up);
+                    new Vector3(1.7f, WallHeight, 1.4f), i % 2 == 0 ? Stone : StoneDark);
+                block.transform.rotation = facing;
 
                 // Capped rail along the top, slightly proud of the wall.
-                var rail = CreateBlock("Rail" + i, basePos + Vector3.up * (WallHeight + 0.22f),
-                    new Vector3(2.5f, 0.44f, 1.8f), stoneLight);
-                rail.transform.rotation = Quaternion.LookRotation(dir, Vector3.up);
+                var rail = CreateBlock("Rail" + i, basePos + Vector3.up * (WallHeight + 0.20f),
+                    new Vector3(1.8f, 0.40f, 1.8f), StoneLight);
+                rail.transform.rotation = facing;
 
-                // A second tier stepped outward reads as stands around the
-                // arena instead of a bare fence.
-                if (i % 2 == 0)
-                {
-                    var tier = CreateBlock("Tier" + i, basePos + dir * 1.7f + Vector3.up * (WallHeight * 0.5f + 0.35f),
-                        new Vector3(2.4f, WallHeight + 0.7f, 1.7f), i % 4 == 0 ? stoneDark : stone);
-                    tier.transform.rotation = Quaternion.LookRotation(dir, Vector3.up);
-                }
+                BuildStands(i, dir, basePos, facing);
             }
+        }
 
-            for (int g = 0; g < GateDirections.Length; g++)
+        // Tiered stands stepping up and outward behind the wall.
+        //
+        // Their height is driven by how far around the ring the segment is
+        // from the camera. The camera is fixed: it sits south of the player
+        // looking north, so the southern arc is always the near edge and
+        // always between the camera and the fight. Stands there would block
+        // the view, so they taper to nothing across the south and rise to
+        // full height across the north — you look over a low rail in the
+        // foreground at a full amphitheatre on the far side.
+        void BuildStands(int index, Vector3 dir, Vector3 basePos, Quaternion facing)
+        {
+            float northness = Vector3.Dot(dir, Vector3.forward);
+            float tall = Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(-0.15f, 0.55f, northness));
+            if (tall <= 0.02f) return;
+
+            const int tiers = 3;
+            for (int t = 0; t < tiers; t++)
             {
-                BuildGate(GateDirections[g], stone, stoneLight, sand);
+                float outward = 1.5f + t * 1.5f;
+                float height = (WallHeight + 0.8f + t * 1.5f) * tall;
+                if (height < 0.3f) continue;
+
+                var tier = CreateBlock("Tier" + index + "_" + t,
+                    basePos + dir * outward + Vector3.up * (height * 0.5f),
+                    new Vector3(1.8f, height, 1.6f),
+                    (index + t) % 2 == 0 ? Stone : StoneDark);
+                tier.transform.rotation = facing;
+
+                // A crowd watching the fight. Small unlit cubes in a row are
+                // enough at this distance, and they do more for "colosseum"
+                // than any amount of extra stonework.
+                if (tall > 0.35f && index % 2 == 0) BuildCrowdRow(basePos + dir * outward, dir, height, facing);
+            }
+        }
+
+        static readonly Color[] CrowdTones =
+        {
+            new Color(0.78f, 0.30f, 0.26f), new Color(0.30f, 0.38f, 0.66f),
+            new Color(0.82f, 0.72f, 0.40f), new Color(0.34f, 0.56f, 0.36f),
+            new Color(0.60f, 0.40f, 0.62f), new Color(0.85f, 0.82f, 0.76f),
+        };
+
+        void BuildCrowdRow(Vector3 tierPos, Vector3 dir, float tierHeight, Quaternion facing)
+        {
+            Vector3 side = Vector3.Cross(Vector3.up, dir).normalized;
+            for (int s = -1; s <= 1; s++)
+            {
+                var person = CreateBlock("Crowd", tierPos + side * (s * 0.55f) + Vector3.up * (tierHeight + 0.22f),
+                    new Vector3(0.28f, 0.44f, 0.28f), CrowdTones[Random.Range(0, CrowdTones.Length)]);
+                person.transform.rotation = facing;
+                var head = CreateBlock("CrowdHead", tierPos + side * (s * 0.55f) + Vector3.up * (tierHeight + 0.54f),
+                    Vector3.one * 0.2f, new Color(0.72f, 0.56f, 0.42f));
+                head.transform.rotation = facing;
             }
         }
 
@@ -133,7 +234,14 @@ namespace GorillaSurvivors.Environment
             return false;
         }
 
-        void BuildGate(Vector3 dir, Color stone, Color stoneLight, Color sand)
+        // Half-width of the gate opening, and the height its arch springs
+        // from — the arch is a semicircle of that radius on top.
+        const float GateHalfWidth = 2.1f;
+        const float GateSpring = 1.9f;
+        // How far the passage runs outward before it is stopped by darkness.
+        const float TunnelDepth = 4.5f;
+
+        void BuildGate(Vector3 dir)
         {
             Vector3 center = Center + dir * Radius;
             Vector3 side = Vector3.Cross(Vector3.up, dir).normalized;
@@ -141,22 +249,111 @@ namespace GorillaSurvivors.Environment
 
             for (int s = -1; s <= 1; s += 2)
             {
-                var pillar = CreateBlock("GatePillar", center + side * (s * 3.1f) + Vector3.up * (WallHeight * 0.7f),
-                    new Vector3(1.5f, WallHeight * 1.4f, 2.0f), stone);
+                // Directly under the arch's springing (see BuildArch), so the
+                // arch lands on the pillars instead of floating past them.
+                Vector3 jamb = center + side * (s * (GateHalfWidth + 0.28f));
+
+                var pillar = CreateBlock("GatePillar", jamb + Vector3.up * (GateSpring * 0.5f),
+                    new Vector3(1.1f, GateSpring, 2.1f), Sandstone);
                 pillar.transform.rotation = rotation;
 
-                var cap = CreateBlock("GateCap", center + side * (s * 3.1f) + Vector3.up * (WallHeight * 1.4f + 0.18f),
-                    new Vector3(1.9f, 0.36f, 2.4f), stoneLight);
-                cap.transform.rotation = rotation;
+                // A hanging banner on the inner face of each pillar. Cloth is
+                // the cheapest way to break up a wall of grey blocks.
+                var banner = CreateBlock("GateBanner",
+                    center + side * (s * (GateHalfWidth - 0.1f)) - dir * 0.4f + Vector3.up * (GateSpring * 0.62f),
+                    new Vector3(0.42f, GateSpring * 0.8f, 0.08f), new Color(0.62f, 0.16f, 0.15f));
+                banner.transform.rotation = rotation;
             }
 
-            // No lintel across the opening: a beam there sits at exactly
-            // camera height whenever the player stands in a gate.
+            BuildArch(center, dir, side, rotation);
+            BuildTunnel(center, dir, side, rotation);
 
-            // Sand threshold so the opening reads as a way in, not a hole.
-            var threshold = CreateBlock("GateFloor", center - dir * 0.6f + Vector3.up * 0.03f,
-                new Vector3(5.6f, 0.06f, 2.6f), sand);
+            // A dark threshold so the opening reads as a way in, not a hole.
+            // Sits proud of the sand slab (top at 0.06) so it isn't buried.
+            var threshold = CreateBlock("GateFloor", center - dir * 0.4f + Vector3.up * 0.06f,
+                new Vector3(GateHalfWidth * 2f, 0.1f, 2.2f), new Color(0.33f, 0.29f, 0.24f));
             threshold.transform.rotation = rotation;
+        }
+
+        // A semicircular arch built out of voussoirs — wedge blocks laid
+        // radially around the opening — with a keystone at the crown.
+        //
+        // An earlier pass refused to put anything across the gate at all,
+        // because a beam there sits at exactly camera height whenever the
+        // player stands in the near gate. The arch is kept and handed to
+        // HideWhenBlockingCamera instead, which culls it for the moment it
+        // is actually in front of the gorilla.
+        void BuildArch(Vector3 center, Vector3 dir, Vector3 side, Quaternion rotation)
+        {
+            const int voussoirs = 13;
+            for (int k = 0; k <= voussoirs; k++)
+            {
+                float theta = Mathf.PI * k / voussoirs;
+                Vector3 radial = side * Mathf.Cos(theta) + Vector3.up * Mathf.Sin(theta);
+                Vector3 pos = center + Vector3.up * GateSpring + radial * (GateHalfWidth + 0.28f);
+
+                bool keystone = k == voussoirs / 2;
+                var block = CreateBlock(keystone ? "GateKeystone" : "GateVoussoir", pos,
+                    new Vector3(0.62f, keystone ? 0.80f : 0.62f, 2.1f),
+                    keystone ? StoneLight : (k % 2 == 0 ? Sandstone : Stone));
+                // Long axis radial, face pointing out of the arena.
+                block.transform.rotation = Quaternion.LookRotation(dir, radial);
+                _occluders?.Register(block);
+            }
+        }
+
+        // The passage the enemies come out of. Side walls and a roof run
+        // outward from the opening and are capped by an unlit near-black
+        // face, so through the arch you see darkness rather than the grass
+        // and sky behind the arena.
+        void BuildTunnel(Vector3 center, Vector3 dir, Vector3 side, Quaternion rotation)
+        {
+            float height = GateSpring + GateHalfWidth + 0.5f;
+
+            // Every surface inside the passage is UNLIT and nearly black.
+            // Lit materials this dark still catch the key light — the sun
+            // comes in over the roof at a shallow enough angle to floodlight
+            // the whole tunnel, and the arch framed a brightly lit corridor
+            // instead of somewhere deeper in.
+            for (int s = -1; s <= 1; s += 2)
+            {
+                var wall = CreateUnlitBlock("TunnelWall",
+                    center + dir * (TunnelDepth * 0.5f) + side * (s * (GateHalfWidth + 0.45f)) + Vector3.up * (height * 0.5f),
+                    new Vector3(0.9f, height, TunnelDepth), new Color(0.085f, 0.080f, 0.095f));
+                wall.transform.rotation = rotation;
+            }
+
+            // The roof is the one lit piece — it is seen from outside, as the
+            // top of the structure, not from within the passage.
+            var roof = CreateBlock("TunnelRoof",
+                center + dir * (TunnelDepth * 0.5f + 0.2f) + Vector3.up * (height + 0.35f),
+                new Vector3(GateHalfWidth * 2f + 1.8f, 0.7f, TunnelDepth), new Color(0.34f, 0.32f, 0.29f));
+            roof.transform.rotation = rotation;
+            _occluders?.Register(roof);
+
+            // The darkness the passage ends in.
+            var back = CreateUnlitBlock("TunnelDark",
+                center + dir * TunnelDepth + Vector3.up * (height * 0.5f),
+                new Vector3(GateHalfWidth * 2f + 1.2f, height, 0.4f), new Color(0.025f, 0.023f, 0.032f));
+            back.transform.rotation = rotation;
+
+            // A floor for the passage, shading from the lit threshold into
+            // the dark so enemies walk OUT of shadow rather than appearing.
+            var floor = CreateUnlitBlock("TunnelFloor",
+                center + dir * (TunnelDepth * 0.5f) + Vector3.up * 0.06f,
+                new Vector3(GateHalfWidth * 2f, 0.1f, TunnelDepth), new Color(0.10f, 0.09f, 0.08f));
+            floor.transform.rotation = rotation;
+        }
+
+        // For the insides of the gate passages, which must stay black under
+        // any lighting.
+        GameObject CreateUnlitBlock(string name, Vector3 position, Vector3 size, Color color)
+        {
+            var go = CreateBlock(name, position, size, color);
+            var mr = go.GetComponent<MeshRenderer>();
+            mr.sharedMaterial = MaterialCache.GetUnlit(color);
+            mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            return go;
         }
 
         GameObject CreateBlock(string name, Vector3 position, Vector3 size, Color color)

@@ -17,8 +17,10 @@ namespace GorillaSurvivors.Player
     public class QuickSwipeAttack : MonoBehaviour
     {
         public float BaseDamage = 10f;
-        public float HitRadius = 0.9f;
-        public float ForwardOffset = 1.1f;
+        // A wedge in front of the gorilla (see MeleeArc). ArcDegrees is what
+        // the tech tree's "wider arc" upgrades widen.
+        public float Reach = 2.0f;
+        public float ArcDegrees = 100f;
         public const float SwipeDuration = 0.22f;
 
         PlayerStats _stats;
@@ -57,7 +59,16 @@ namespace GorillaSurvivors.Player
             if (Attack != null && Attack.IsSlamming) return;
             if (!WasSwipePressed()) return;
 
-            StartCoroutine(SwipeSequence());
+            // The direction is fixed AT THE CLICK, not read again when the
+            // hit lands two frames later. Reading it late meant a fast mouse
+            // flick during the wind-up silently redirected a swing you had
+            // already committed to, so the attack went somewhere you hadn't
+            // aimed it — the swing you see is now always the swing you get.
+            Vector3 aim = _controller.GetAimDirection();
+            aim.y = 0f;
+            aim.Normalize();
+
+            StartCoroutine(SwipeSequence(aim));
         }
 
         // Left mouse / X / left trigger. buttonNorth is deliberately NOT used
@@ -73,10 +84,19 @@ namespace GorillaSurvivors.Player
             return false;
         }
 
-        IEnumerator SwipeSequence()
+        IEnumerator SwipeSequence(Vector3 aim)
         {
             _isSwiping = true;
             if (_animator != null) _animator.SuppressArms = true;
+
+            // The model is held to the committed direction for the duration
+            // too, so the animation matches where the damage goes. Movement
+            // is deliberately NOT locked — the fast poke stays usable while
+            // repositioning; it's only the facing that commits.
+            var model = transform.Find("GorillaModel");
+            var lockedRotation = Quaternion.LookRotation(aim, Vector3.up);
+            _controller.FacingLocked = true;
+            if (model != null) model.rotation = lockedRotation;
 
             const float outT = SwipeDuration * 0.4f;
             const float hitT = SwipeDuration * 0.15f;
@@ -85,23 +105,25 @@ namespace GorillaSurvivors.Player
             // The body counter-rotates into the swing and unwinds out of it,
             // so a fast poke still reads as a whole-body motion rather than
             // one arm flapping.
-            yield return AnimateArm(RestDir, SwipeStartDir, outT, 0f, -14f);
-            yield return AnimateArm(SwipeStartDir, SwipeEndDir, hitT, -14f, 16f);
+            yield return AnimateArm(RestDir, SwipeStartDir, outT, model, lockedRotation, 0f, -14f);
+            yield return AnimateArm(SwipeStartDir, SwipeEndDir, hitT, model, lockedRotation, -14f, 16f);
 
-            PerformSwipeHit();
+            PerformSwipeHit(aim);
             CameraShake.Shake(0.08f, 0.12f);
 
-            yield return AnimateArm(SwipeEndDir, RestDir, backT, 16f, 0f);
+            yield return AnimateArm(SwipeEndDir, RestDir, backT, model, lockedRotation, 16f, 0f);
 
             if (_animator != null)
             {
                 _animator.SuppressArms = false;
                 _animator.BodyYaw = 0f;
             }
+            _controller.FacingLocked = false;
             _isSwiping = false;
         }
 
-        IEnumerator AnimateArm(Vector3 fromDir, Vector3 toDir, float duration, float fromYaw = 0f, float toYaw = 0f)
+        IEnumerator AnimateArm(Vector3 fromDir, Vector3 toDir, float duration, Transform model, Quaternion lockedRotation,
+            float fromYaw = 0f, float toYaw = 0f)
         {
             if (duration <= 0f) yield break;
 
@@ -112,6 +134,7 @@ namespace GorillaSurvivors.Player
                 float p = Mathf.Clamp01(t / duration);
                 SetArmDirection(Vector3.Slerp(fromDir, toDir, p));
                 if (_animator != null) _animator.BodyYaw = Mathf.Lerp(fromYaw, toYaw, p);
+                if (model != null) model.rotation = lockedRotation;
                 yield return null;
             }
             SetArmDirection(toDir);
@@ -123,17 +146,13 @@ namespace GorillaSurvivors.Player
             _armR.localRotation = Quaternion.FromToRotation(Vector3.down, localDirection);
         }
 
-        void PerformSwipeHit()
+        void PerformSwipeHit(Vector3 aimDirection)
         {
-            Vector3 aimDirection = _controller.GetAimDirection();
-            aimDirection.y = 0f;
-            aimDirection.Normalize();
-
             float damage = BaseDamage * _stats.LevelDamageBonus * _stats.DamageMultiplier;
-            float radius = HitRadius * _stats.LevelAttackRadiusBonus * _stats.AreaMultiplier;
-            Vector3 hitCenter = transform.position + aimDirection * ForwardOffset;
+            float reach = Reach * _stats.LevelAttackRadiusBonus * _stats.AreaMultiplier;
+            Vector3 hitCenter = transform.position + aimDirection * (reach * 0.5f);
 
-            int count = Physics.OverlapSphereNonAlloc(hitCenter, radius, HitBuffer);
+            int count = MeleeArc.Overlap(transform.position, aimDirection, reach, ArcDegrees, HitBuffer);
             for (int i = 0; i < count; i++)
             {
                 var enemyHealth = HitBuffer[i].GetComponentInParent<EnemyHealth>();
@@ -164,13 +183,13 @@ namespace GorillaSurvivors.Player
             foreach (var projectile in Projectile.Active)
             {
                 if (projectile == null) continue;
-                if (Vector3.Distance(projectile.transform.position, hitCenter) <= radius)
+                if (Vector3.Distance(projectile.transform.position, hitCenter) <= reach * 0.5f)
                 {
                     projectile.Deflect(aimDirection);
                 }
             }
 
-            SpawnSwipeEffect(hitCenter, radius);
+            SpawnSwipeEffect(hitCenter, reach * 0.5f);
             Sfx.Swipe(hitCenter);
         }
 

@@ -63,6 +63,12 @@ namespace GorillaSurvivors.Player.Abilities
             return proj;
         }
 
+        // How close to a body the clod passes before it bursts on them.
+        const float InterceptRadius = 0.65f;
+        // Skipped for the first stretch of the flight so the clod never
+        // detonates on something already pressed against the gorilla.
+        const float InterceptStart = 0.12f;
+
         IEnumerator Fly()
         {
             float t = 0f;
@@ -76,10 +82,41 @@ namespace GorillaSurvivors.Player.Abilities
                 pos.y += _arcHeight * 4f * p * (1f - p);
                 transform.position = pos;
                 transform.Rotate(520f * Time.deltaTime, 340f * Time.deltaTime, 0f, Space.Self);
+
+                // The throw is stopped by the first body in its path. It used
+                // to fly over everything and land exactly on whatever it was
+                // aimed at, which made it a sniper rifle for picking the
+                // medics and throwers out of the back of a crowd from safety.
+                // Now the crowd is in the way, so reaching the back line
+                // means making a lane first.
+                if (p > InterceptStart)
+                {
+                    Vector3 groundPos = new Vector3(pos.x, _target.y, pos.z);
+                    if (FindIntercept(groundPos) != null)
+                    {
+                        _target = groundPos;
+                        break;
+                    }
+                }
+
                 yield return null;
             }
 
             Splat();
+        }
+
+        // Horizontal check, not a 3D one: the clod is metres up mid-arc, so a
+        // sphere test at its actual height would sail cleanly over everybody
+        // and the interception would never fire.
+        EnemyHealth FindIntercept(Vector3 groundPos)
+        {
+            int count = Physics.OverlapSphereNonAlloc(groundPos, InterceptRadius, HitBuffer);
+            for (int i = 0; i < count; i++)
+            {
+                var enemy = HitBuffer[i].GetComponentInParent<EnemyHealth>();
+                if (enemy != null) return enemy;
+            }
+            return null;
         }
 
         void Splat()

@@ -91,7 +91,11 @@ namespace GorillaSurvivors.Enemies
         {
             Vector3 playerPos = PlayerController.Instance.transform.position;
 
-            float difficultyScale = (CurrentRound - 1) * 1.4f;
+            // Drives HP/speed growth. Raised from 1.4: the player's damage
+            // compounds fast (levels, round rewards and now a tech tree all
+            // feed it), so a shallower enemy curve meant every round after
+            // the third was easier than the one before it.
+            float difficultyScale = (CurrentRound - 1) * 2.4f;
             var type = ChooseEnemyType(CurrentRound);
 
             EnemyFactory.Create(type, ChooseSpawnPosition(playerPos), difficultyScale, CurrentRound);
@@ -99,15 +103,21 @@ namespace GorillaSurvivors.Enemies
             _aliveThisRound++;
         }
 
-        // Enemies pour in through a gate when the player can see one, which
-        // is what makes the arena read as a colosseum rather than enemies
-        // materialising out of thin air. When no gate is in view, they spawn
-        // on a ring around the player exactly as before — keeping the
-        // pacing and swarm pressure the same wherever the player stands.
+        // A minority of each wave walks in through a gate the player can see,
+        // which is what makes the arena read as a colosseum rather than
+        // enemies materialising out of thin air. The rest spawn on a ring
+        // around the player exactly as before.
+        //
+        // Deliberately a minority: when EVERY enemy came from the visible
+        // gate, standing in a gate mouth and swinging was the whole game,
+        // because the entire round filed into the same two metres. Most of
+        // the wave still arriving behind you is what stops camping working.
+        const float GateSpawnChance = 0.3f;
+
         Vector3 ChooseSpawnPosition(Vector3 playerPos)
         {
             var arena = Arena.Instance;
-            if (arena != null)
+            if (arena != null && Random.value < GateSpawnChance)
             {
                 var cam = Camera.main;
                 _visibleGates.Clear();
@@ -128,9 +138,21 @@ namespace GorillaSurvivors.Enemies
                 }
             }
 
-            Vector2 offset2D = Random.insideUnitCircle.normalized * SpawnRadius;
-            var ringPos = playerPos + new Vector3(offset2D.x, 0f, offset2D.y);
-            return arena != null ? arena.ClampInside(ringPos, 1.2f) : ringPos;
+            // Ring around the player. In an arena, prefer an angle that
+            // actually lands inside rather than clamping a bad one — clamping
+            // pins every rejected angle onto the same stretch of wall, which
+            // reads as enemies spawning out of the stonework in a line.
+            for (int attempt = 0; attempt < 8; attempt++)
+            {
+                Vector2 offset2D = Random.insideUnitCircle.normalized * SpawnRadius;
+                var ringPos = playerPos + new Vector3(offset2D.x, 0f, offset2D.y);
+                if (arena == null) return ringPos;
+                if (arena.IsInside(ringPos, 1.2f)) return ringPos;
+            }
+
+            Vector2 fallback2D = Random.insideUnitCircle.normalized * SpawnRadius;
+            var fallbackPos = playerPos + new Vector3(fallback2D.x, 0f, fallback2D.y);
+            return arena != null ? arena.ClampInside(fallbackPos, 1.2f) : fallbackPos;
         }
 
         readonly System.Collections.Generic.List<int> _visibleGates = new System.Collections.Generic.List<int>();

@@ -34,6 +34,11 @@ namespace GorillaSurvivors.Player
         // assignment is skipped while this is true.
         public bool IsExternallyControlled { get; set; }
 
+        // Set by an attack that has committed to a direction (the LMB swipe)
+        // so aim tracking can't spin the model away from the swing that is
+        // already playing. Movement is unaffected — this is facing only.
+        public bool FacingLocked { get; set; }
+
         Rigidbody _rb;
         Collider _collider;
         PlayerHealth _health;
@@ -146,7 +151,7 @@ namespace GorillaSurvivors.Player
                 if (_collider != null) _collider.enabled = true;
             }
 
-            if (_model != null && !MovementLocked)
+            if (_model != null && !MovementLocked && !FacingLocked)
             {
                 // Twin-stick style: the gorilla always faces where you're
                 // aiming (mouse / right stick), independent of movement, so

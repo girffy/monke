@@ -48,23 +48,33 @@ namespace GorillaSurvivors.Core
             // So the body is built as a wedge: narrow rump at the back, deep
             // barrel chest forward, and a shoulder hump that is the highest
             // point of the animal — higher than the head.
-            AddPart(root.transform, "Rump", PrimitiveType.Sphere, new Vector3(0f, 0.52f, -0.34f), new Vector3(0.82f, 0.64f, 0.74f), fur);
-            AddPart(root.transform, "Torso", PrimitiveType.Sphere, new Vector3(0f, 0.82f, -0.06f), new Vector3(1.04f, 0.92f, 0.92f), furMid);
-            AddPart(root.transform, "Chest", PrimitiveType.Sphere, new Vector3(0f, 1.02f, 0.24f), new Vector3(1.24f, 1.00f, 0.98f), furMid);
-            AddPart(root.transform, "Saddle", PrimitiveType.Sphere, new Vector3(0f, 1.16f, -0.18f), new Vector3(0.94f, 0.46f, 0.74f), silver);
+            // The back is an ARCH, not a ramp. A gorilla's spine bows upward
+            // between small, low-slung hips and the shoulder hump, so the
+            // mid-back stands proud of a straight hip-to-shoulder line. The
+            // pieces below are deliberately placed above that line — Loin and
+            // Torso are what make the curve read from the fixed side-on
+            // camera; without them the animal is a wedge, which is the
+            // hunched-human silhouette again.
+            AddPart(root.transform, "Rump", PrimitiveType.Sphere, new Vector3(0f, 0.46f, -0.40f), new Vector3(0.76f, 0.58f, 0.70f), fur);
+            AddPart(root.transform, "Loin", PrimitiveType.Sphere, new Vector3(0f, 0.76f, -0.32f), new Vector3(0.84f, 0.66f, 0.64f), fur);
+            AddPart(root.transform, "Torso", PrimitiveType.Sphere, new Vector3(0f, 0.94f, -0.08f), new Vector3(1.04f, 0.94f, 0.90f), furMid);
+            AddPart(root.transform, "Chest", PrimitiveType.Sphere, new Vector3(0f, 1.04f, 0.24f), new Vector3(1.24f, 1.00f, 0.98f), furMid);
+            // The saddle follows the arch, so it is long and curved along the
+            // back rather than a patch sitting flat on top of it.
+            AddPart(root.transform, "Saddle", PrimitiveType.Sphere, new Vector3(0f, 1.22f, -0.22f), new Vector3(0.90f, 0.50f, 0.88f), silver);
             // The hump over the shoulders — the peak of the silhouette.
-            AddPart(root.transform, "Hump", PrimitiveType.Sphere, new Vector3(0f, 1.34f, 0.06f), new Vector3(1.02f, 0.54f, 0.70f), furLight);
-            AddPart(root.transform, "ShoulderL", PrimitiveType.Sphere, new Vector3(-0.60f, 1.18f, 0.24f), Vector3.one * 0.56f, furLight);
-            AddPart(root.transform, "ShoulderR", PrimitiveType.Sphere, new Vector3(0.60f, 1.18f, 0.24f), Vector3.one * 0.56f, furLight);
+            AddPart(root.transform, "Hump", PrimitiveType.Sphere, new Vector3(0f, 1.38f, 0.06f), new Vector3(1.02f, 0.54f, 0.70f), furLight);
+            AddPart(root.transform, "ShoulderL", PrimitiveType.Sphere, new Vector3(-0.60f, 1.20f, 0.24f), Vector3.one * 0.56f, furLight);
+            AddPart(root.transform, "ShoulderR", PrimitiveType.Sphere, new Vector3(0.60f, 1.20f, 0.24f), Vector3.one * 0.56f, furLight);
             AddPart(root.transform, "PecL", PrimitiveType.Sphere, new Vector3(-0.27f, 0.94f, 0.55f), new Vector3(0.44f, 0.40f, 0.28f), hide);
             AddPart(root.transform, "PecR", PrimitiveType.Sphere, new Vector3(0.27f, 0.94f, 0.55f), new Vector3(0.44f, 0.40f, 0.28f), hide);
             // Barely any neck: the head sits straight off the chest, slung
             // forward and low between the shoulders.
-            AddPart(root.transform, "Neck", PrimitiveType.Sphere, new Vector3(0f, 1.28f, 0.34f), new Vector3(0.44f, 0.32f, 0.36f), fur);
+            AddPart(root.transform, "Neck", PrimitiveType.Sphere, new Vector3(0f, 1.30f, 0.34f), new Vector3(0.44f, 0.32f, 0.36f), fur);
 
             // Facial features parent to Head so the chest-beat head pulse
             // scales the whole face, not a bare skull sphere.
-            var head = AddPart(root.transform, "Head", PrimitiveType.Sphere, new Vector3(0f, 1.36f, 0.54f), new Vector3(0.62f, 0.60f, 0.58f), furMid);
+            var head = AddPart(root.transform, "Head", PrimitiveType.Sphere, new Vector3(0f, 1.38f, 0.54f), new Vector3(0.62f, 0.60f, 0.58f), furMid);
             AddPart(head.transform, "Crest", PrimitiveType.Sphere, new Vector3(0f, 0.34f, -0.08f), new Vector3(0.60f, 0.52f, 0.72f), furLight);
             AddPart(head.transform, "Brow", PrimitiveType.Sphere, new Vector3(0f, 0.16f, 0.40f), new Vector3(0.90f, 0.26f, 0.42f), hide);
             AddPart(head.transform, "Muzzle", PrimitiveType.Sphere, new Vector3(0f, -0.20f, 0.44f), new Vector3(0.62f, 0.46f, 0.52f), muzzle);
@@ -82,11 +92,12 @@ namespace GorillaSurvivors.Core
             // the chest and plant ahead of the body rather than beside it.
             // Forearms are thicker than the upper arms — the heavy-wristed
             // taper is a big part of reading as an ape.
-            AddLimb(root.transform, "ArmL", new Vector3(-0.64f, 1.20f, 0.26f), 0.18f, 0.44f, 0.19f, 0.40f, 0.21f, furMid, furLight, hide);
-            AddLimb(root.transform, "ArmR", new Vector3(0.64f, 1.20f, 0.26f), 0.18f, 0.44f, 0.19f, 0.40f, 0.21f, furMid, furLight, hide);
-            // Short, stocky legs tucked well back under the small hips.
-            AddLimb(root.transform, "LegL", new Vector3(-0.30f, 0.54f, -0.22f), 0.19f, 0.24f, 0.17f, 0.20f, 0.18f, fur, fur, hide);
-            AddLimb(root.transform, "LegR", new Vector3(0.30f, 0.54f, -0.22f), 0.19f, 0.24f, 0.17f, 0.20f, 0.18f, fur, fur, hide);
+            AddLimb(root.transform, "ArmL", new Vector3(-0.64f, 1.22f, 0.26f), 0.18f, 0.44f, 0.19f, 0.40f, 0.21f, furMid, furLight, hide);
+            AddLimb(root.transform, "ArmR", new Vector3(0.64f, 1.22f, 0.26f), 0.18f, 0.44f, 0.19f, 0.40f, 0.21f, furMid, furLight, hide);
+            // Short, stocky legs tucked well back under the small hips, which
+            // the arch has dropped and pushed further behind the ribcage.
+            AddLimb(root.transform, "LegL", new Vector3(-0.29f, 0.50f, -0.28f), 0.19f, 0.24f, 0.17f, 0.20f, 0.18f, fur, fur, hide);
+            AddLimb(root.transform, "LegR", new Vector3(0.29f, 0.50f, -0.28f), 0.19f, 0.24f, 0.17f, 0.20f, 0.18f, fur, fur, hide);
 
             return root;
         }
@@ -764,6 +775,34 @@ namespace GorillaSurvivors.Core
         // ---------------------------------------------------------------
         // VFX
         // ---------------------------------------------------------------
+
+        // A live bomb left behind by a killed Bomber. Deliberately a cartoon
+        // black sphere with a lit fuse: the player needs to read "there is a
+        // bomb there" from across the arena, and the shape does that faster
+        // than the warning circle under it.
+        public static GameObject Bomb()
+        {
+            var root = new GameObject("Bomb");
+
+            var body = AddPart(root.transform, "Body", PrimitiveType.Sphere, new Vector3(0f, 0.34f, 0f),
+                Vector3.one * 0.62f, new Color(0.12f, 0.12f, 0.14f));
+            AddPart(body.transform, "Sheen", PrimitiveType.Sphere, new Vector3(-0.22f, 0.24f, -0.22f),
+                Vector3.one * 0.26f, new Color(0.34f, 0.34f, 0.38f));
+            AddPart(root.transform, "Collar", PrimitiveType.Cylinder, new Vector3(0f, 0.62f, 0f),
+                new Vector3(0.20f, 0.06f, 0.20f), new Color(0.44f, 0.36f, 0.20f));
+
+            var fuse = AddPart(root.transform, "Fuse", PrimitiveType.Cylinder, new Vector3(0.07f, 0.76f, 0.03f),
+                new Vector3(0.06f, 0.13f, 0.06f), new Color(0.52f, 0.44f, 0.30f));
+            fuse.transform.localRotation = Quaternion.Euler(0f, 0f, -22f);
+
+            var spark = CreateBarePrimitive(PrimitiveType.Sphere, "Spark", root.transform);
+            spark.transform.localPosition = new Vector3(0.13f, 0.90f, 0.03f);
+            spark.transform.localScale = Vector3.one * 0.16f;
+            spark.GetComponent<MeshRenderer>().sharedMaterial = MaterialCache.GetGlowing(new Color(1f, 0.78f, 0.25f), 2.4f);
+
+            DisableShadowCasting(root);
+            return root;
+        }
 
         // Flat disc for swipe/shockwave VFX — unlit so it stays bright
         // regardless of where the light is.
