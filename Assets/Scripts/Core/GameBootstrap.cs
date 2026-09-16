@@ -89,6 +89,11 @@ namespace GorillaSurvivors.Core
 
             var model = Blocky3DArt.Gorilla();
             model.transform.SetParent(go.transform, false);
+            // Set BEFORE CharacterAnimator is added: the animator snapshots
+            // the model's local position in Awake as the pose it animates
+            // around, so lifting it afterwards would be undone on the first
+            // frame.
+            model.transform.localPosition = new Vector3(0f, Blocky3DArt.GorillaGroundLift, 0f);
 
             go.AddComponent<Rigidbody>();
 

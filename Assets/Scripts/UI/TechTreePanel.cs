@@ -251,8 +251,16 @@ namespace GorillaSurvivors.UI
 
                 if (!unlocked)
                 {
+                    // A locked node still shows what it DOES, not just what
+                    // it needs — the whole point of seeing the tree early is
+                    // planning a route through it, which you can't do if the
+                    // deep nodes are blank until you're already standing on
+                    // them. The prerequisite goes on its own dimmer line.
                     var previous = TechTree.Find(view.Node.Requires);
-                    view.Label.text = $"<color=#5a5a5a><b>{view.Node.Title}</b>\n\n<size=11>Needs {previous?.Title}</size></color>";
+                    view.Label.text =
+                        $"<color=#6e6e6e><b>{view.Node.Title}</b>{rankTag}\n"
+                        + $"<size=11>{view.Node.Description}</size>\n"
+                        + $"<size=10><color=#4f4f4f>needs {previous?.Title}</color></size></color>";
                 }
                 else
                 {

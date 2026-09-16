@@ -111,7 +111,7 @@ namespace GorillaSurvivors.Environment
         {
             // The apron first and lowest, so it shows only as a dark stone
             // border around the sand.
-            AddFloorDisc("FloorRim", Radius + 1.1f, 0.22f, 0.03f,
+            AddFloorDisc("FloorRim", Radius + 1.1f, 0.22f, -0.015f,
                 MaterialCache.Get(new Color(0.38f, 0.35f, 0.31f)));
 
             // Deliberately a SOLID slab rather than a paper-thin disc. A
@@ -119,9 +119,14 @@ namespace GorillaSurvivors.Environment
             // plane z-fights with it and self-shadows along its facets,
             // which showed up as bright radial wedges fanning across the
             // floor — the arena looked like a broken texture.
-            // Top only 6 cm proud of the grass: any higher and the fighters,
-            // whose feet sit at y=0, visibly sink into the sand.
-            AddFloorDisc("ArenaFloor", Radius, 0.3f, 0.06f,
+            //
+            // The top sits at EXACTLY y=0, which is where the fighters' feet
+            // are and below every ground effect in the game (swipe and slam
+            // discs at 0.05, dung patches at 0.04, the bomb warning ring at
+            // 0.05). Raising it clear of the grass instead buried all of
+            // them and left everyone standing shin-deep in sand; the grass
+            // plane is dropped slightly to make room (Blocky3DArt.GroundY).
+            AddFloorDisc("ArenaFloor", Radius, 0.3f, 0f,
                 MaterialCache.GetTextured(ProceduralTextures.Sand(), Color.white, new Vector2(Radius / 3f, Radius / 3f)));
         }
 
@@ -132,7 +137,13 @@ namespace GorillaSurvivors.Environment
             Destroy(go.GetComponent<Collider>());
             go.transform.SetParent(transform, false);
             go.transform.position = Center + Vector3.up * (topY - thickness * 0.5f);
-            go.transform.localScale = new Vector3(radius * 2f, thickness, radius * 2f);
+            // Unity's cylinder mesh is TWO units tall, so the vertical scale
+            // is half the thickness we want. Passing the thickness straight
+            // through put the slab's surface 15cm above where the maths said
+            // it was, which buried every ground effect (swipe discs, dung
+            // patches, bomb warning rings all live between 0.04 and 0.07)
+            // and left the fighters standing shin-deep in sand.
+            go.transform.localScale = new Vector3(radius * 2f, thickness * 0.5f, radius * 2f);
             var mr = go.GetComponent<MeshRenderer>();
             mr.sharedMaterial = material;
             // Receives shadows (props and fighters need to sit on it) but
@@ -269,8 +280,9 @@ namespace GorillaSurvivors.Environment
             BuildTunnel(center, dir, side, rotation);
 
             // A dark threshold so the opening reads as a way in, not a hole.
-            // Sits proud of the sand slab (top at 0.06) so it isn't buried.
-            var threshold = CreateBlock("GateFloor", center - dir * 0.4f + Vector3.up * 0.06f,
+            // Just proud of the sand slab (top at 0) but still under every
+            // ground effect, the lowest of which is at 0.04.
+            var threshold = CreateBlock("GateFloor", center - dir * 0.4f + Vector3.up * -0.035f,
                 new Vector3(GateHalfWidth * 2f, 0.1f, 2.2f), new Color(0.33f, 0.29f, 0.24f));
             threshold.transform.rotation = rotation;
         }
@@ -340,7 +352,7 @@ namespace GorillaSurvivors.Environment
             // A floor for the passage, shading from the lit threshold into
             // the dark so enemies walk OUT of shadow rather than appearing.
             var floor = CreateUnlitBlock("TunnelFloor",
-                center + dir * (TunnelDepth * 0.5f) + Vector3.up * 0.06f,
+                center + dir * (TunnelDepth * 0.5f) + Vector3.up * -0.04f,
                 new Vector3(GateHalfWidth * 2f, 0.1f, TunnelDepth), new Color(0.10f, 0.09f, 0.08f));
             floor.transform.rotation = rotation;
         }

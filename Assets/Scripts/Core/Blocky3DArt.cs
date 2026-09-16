@@ -21,6 +21,18 @@ namespace GorillaSurvivors.Core
         // Player
         // ---------------------------------------------------------------
 
+        // How far the gorilla model has to be lifted to stand ON the ground
+        // rather than in it. The build below hangs its limbs well below the
+        // model origin — knuckles about 0.30 down, feet about 0.23 — and the
+        // knuckle-walk crouch drops it another 0.16 on top, so placed at y=0
+        // the animal is buried to the shins. Enemies don't need this; their
+        // feet already land at the origin.
+        //
+        // Split the difference between knuckles and feet: the limb ends are
+        // spheres, so a couple of centimetres either way disappears into the
+        // curve.
+        public const float GorillaGroundLift = 0.27f;
+
         public static GameObject Gorilla()
         {
             var root = new GameObject("GorillaModel");
@@ -454,12 +466,20 @@ namespace GorillaSurvivors.Core
         // Environment
         // ---------------------------------------------------------------
 
+        // The grass sits a few centimetres BELOW y=0, which is where
+        // everything else in the game lives: feet, prop bases, and the
+        // arena's sand slab. That gap is what lets the sand's top sit at
+        // exactly 0 without z-fighting against the grass underneath it.
+        // Small enough that props standing at y=0 on the grass outside the
+        // arena don't read as floating.
+        public const float GroundY = -0.04f;
+
         public static GameObject Ground(float size = 220f)
         {
             var plane = GameObject.CreatePrimitive(PrimitiveType.Plane);
             plane.name = "Ground";
             Object.Destroy(plane.GetComponent<Collider>());
-            plane.transform.position = Vector3.zero;
+            plane.transform.position = new Vector3(0f, GroundY, 0f);
             plane.transform.localScale = Vector3.one * (size / 10f); // default Plane is 10x10 units
 
             // One tile every ~4 world units: close enough to give the surface
