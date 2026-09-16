@@ -4,29 +4,42 @@ namespace GorillaSurvivors.Core
 {
     // Hit test for the gorilla's melee attacks.
     //
-    // These used to be spheres centred a fixed distance in front of the
-    // player, which is easy but wrong in both directions at once: it reaches
-    // nothing standing right against you (the sphere has already passed over
-    // them) while happily hitting things off to the side and slightly behind
-    // the centre point. A swing of an arm is a wedge — everything from here
-    // out to arm's length, within some angle of where you're facing — so
-    // that's what this tests.
+    // The shape is the SWING ITSELF: a circular arc drawn in front of the
+    // gorilla at arm's length, catching everything within some distance of
+    // that arc. An arm sweeps through a band of space at a roughly fixed
+    // radius from the shoulder, and that band is what this tests.
     //
-    // The wedge shape is also what makes "wider arc" a meaningful upgrade.
+    // Two earlier shapes were wrong in ways the player could see. A sphere
+    // centred ahead of the gorilla reached nothing pressed against its chest
+    // (the sphere had already passed over them) while hitting things off to
+    // the side. A wedge from the origin fixed the first half but still swept
+    // a solid pie slice, so a swipe connected with something standing on the
+    // player's toes and something at full extension with equal authority,
+    // and read as a cone of force rather than an arm.
+    //
+    // Both the arc's angular width and its radius are what the tech tree's
+    // reach and "wider arc" nodes move.
     public static class MeleeArc
     {
-        // Fills `buffer` with colliders inside the wedge and returns how many.
-        // Anything whose CENTRE is outside the wedge but whose body overlaps
-        // it still counts, via a small radius allowance — otherwise a big
-        // enemy standing right on the edge of the swing is missed in a way
-        // the player can't see or predict.
-        public static int Overlap(Vector3 origin, Vector3 aim, float reach, float arcDegrees, Collider[] buffer)
+        // Fills `buffer` with colliders touching the swing band and returns
+        // how many.
+        //
+        //   arcRadius   distance from the player the arc is drawn at
+        //   arcDegrees  total angular width of the arc, centred on `aim`
+        //   bandWidth   how far either side of the arc line still counts
+        //
+        // A body's own width counts toward reaching the band, so a Brute
+        // standing on the edge of a swing is hit — being missed by an attack
+        // that visibly overlapped you is the one failure players notice.
+        public static int Overlap(Vector3 origin, Vector3 aim, float arcRadius, float arcDegrees,
+            float bandWidth, Collider[] buffer)
         {
             aim.y = 0f;
             if (aim.sqrMagnitude < 0.0001f) aim = Vector3.forward;
             aim.Normalize();
 
-            int found = Physics.OverlapSphereNonAlloc(origin, reach, buffer);
+            // Everything that could possibly touch the band is inside this.
+            int found = Physics.OverlapSphereNonAlloc(origin, arcRadius + bandWidth + 1.5f, buffer);
             float halfAngle = arcDegrees * 0.5f;
 
             int kept = 0;
@@ -39,19 +52,37 @@ namespace GorillaSurvivors.Core
                 toTarget.y = 0f;
                 float distance = toTarget.magnitude;
 
-                // Anything overlapping the player is inside the swing no
-                // matter which way it is: you cannot be behind someone you
-                // are standing inside of.
-                if (distance > 0.35f)
-                {
-                    // How many degrees of slack this body's own width buys it
-                    // at the distance it's standing.
-                    float bodyRadius = Mathf.Max(col.bounds.extents.x, col.bounds.extents.z);
-                    float slack = Mathf.Atan2(bodyRadius, distance) * Mathf.Rad2Deg;
+                float bodyRadius = Mathf.Max(col.bounds.extents.x, col.bounds.extents.z);
+                float allowed = bandWidth + bodyRadius;
 
-                    if (Vector3.Angle(aim, toTarget / distance) > halfAngle + slack) continue;
+                float distanceToArc;
+                if (distance < 0.0001f)
+                {
+                    // Standing exactly on the player: the arc is arcRadius away.
+                    distanceToArc = arcRadius;
+                }
+                else
+                {
+                    float angle = Vector3.Angle(aim, toTarget / distance);
+                    if (angle <= halfAngle)
+                    {
+                        // Inside the arc's sweep: only the radial gap matters.
+                        distanceToArc = Mathf.Abs(distance - arcRadius);
+                    }
+                    else
+                    {
+                        // Past the end of the sweep: measure to the nearer tip
+                        // of the arc, so the swing stops where the hand does
+                        // instead of at a hard angular wall.
+                        float side = Vector3.Dot(Vector3.Cross(Vector3.up, aim), toTarget) >= 0f ? 1f : -1f;
+                        Vector3 tip = origin + (Quaternion.Euler(0f, side * halfAngle, 0f) * aim) * arcRadius;
+                        Vector3 toTip = col.bounds.center - tip;
+                        toTip.y = 0f;
+                        distanceToArc = toTip.magnitude;
+                    }
                 }
 
+                if (distanceToArc > allowed) continue;
                 buffer[kept++] = col;
             }
 

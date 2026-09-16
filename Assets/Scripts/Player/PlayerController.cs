@@ -87,7 +87,12 @@ namespace GorillaSurvivors.Player
             _model = transform.Find("GorillaModel");
 
             _rb.useGravity = false;
-            _rb.constraints = RigidbodyConstraints.FreezeRotationX | RigidbodyConstraints.FreezeRotationZ | RigidbodyConstraints.FreezePositionY;
+            // Rotation is frozen on ALL axes, Y included. Facing is owned
+            // entirely by the model transform below; leaving Y free let the
+            // crowd shove the root around and spin the whole gorilla, which
+            // showed up most obviously as the model turning on its own
+            // during a rooted charge.
+            _rb.constraints = RigidbodyConstraints.FreezeRotation | RigidbodyConstraints.FreezePositionY;
         }
 
         void OnDestroy()
@@ -181,7 +186,12 @@ namespace GorillaSurvivors.Player
                 }
             }
 
-            if (_model != null && !MovementLocked && !FacingLocked)
+            // Charging is rooted but still steerable: you pick where the blow
+            // lands at the moment you release, so the model has to keep
+            // tracking the aim while you hold it.
+            bool canTurn = !FacingLocked && (!MovementLocked || (Attack != null && Attack.IsCharging));
+
+            if (_model != null && canTurn)
             {
                 // Twin-stick style: the gorilla always faces where you're
                 // aiming (mouse / right stick), independent of movement, so

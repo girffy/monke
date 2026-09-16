@@ -48,6 +48,10 @@ namespace GorillaSurvivors.Player
             _invulnerableUntil = Mathf.Max(_invulnerableUntil, Time.time + seconds);
         }
 
+        // Only for the debug toggle — GrantInvulnerability can never shorten
+        // an existing window, which is correct everywhere else.
+        public void ClearInvulnerability() => _invulnerableUntil = 0f;
+
         public void TakeDamage(float amount)
         {
             TakeDamage(amount, null);

@@ -43,6 +43,22 @@ namespace GorillaSurvivors.Enemies
         public void Pause() => _paused = true;
         public void Resume() => _paused = false;
 
+        // How many of this round's enemies have yet to appear. Used by the
+        // debug round-skip to pay out the XP they would have dropped.
+        public int RemainingToSpawn => Mathf.Max(0, EnemiesPerRound - _spawnedThisRound);
+
+        // Ends the round immediately, as though every enemy in it had been
+        // spawned and killed.
+        public void ForceFinishRound()
+        {
+            _spawnedThisRound = EnemiesPerRound;
+            _aliveThisRound = 0;
+            if (_roundEnding) return;
+
+            _roundEnding = true;
+            GameManager.Instance?.BeginUpgradeChoice();
+        }
+
         public void StartNewRound(int round)
         {
             CurrentRound = round;
@@ -91,11 +107,14 @@ namespace GorillaSurvivors.Enemies
         {
             Vector3 playerPos = PlayerController.Instance.transform.position;
 
-            // Drives HP/speed growth. Raised from 1.4: the player's damage
-            // compounds fast (levels, round rewards and now a tech tree all
-            // feed it), so a shallower enemy curve meant every round after
-            // the third was easier than the one before it.
-            float difficultyScale = (CurrentRound - 1) * 2.4f;
+            // Drives HP/speed growth, and it COMPOUNDS rather than growing in
+            // a straight line. The player's damage does: +12% per level with
+            // a dozen levels a round, times tech-tree multipliers, times flat
+            // damage nodes. Against a linear enemy curve that meant a Brute —
+            // the "takes several hits" enemy — was a one-shot for the light
+            // attack by round 3. An exponent just under 1.6 keeps the number
+            // of hits a Brute takes roughly flat as the run goes on.
+            float difficultyScale = Mathf.Pow(CurrentRound, 1.55f) - 1f;
             var type = ChooseEnemyType(CurrentRound);
 
             EnemyFactory.Create(type, ChooseSpawnPosition(playerPos), difficultyScale, CurrentRound);

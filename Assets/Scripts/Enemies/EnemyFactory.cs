@@ -65,7 +65,7 @@ namespace GorillaSurvivors.Enemies
                     collider.center = new Vector3(0f, 0.7f, 0f);
                     // A fast, fragile pest, not a damage check: one swipe for
                     // a long time.
-                    baseHP = 7f + 0.7f * difficultyScale;
+                    baseHP = 9f + 1.1f * difficultyScale;
                     baseXP = 2f;
                     baseMoveSpeed = 3.4f + 0.4f * Mathf.Min(difficultyScale, 4f);
                     // The lightest touch in the game — but it comes at you
@@ -77,10 +77,13 @@ namespace GorillaSurvivors.Enemies
                     collider.radius = 0.55f;
                     collider.height = 2.4f;
                     collider.center = new Vector3(0f, 1.2f, 0f);
-                    // The "big guy": two slams or four swipes in round 1, and
-                    // tankier every round so damage upgrades stay meaningful
-                    // against it long after Grunts stop mattering.
-                    baseHP = 34f + 3.0f * difficultyScale;
+                    // The "big guy": the enemy the player's damage is measured
+                    // against, so it has to stay several hits at every point
+                    // in the run. The old figures let a light swipe one-shot
+                    // one by round 3 once a couple of flat damage nodes were
+                    // in, which took the whole "heavy enemy" role out of the
+                    // game.
+                    baseHP = 55f + 4.5f * difficultyScale;
                     baseXP = 7f;
                     baseMoveSpeed = 1.1f + 0.2f * Mathf.Min(difficultyScale, 4f);
                     // The heaviest hitter that walks: about six of these and
@@ -92,7 +95,7 @@ namespace GorillaSurvivors.Enemies
                     collider.radius = 0.35f;
                     collider.height = 1.6f;
                     collider.center = new Vector3(0f, 0.8f, 0f);
-                    baseHP = 10f + 0.9f * difficultyScale;
+                    baseHP = 14f + 1.4f * difficultyScale;
                     baseXP = 4f;
                     baseMoveSpeed = 1.6f;
                     isRanged = true;
@@ -108,7 +111,7 @@ namespace GorillaSurvivors.Enemies
                     // Modest HP — the shield, not the health pool, is what
                     // makes these awkward, so flanking is rewarded rather
                     // than just out-damaging them.
-                    baseHP = 20f + 1.5f * difficultyScale;
+                    baseHP = 30f + 2.6f * difficultyScale;
                     baseXP = 5f;
                     baseMoveSpeed = 1.35f + 0.18f * Mathf.Min(difficultyScale, 4f);
                     baseContactDamage = 22f + 1.5f * r;
@@ -125,7 +128,7 @@ namespace GorillaSurvivors.Enemies
                     collider.center = new Vector3(0f, 0.8f, 0f);
                     // Fragile and fast-ish: the threat is where it dies, not
                     // how long it survives.
-                    baseHP = 6f + 0.5f * difficultyScale;
+                    baseHP = 9f + 0.9f * difficultyScale;
                     baseXP = 5f;
                     baseMoveSpeed = 2.2f + 0.3f * Mathf.Min(difficultyScale, 4f);
                     // Touching one barely hurts — the blast is the whole
@@ -139,7 +142,7 @@ namespace GorillaSurvivors.Enemies
                     collider.radius = 0.35f;
                     collider.height = 1.6f;
                     collider.center = new Vector3(0f, 0.8f, 0f);
-                    baseHP = 14f + 1.0f * difficultyScale;
+                    baseHP = 20f + 1.8f * difficultyScale;
                     baseXP = 6f;
                     // Hangs back from the fight so it isn't trivially caught
                     // in the AoE aimed at the crowd it's healing.
@@ -160,7 +163,7 @@ namespace GorillaSurvivors.Enemies
                     // clicks per basic enemy from the very first wave. Sits
                     // just under a swipe so a level or damage buff keeps it
                     // a one-hit kill as the per-round growth creeps in.
-                    baseHP = 9f + 0.9f * difficultyScale;
+                    baseHP = 12f + 1.6f * difficultyScale;
                     baseXP = 3f;
                     baseMoveSpeed = 1.8f + 0.35f * Mathf.Min(difficultyScale, 4f);
                     // The reference "weak enemy": about fifteen of these is

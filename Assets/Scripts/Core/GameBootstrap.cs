@@ -69,6 +69,9 @@ namespace GorillaSurvivors.Core
             var gameManagerGO = new GameObject("GameManager");
             var gameManager = gameManagerGO.AddComponent<GameManager>();
 
+            // Keyboard-only cheats for reaching the late game; see the file.
+            gameManagerGO.AddComponent<DebugControls>();
+
             var spawnerGO = new GameObject("EnemySpawner");
             var spawner = spawnerGO.AddComponent<EnemySpawner>();
 

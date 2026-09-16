@@ -17,10 +17,11 @@ namespace GorillaSurvivors.Player
     public class QuickSwipeAttack : MonoBehaviour
     {
         public float BaseDamage = 10f;
-        // A wedge in front of the gorilla (see MeleeArc). ArcDegrees is what
-        // the tech tree's "wider arc" upgrades widen.
-        public float Reach = 2.0f;
-        public float ArcDegrees = 100f;
+        // The swing itself: an arc drawn at Reach in front of the gorilla,
+        // catching anything within BandWidth of it (see MeleeArc).
+        public float Reach = 1.6f;
+        public float ArcDegrees = 110f;
+        public float BandWidth = 0.85f;
         public const float SwipeDuration = 0.22f;
 
         // Tech tree.
@@ -165,7 +166,9 @@ namespace GorillaSurvivors.Player
             float reach = Reach * _stats.LevelAttackRadiusBonus * _stats.AreaMultiplier;
             Vector3 hitCenter = transform.position + aimDirection * (reach * 0.5f);
 
-            int count = MeleeArc.Overlap(transform.position, aimDirection, reach, ArcDegrees, HitBuffer);
+            float band = BandWidth * _stats.AreaMultiplier;
+
+            int count = MeleeArc.Overlap(transform.position, aimDirection, reach, ArcDegrees, band, HitBuffer);
             for (int i = 0; i < count; i++)
             {
                 var enemyHealth = HitBuffer[i].GetComponentInParent<EnemyHealth>();
@@ -203,34 +206,37 @@ namespace GorillaSurvivors.Player
                 }
             }
 
-            SpawnSwipeEffect(hitCenter, reach * 0.5f);
+            SpawnSwipeEffect(aimDirection, reach, band);
             Sfx.Swipe(hitCenter);
         }
 
-        void SpawnSwipeEffect(Vector3 position, float radius)
+        // Draws the crescent the hit test just used, so what you see and what
+        // you hit are the same shape.
+        void SpawnSwipeEffect(Vector3 aimDirection, float reach, float band)
         {
-            var go = Blocky3DArt.SwipeDisc(new Color(0.9f, 0.85f, 0.3f));
-            go.transform.position = position + Vector3.up * 0.05f;
-            go.transform.localScale = new Vector3(0.05f, 0.02f, 0.05f);
+            var go = Blocky3DArt.SwipeArc(new Color(0.95f, 0.88f, 0.35f), reach, ArcDegrees, band);
+            go.transform.position = transform.position;
+            go.transform.rotation = Quaternion.LookRotation(aimDirection, Vector3.up);
 
-            StartCoroutine(AnimateSwipeEffect(go, radius));
+            StartCoroutine(FadeArc(go));
         }
 
-        IEnumerator AnimateSwipeEffect(GameObject go, float radius)
+        IEnumerator FadeArc(GameObject go)
         {
-            float duration = 0.12f;
+            const float duration = 0.14f;
             float t = 0f;
-            float targetScale = radius * 1.8f;
+            var baseScale = go.transform.localScale;
 
             while (t < duration)
             {
                 t += Time.deltaTime;
-                float scale = Mathf.Lerp(0.05f, targetScale, t / duration);
-                go.transform.localScale = new Vector3(scale, 0.02f, scale);
+                // Grows a touch as it fades, which reads as follow-through.
+                go.transform.localScale = baseScale * Mathf.Lerp(0.92f, 1.06f, t / duration);
                 yield return null;
             }
 
             Destroy(go);
         }
+
     }
 }

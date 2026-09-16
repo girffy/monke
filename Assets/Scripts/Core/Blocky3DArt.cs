@@ -824,6 +824,41 @@ namespace GorillaSurvivors.Core
             return root;
         }
 
+        // A crescent laid on the ground tracing the path of a swing, built
+        // from short blocks stepped along the arc. This is the shape the hit
+        // test actually uses (MeleeArc), so the player can see where the
+        // swipe reaches instead of inferring it from an expanding circle
+        // that never matched.
+        public static GameObject SwipeArc(Color color, float radius, float arcDegrees, float bandWidth)
+        {
+            var root = new GameObject("SwipeArc");
+
+            const int steps = 11;
+            float half = arcDegrees * 0.5f;
+            for (int i = 0; i < steps; i++)
+            {
+                float t = steps == 1 ? 0.5f : i / (float)(steps - 1);
+                float angle = Mathf.Lerp(-half, half, t);
+                Vector3 dir = Quaternion.Euler(0f, angle, 0f) * Vector3.forward;
+
+                var seg = CreateBarePrimitive(PrimitiveType.Cube, "Seg" + i, root.transform);
+                seg.transform.localPosition = dir * radius + Vector3.up * 0.06f;
+                seg.transform.localRotation = Quaternion.LookRotation(dir, Vector3.up);
+                // Tapered toward the tips so it reads as a slash rather than
+                // a painted band.
+                float taper = Mathf.Lerp(0.45f, 1f, 1f - Mathf.Abs(t - 0.5f) * 2f);
+                float arcStep = arcDegrees * Mathf.Deg2Rad * radius / steps;
+                seg.transform.localScale = new Vector3(arcStep * 1.5f, 0.02f, bandWidth * 2f * taper);
+
+                var mr = seg.GetComponent<MeshRenderer>();
+                mr.sharedMaterial = MaterialCache.GetUnlit(color);
+                mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                mr.receiveShadows = false;
+            }
+
+            return root;
+        }
+
         // Flat disc for swipe/shockwave VFX — unlit so it stays bright
         // regardless of where the light is.
         public static GameObject SwipeDisc(Color color)
