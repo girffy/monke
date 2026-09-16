@@ -106,17 +106,20 @@ namespace GorillaSurvivors.Enemies
             toTarget.y = 0f;
             float dist = toTarget.magnitude;
             Vector3 dir = dist > 0.0001f ? toTarget / dist : Vector3.zero;
+            // Facing and thrown projectiles still use the straight line to
+            // the player; only the walking is bent around the well.
+            Vector3 advance = SteerAroundCore(dir);
 
             if (IsRanged)
             {
                 // Hold at range and lob projectiles instead of closing in.
                 if (dist > PreferredRange + 0.5f)
                 {
-                    _rb.linearVelocity = dir * CurrentMoveSpeed;
+                    _rb.linearVelocity = advance * CurrentMoveSpeed;
                 }
                 else if (dist < PreferredRange - 0.5f)
                 {
-                    _rb.linearVelocity = -dir * CurrentMoveSpeed;
+                    _rb.linearVelocity = SteerAroundCore(-dir) * CurrentMoveSpeed;
                 }
                 else
                 {
@@ -134,7 +137,7 @@ namespace GorillaSurvivors.Enemies
             }
             else
             {
-                _rb.linearVelocity = dir * CurrentMoveSpeed;
+                _rb.linearVelocity = advance * CurrentMoveSpeed;
 
                 // Distance-based contact damage — two solid Rigidbody circles
                 // pushing directly into each other tend to separate every physics
@@ -153,6 +156,51 @@ namespace GorillaSurvivors.Enemies
             }
 
             ConfineToArena();
+        }
+
+        // Walk AROUND the well rather than into it.
+        //
+        // The clamp below is a backstop, not steering: it moves a body out of
+        // the wall but cannot change where the body wants to go. So an enemy
+        // whose target lay across the well spent every step driving into the
+        // stone and being shoved back out — visible as a hard jiggle all the
+        // way round the rim. Nothing was wrong with the clamp; it was simply
+        // being asked to do a job that belongs to the pathing.
+        //
+        // Close to the rim the heading turns along it instead, in whichever
+        // direction it was already leaning, so an enemy rounds the well in
+        // one smooth arc and comes off it pointed at the player again.
+        Vector3 SteerAroundCore(Vector3 dir)
+        {
+            var arena = Environment.Arena.Instance;
+            if (arena == null || dir.sqrMagnitude < 0.0001f) return dir;
+
+            Vector3 radial = transform.position - arena.Center;
+            radial.y = 0f;
+            float distance = radial.magnitude;
+            if (distance < 0.0001f) return dir;
+
+            float keepOut = arena.CoreKeepOutRadius + 0.55f;
+            float influence = keepOut + 1.6f;
+            if (distance > influence) return dir;
+
+            Vector3 outward = radial / distance;
+            // Heading away already? Then the well isn't in the way.
+            if (Vector3.Dot(dir, outward) >= 0f) return dir;
+
+            Vector3 tangent = new Vector3(-outward.z, 0f, outward.x);
+            if (Vector3.Dot(tangent, dir) < 0f) tangent = -tangent;
+
+            // All the way tangential at the rim, untouched at the edge of
+            // the influence band, so the turn eases in instead of snapping.
+            float t = Mathf.InverseLerp(influence, keepOut, distance);
+            Vector3 steered = Vector3.Lerp(dir, tangent, t);
+
+            // Already inside the wall — push out as well as around, or a body
+            // spawned or knocked in there would circle forever.
+            if (distance < keepOut) steered += outward * (keepOut - distance);
+
+            return steered.sqrMagnitude < 0.0001f ? tangent : steered.normalized;
         }
 
         // Same position clamp the player is held by (PlayerController). The
