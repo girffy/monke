@@ -35,6 +35,16 @@ namespace GorillaSurvivors.Core
 
         static void Build()
         {
+            // sceneLoaded ALSO fires for the very first scene, after the
+            // AfterSceneLoad callback above — so both paths ran for the same
+            // scene and the entire world was built twice (two gorillas, two
+            // arenas, two HUDs). Building is idempotent per scene: if the
+            // player already exists, this scene is already dressed.
+            //
+            // A reload clears this by itself, since the old player is
+            // destroyed (nulling Instance) before sceneLoaded fires.
+            if (PlayerController.Instance != null) return;
+
             Sfx.ResetForNewSession();
             Sfx.WarmUp();
             CameraShake.Reset();
