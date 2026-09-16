@@ -24,7 +24,10 @@ namespace GorillaSurvivors.Player.Abilities
 
         static readonly Collider[] HitBuffer = new Collider[64];
 
-        public static DungProjectile Launch(Vector3 from, Vector3 target, float damage, float radius)
+        // Tech tree "Foul": a fraction of the impact damage again, over time.
+        public float RotFraction;
+
+        public static DungProjectile Launch(Vector3 from, Vector3 target, float damage, float radius, float rotFraction = 0f)
         {
             var go = new GameObject("Dung");
             go.transform.position = from;
@@ -49,6 +52,7 @@ namespace GorillaSurvivors.Player.Abilities
             var proj = go.AddComponent<DungProjectile>();
             proj.Damage = damage;
             proj.ImpactRadius = radius;
+            proj.RotFraction = rotFraction;
             proj._start = from;
             proj._target = target;
 
@@ -132,6 +136,7 @@ namespace GorillaSurvivors.Player.Abilities
                 Vector3 away = enemy.transform.position - _target;
                 away.y = 0f;
                 enemy.TakeDamage(Damage, away, 4f);
+                if (RotFraction > 0f) enemy.ApplyDamageOverTime(Damage * RotFraction, 3f);
             }
 
             DungPatch.Create(_target, ImpactRadius, PatchDuration, SlowFactor);

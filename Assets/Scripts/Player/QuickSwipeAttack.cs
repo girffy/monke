@@ -23,6 +23,10 @@ namespace GorillaSurvivors.Player
         public float ArcDegrees = 100f;
         public const float SwipeDuration = 0.22f;
 
+        // Tech tree.
+        public float BleedFraction;       // "Rake"
+        public float SecondHitFraction;   // "Flurry"
+
         PlayerStats _stats;
         PlayerController _controller;
         CharacterAnimator _animator;
@@ -56,7 +60,7 @@ namespace GorillaSurvivors.Player
         {
             if (_isSwiping) return;
             if (GameManager.Instance != null && GameManager.Instance.IsPaused) return;
-            if (Attack != null && Attack.IsSlamming) return;
+            if (Attack != null && (Attack.IsSlamming || Attack.IsCharging)) return;
             if (!WasSwipePressed()) return;
 
             // The direction is fixed AT THE CLICK, not read again when the
@@ -113,6 +117,15 @@ namespace GorillaSurvivors.Player
 
             yield return AnimateArm(SwipeEndDir, RestDir, backT, model, lockedRotation, 16f, 0f);
 
+            // "Flurry": a back-handed return swing on the way out, landing
+            // in the same committed direction.
+            if (SecondHitFraction > 0f)
+            {
+                yield return AnimateArm(RestDir, SwipeEndDir, 0.06f, model, lockedRotation, 0f, 10f);
+                PerformSwipeHit(aim, SecondHitFraction);
+                yield return AnimateArm(SwipeEndDir, RestDir, 0.08f, model, lockedRotation, 10f, 0f);
+            }
+
             if (_animator != null)
             {
                 _animator.SuppressArms = false;
@@ -146,9 +159,9 @@ namespace GorillaSurvivors.Player
             _armR.localRotation = Quaternion.FromToRotation(Vector3.down, localDirection);
         }
 
-        void PerformSwipeHit(Vector3 aimDirection)
+        void PerformSwipeHit(Vector3 aimDirection, float damageScale = 1f)
         {
-            float damage = BaseDamage * _stats.LevelDamageBonus * _stats.DamageMultiplier;
+            float damage = BaseDamage * _stats.LevelDamageBonus * _stats.DamageMultiplier * damageScale;
             float reach = Reach * _stats.LevelAttackRadiusBonus * _stats.AreaMultiplier;
             Vector3 hitCenter = transform.position + aimDirection * (reach * 0.5f);
 
@@ -162,6 +175,7 @@ namespace GorillaSurvivors.Player
                     knockDir.y = 0f;
                     if (knockDir.sqrMagnitude < 0.0001f) knockDir = aimDirection;
                     enemyHealth.TakeDamage(damage, knockDir, 4f);
+                    if (BleedFraction > 0f) enemyHealth.ApplyDamageOverTime(damage * BleedFraction, 2f);
                     continue;
                 }
 

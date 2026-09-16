@@ -133,6 +133,43 @@ namespace GorillaSurvivors.Enemies
             }
         }
 
+        // Bleed / rot from the tech tree. Ticked here rather than as its own
+        // component so a second application just tops up the same wound
+        // instead of stacking a pile of coroutines on one enemy.
+        float _dotRemaining;
+        float _dotPerSecond;
+
+        public void ApplyDamageOverTime(float totalDamage, float seconds)
+        {
+            if (_dead || totalDamage <= 0f || seconds <= 0f) return;
+
+            // Carry over whatever the previous application still owed, so
+            // re-applying never wipes damage already promised.
+            float carried = _dotPerSecond * _dotRemaining;
+            _dotRemaining = seconds;
+            _dotPerSecond = (totalDamage + carried) / seconds;
+        }
+
+        void Update()
+        {
+            if (_dead || _dotRemaining <= 0f) return;
+            if (GameManager.Instance != null && GameManager.Instance.IsPaused) return;
+
+            float step = Mathf.Min(Time.deltaTime, _dotRemaining);
+            _dotRemaining -= step;
+
+            // Deliberately NOT routed through TakeDamage: that plays a hit
+            // sound and throws a damage number, and a per-frame tick would
+            // machine-gun both. A shield still stops it, though — a tethered
+            // enemy takes nothing from any source.
+            if (IsShielded) return;
+
+            _currentHP -= _dotPerSecond * step;
+
+            if (_healthBar != null) _healthBar.SetFraction(_currentHP / MaxHP);
+            if (_currentHP <= 0f) Die();
+        }
+
         // Removes the enemy outright, ignoring shields and armour. For deaths
         // the enemy inflicts on itself — a Bomber reaching the player and
         // going off — where routing through TakeDamage would let a medic's

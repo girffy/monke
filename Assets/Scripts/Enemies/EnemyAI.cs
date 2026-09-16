@@ -48,6 +48,16 @@ namespace GorillaSurvivors.Enemies
             _knockbackUntil = Time.time + duration;
         }
 
+        // Tech tree: the slam's "Concussive". A stunned enemy stops dead —
+        // no walking, no contact damage, no throwing — which is what makes
+        // the slow, committed heavy attack worth its recovery time.
+        float _stunnedUntil;
+        public bool IsStunned => Time.time < _stunnedUntil;
+        public void ApplyStun(float seconds)
+        {
+            _stunnedUntil = Mathf.Max(_stunnedUntil, Time.time + seconds);
+        }
+
         // Multiplicative slow applied while standing in something nasty (the
         // dung patch). Stored as a plain factor rather than a timer, because
         // whatever applied it is responsible for clearing it when the enemy
@@ -73,6 +83,13 @@ namespace GorillaSurvivors.Enemies
             if (_target == null)
             {
                 AcquireTarget();
+                return;
+            }
+
+            if (IsStunned)
+            {
+                _rb.linearVelocity = Vector3.zero;
+                ConfineToArena();
                 return;
             }
 

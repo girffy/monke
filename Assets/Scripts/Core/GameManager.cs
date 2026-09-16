@@ -22,7 +22,7 @@ namespace GorillaSurvivors.Core
         public int EnemiesPerRound => _spawner != null ? _spawner.EnemiesPerRound : 100;
 
         public event Action OnGameOver;
-        public event Action<List<RoundReward>> OnUpgradeChoiceReady;
+        public event Action OnUpgradeChoiceReady;
         public event Action<int> OnRoundStarted;
         public event Action<bool> OnPauseToggled;
 
@@ -92,22 +92,27 @@ namespace GorillaSurvivors.Core
 
         // Called by EnemySpawner once every enemy in the round has been both
         // spawned and killed.
+        // One tech point per round cleared, plus a bonus one every third
+        // round so the deeper nodes stay reachable without making every
+        // round's pick feel cheap.
         public void BeginUpgradeChoice()
         {
             if (IsGameOver || IsChoosingUpgrade) return;
             IsChoosingUpgrade = true;
             Sfx.RoundClear();
 
-            var choices = RoundRewardPool.RollChoices(_player);
-            OnUpgradeChoiceReady?.Invoke(choices);
+            int points = 1 + (CurrentRound % 3 == 0 ? 1 : 0);
+            _player.GetComponent<TechTreeState>()?.GrantPoints(points);
+
+            OnUpgradeChoiceReady?.Invoke();
         }
 
-        // Called by the HUD once the player picks one of the offered rewards.
-        public void ResolveUpgradeChoice(RoundReward chosen)
+        // Called by the HUD once the player is done spending (either their
+        // points ran out or they chose to bank them).
+        public void ResolveUpgradeChoice()
         {
             if (!IsChoosingUpgrade) return;
 
-            chosen.Apply?.Invoke(_player);
             IsChoosingUpgrade = false;
             int nextRound = CurrentRound + 1;
             _spawner?.StartNewRound(nextRound);

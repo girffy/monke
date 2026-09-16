@@ -24,6 +24,16 @@ namespace GorillaSurvivors.Player
         public float BaseCooldown = 0.4f;
         public const float SlamDuration = 0.5f;
 
+        // Tech tree.
+        public float StunSeconds;      // "Concussive"
+        public bool ChargeEnabled;     // "Wind Up"
+        public bool QuakeEnabled;      // "Earthshaker"
+
+        // How long holding RMB can build for, and what a full hold is worth.
+        public const float MaxChargeTime = 1.1f;
+        public const float MaxChargeDamage = 2.2f;
+        public const float MaxChargeReach = 1.35f;
+
         PlayerStats _stats;
         PlayerController _controller;
         CharacterAnimator _animator;
@@ -95,6 +105,23 @@ namespace GorillaSurvivors.Player
             _wasDashing = isDashingNow;
 
             if (Swipe != null && Swipe.IsSwiping) return;
+
+            // "Wind Up": holding the button builds the blow and releasing
+            // throws it. The gorilla is rooted while charging — this is the
+            // committed attack, and being able to walk around at full speed
+            // holding a 2.2x hit would make it strictly better than tapping.
+            // A dash still cancels out of it (TryCancelWithDash).
+            if (_charging)
+            {
+                if (IsAttackHeld() && Time.time - _chargeStart < MaxChargeTime)
+                {
+                    HoldChargePose();
+                    return;
+                }
+                ReleaseCharge();
+                return;
+            }
+
             if (Time.time < _nextAttackReadyTime) return;
             if (!WasAttackPressed()) return;
 
@@ -112,11 +139,62 @@ namespace GorillaSurvivors.Player
                 _attackBuffered = true;
                 _bufferedAimDirection = aimDirection;
             }
+            else if (ChargeEnabled)
+            {
+                _charging = true;
+                _chargeStart = Time.time;
+                _controller.MovementLocked = true;
+                if (_animator != null)
+                {
+                    _animator.SuppressArms = true;
+                    _animator.StandUpright = true;
+                }
+            }
             else
             {
                 _slamCoroutine = StartCoroutine(SlamSequence(aimDirection));
             }
         }
+
+        bool _charging;
+        float _chargeStart;
+
+        public bool IsCharging => _charging;
+
+        // 0 at a tap, 1 at a full hold. Also drives the HUD's charge readout.
+        public float Charge01 => _charging ? Mathf.Clamp01((Time.time - _chargeStart) / MaxChargeTime) : 0f;
+
+        // Arms cocked overhead, rising with the charge, so the size of the
+        // blow you are holding is visible before you throw it.
+        void HoldChargePose()
+        {
+            float c = Charge01;
+            SetArmDirection(Vector3.Slerp(RestDir, WindupDir, Mathf.Clamp01(c * 2.5f)));
+            if (_animator != null)
+            {
+                _animator.BodyHeightOffset = Mathf.Lerp(0f, 0.17f, c);
+                _animator.BodyPitch = Mathf.Lerp(0f, -12f, c);
+            }
+        }
+
+        void ReleaseCharge()
+        {
+            _charging = false;
+            float multiplier = Mathf.Lerp(1f, MaxChargeDamage, Charge01Frozen());
+
+            Vector3 aim = _controller.GetAimDirection();
+            aim.y = 0f;
+            aim.Normalize();
+
+            _slamCoroutine = StartCoroutine(SlamSequence(aim, multiplier));
+        }
+
+        // Charge01 reads 0 once _charging is false, so the value has to be
+        // taken from the timestamp directly at release.
+        float Charge01Frozen() => Mathf.Clamp01((Time.time - _chargeStart) / MaxChargeTime);
+
+        // "Momentum": a finished dash clears the slam's recovery outright.
+        public void ReadyNow() => _nextAttackReadyTime = 0f;
 
         // Called by PlayerController when a dash is pressed mid-attack.
         // Cuts the animation short — but the hit still lands right away if
@@ -124,6 +202,24 @@ namespace GorillaSurvivors.Player
         // just the recovery time.
         public bool TryCancelWithDash()
         {
+            // Dashing out of a charge throws whatever was built rather than
+            // losing it, same as dashing out of the swing itself.
+            if (_charging)
+            {
+                _charging = false;
+                PerformSlamHit(_controller.GetAimDirection(), Mathf.Lerp(1f, MaxChargeDamage, Charge01Frozen()));
+                SetArmDirection(RestDir);
+                if (_animator != null)
+                {
+                    _animator.SuppressArms = false;
+                    _animator.StandUpright = false;
+                    _animator.BodyHeightOffset = 0f;
+                    _animator.BodyPitch = 0f;
+                }
+                _controller.MovementLocked = false;
+                return true;
+            }
+
             if (!_isSlamming) return false;
 
             if (_slamCoroutine != null) StopCoroutine(_slamCoroutine);
@@ -163,7 +259,22 @@ namespace GorillaSurvivors.Player
             return false;
         }
 
-        IEnumerator SlamSequence(Vector3 aimDirection)
+        // Whether the attack input is still down, for the charge.
+        bool IsAttackHeld()
+        {
+            var kb = Keyboard.current;
+            if (kb != null && (kb.jKey.isPressed || kb.enterKey.isPressed)) return true;
+
+            var mouse = Mouse.current;
+            if (mouse != null && mouse.rightButton.isPressed) return true;
+
+            var gp = Gamepad.current;
+            if (gp != null && gp.rightTrigger.isPressed) return true;
+
+            return false;
+        }
+
+        IEnumerator SlamSequence(Vector3 aimDirection, float chargeMultiplier = 1f)
         {
             _isSlamming = true;
             _hitLanded = false;
@@ -195,7 +306,7 @@ namespace GorillaSurvivors.Player
             yield return AnimateArms(RestDir, WindupDir, windup, model, lockedRotation, 0f, 0.13f, 0f, -9f);
             yield return AnimateArms(WindupDir, SlamDir, slam, model, lockedRotation, 0.13f, -0.16f, -9f, 14f);
 
-            PerformSlamHit(aimDirection);
+            PerformSlamHit(aimDirection, chargeMultiplier);
             _hitLanded = true;
             CameraShake.Shake(0.22f, 0.22f);
 
@@ -242,10 +353,14 @@ namespace GorillaSurvivors.Player
             if (_armR != null) _armR.localRotation = rot;
         }
 
-        void PerformSlamHit(Vector3 aimDirection)
+        void PerformSlamHit(Vector3 aimDirection, float chargeMultiplier = 1f)
         {
-            float damage = BaseDamage * _stats.LevelDamageBonus * _stats.DamageMultiplier;
-            float reach = Reach * _stats.LevelAttackRadiusBonus * _stats.AreaMultiplier;
+            aimDirection.y = 0f;
+            aimDirection.Normalize();
+
+            float damage = BaseDamage * _stats.LevelDamageBonus * _stats.DamageMultiplier * chargeMultiplier;
+            float reach = Reach * _stats.LevelAttackRadiusBonus * _stats.AreaMultiplier
+                          * Mathf.Lerp(1f, MaxChargeReach, Mathf.InverseLerp(1f, MaxChargeDamage, chargeMultiplier));
             // Effects still play out in front of the gorilla; only the hit
             // test is the wedge.
             Vector3 hitCenter = transform.position + aimDirection * (reach * 0.5f);
@@ -260,6 +375,7 @@ namespace GorillaSurvivors.Player
                     knockDir.y = 0f;
                     if (knockDir.sqrMagnitude < 0.0001f) knockDir = aimDirection;
                     enemyHealth.TakeDamage(damage, knockDir, 7f);
+                    if (StunSeconds > 0f) HitBuffer[i].GetComponentInParent<EnemyAI>()?.ApplyStun(StunSeconds);
                     continue;
                 }
 
@@ -296,6 +412,30 @@ namespace GorillaSurvivors.Player
 
             SpawnSlamEffect(hitCenter, reach * 0.5f);
             Sfx.Slam(hitCenter);
+
+            if (QuakeEnabled) Quake(damage * 0.5f, reach * 1.9f);
+        }
+
+        // "Earthshaker": a ring going out in EVERY direction for half damage.
+        // Deliberately not an arc — the point of the node is that the slam
+        // stops being purely frontal, so being surrounded is survivable.
+        void Quake(float damage, float radius)
+        {
+            int count = Physics.OverlapSphereNonAlloc(transform.position, radius, HitBuffer);
+            for (int i = 0; i < count; i++)
+            {
+                var enemy = HitBuffer[i].GetComponentInParent<EnemyHealth>();
+                if (enemy == null) continue;
+
+                Vector3 away = enemy.transform.position - transform.position;
+                away.y = 0f;
+                enemy.TakeDamage(damage, away, 5f);
+            }
+
+            var ring = Blocky3DArt.SwipeDisc(new Color(0.85f, 0.70f, 0.42f));
+            ring.transform.position = transform.position + Vector3.up * 0.06f;
+            ring.transform.localScale = new Vector3(0.2f, 0.02f, 0.2f);
+            ring.AddComponent<GorillaSurvivors.Environment.ExpandingDisc>().Play(radius * 2f, 0.3f);
         }
 
         void SpawnSlamEffect(Vector3 position, float radius)

@@ -20,6 +20,13 @@ namespace GorillaSurvivors.Player
         public float DashCooldown = 2.4f;
         public float DashInvulnerabilitySeconds = 0.45f;
 
+        // Tech tree. Barging through the crowd used to be free; it is now the
+        // "Barge" node, so the early dash is an escape you have to aim
+        // through gaps rather than a straight line through a hundred men.
+        public bool DashPassesThrough;      // "Barge"
+        public float DashDamage;            // "Freight Train"
+        public bool DashRefreshesAttacks;   // "Momentum"
+
         // Movement happens on the flat XZ ground plane; Y stays constant.
         public Vector3 FacingDirection { get; private set; } = Vector3.forward;
         public bool IsDashing { get; private set; }
@@ -38,6 +45,12 @@ namespace GorillaSurvivors.Player
         // so aim tracking can't spin the model away from the swing that is
         // already playing. Movement is unaffected — this is facing only.
         public bool FacingLocked { get; set; }
+
+        // Temporary movement-speed scale owned by whatever ability is
+        // running ("Rolling Thunder" walks the gorilla at half speed through
+        // a chest beat instead of rooting it). Always reset to 1 when the
+        // ability ends.
+        public float SpeedScale { get; set; } = 1f;
 
         Rigidbody _rb;
         Collider _collider;
@@ -93,7 +106,13 @@ namespace GorillaSurvivors.Player
             ReadInput();
             bool dashPressed = WasDashPressed();
 
-            if (MovementLocked && dashPressed)
+            // "Rolling Thunder" leaves the player mobile through a chest
+            // beat, so MovementLocked alone no longer means "an ability is
+            // running" — without this, dashing mid-beat would dash and leave
+            // the beat playing on top of it.
+            bool abilityRunning = MovementLocked || (ChestBeat != null && ChestBeat.IsBeating);
+
+            if (abilityRunning && dashPressed)
             {
                 // A dash press cuts a rooted animation short (its damage
                 // still lands instead of being lost) and dashes immediately.
@@ -142,13 +161,24 @@ namespace GorillaSurvivors.Player
 
             _wasMovementLocked = MovementLocked;
 
-            if (IsDashing && Time.time >= _dashEndTime)
+            if (IsDashing)
             {
-                IsDashing = false;
-                // Solid again. If the dash ended inside something, the
-                // physics engine pushes the gorilla back out over the next
-                // few steps rather than trapping it.
-                if (_collider != null) _collider.enabled = true;
+                if (DashDamage > 0f) DamageDashedThrough();
+
+                if (Time.time >= _dashEndTime)
+                {
+                    IsDashing = false;
+                    // Solid again. If the dash ended inside something, the
+                    // physics engine pushes the gorilla back out over the
+                    // next few steps rather than trapping it.
+                    if (_collider != null) _collider.enabled = true;
+                    _dashedThrough.Clear();
+
+                    if (DashRefreshesAttacks)
+                    {
+                        Attack?.ReadyNow();
+                    }
+                }
             }
 
             if (_model != null && !MovementLocked && !FacingLocked)
@@ -206,7 +236,7 @@ namespace GorillaSurvivors.Player
                 return;
             }
 
-            float speed = MoveSpeed * (_stats != null ? _stats.MoveSpeedMultiplier : 1f);
+            float speed = MoveSpeed * (_stats != null ? _stats.MoveSpeedMultiplier : 1f) * SpeedScale;
 
             if (IsDashing)
             {
@@ -289,16 +319,36 @@ namespace GorillaSurvivors.Player
             return kbDash || gpDash;
         }
 
+        // "Freight Train": everything the dash passes through takes a hit,
+        // once each. Tracked in a set because this runs every frame of the
+        // dash and the gorilla overlaps the same body for several of them.
+        readonly System.Collections.Generic.HashSet<GorillaSurvivors.Enemies.EnemyHealth> _dashedThrough
+            = new System.Collections.Generic.HashSet<GorillaSurvivors.Enemies.EnemyHealth>();
+        static readonly Collider[] DashHitBuffer = new Collider[32];
+
+        void DamageDashedThrough()
+        {
+            int count = Physics.OverlapSphereNonAlloc(transform.position, 1.1f, DashHitBuffer);
+            for (int i = 0; i < count; i++)
+            {
+                var enemy = DashHitBuffer[i].GetComponentInParent<GorillaSurvivors.Enemies.EnemyHealth>();
+                if (enemy == null || !_dashedThrough.Add(enemy)) continue;
+
+                float damage = DashDamage * (_stats != null ? _stats.DamageMultiplier : 1f);
+                enemy.TakeDamage(damage, _dashDirection, 6f);
+            }
+        }
+
         void StartDash()
         {
             IsDashing = true;
-            // Dash goes THROUGH the crowd. Barging a hundred bodies is the
-            // whole fantasy, and being stopped dead by the wall of men you
-            // were trying to escape made the dash useless exactly when it
-            // mattered. Dropping the collider for the dash also means trees
-            // and rocks don't block the escape; whatever the gorilla lands
-            // inside of, physics shoves it clear afterwards.
-            if (_collider != null) _collider.enabled = false;
+            _dashedThrough.Clear();
+            // With "Barge", the dash goes THROUGH the crowd: dropping the
+            // collider also means trees and rocks don't block the escape,
+            // and whatever the gorilla lands inside of, physics shoves it
+            // clear of afterwards. Without the node the dash is a normal
+            // move and can be walled in by bodies.
+            if (_collider != null && DashPassesThrough) _collider.enabled = false;
             _dashDirection = _moveInput.normalized;
             _dashEndTime = Time.time + DashDuration;
             _dashReadyTime = Time.time + DashCooldown * (_stats != null ? _stats.AbilityCooldownMultiplier : 1f);

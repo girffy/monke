@@ -1,0 +1,265 @@
+using System.Collections.Generic;
+using UnityEngine;
+using UnityEngine.UI;
+using GorillaSurvivors.Core;
+
+namespace GorillaSurvivors.UI
+{
+    // The between-rounds spending screen.
+    //
+    // Laid out as one column per ability, nodes stacked in unlock order, so
+    // the shape of the choice is visible at a glance: going deep on one
+    // ability is visibly a column you are climbing while the others stay
+    // shallow. That is the whole reason this replaced three random cards —
+    // cards showed you what you could have, not what you were giving up.
+    public class TechTreePanel : MonoBehaviour
+    {
+        // The grid is laid out in ANCHOR fractions of its container rather
+        // than in pixels. The canvas scaler matches on width, so the height
+        // available in reference units changes with the window's aspect —
+        // a pixel layout authored for 1280x720 ran off the bottom of the
+        // screen on anything wider, and will again on a phone.
+        const float HeaderFraction = 0.075f;
+        const float PadX = 0.004f;
+        const float PadY = 0.007f;
+
+        class NodeView
+        {
+            public TechNode Node;
+            public Button Button;
+            public Image Image;
+            public Text Label;
+            public Color Tint;
+        }
+
+        readonly List<NodeView> _views = new List<NodeView>();
+        GameObject _root;
+        Text _title;
+        Text _doneLabel;
+        TechTreeState _state;
+
+        static readonly Color LockedFill = new Color(0.10f, 0.10f, 0.11f, 0.95f);
+        static readonly Color MaxedFill = new Color(0.16f, 0.30f, 0.18f, 0.97f);
+
+        public static TechTreePanel Create(Transform parent, TechTreeState state)
+        {
+            var go = new GameObject("TechTreePanel", typeof(RectTransform));
+            go.transform.SetParent(parent, false);
+            var rect = go.GetComponent<RectTransform>();
+            rect.anchorMin = Vector2.zero;
+            rect.anchorMax = Vector2.one;
+            rect.offsetMin = Vector2.zero;
+            rect.offsetMax = Vector2.zero;
+
+            go.AddComponent<Image>().color = new Color(0.02f, 0.02f, 0.03f, 0.975f);
+
+            var panel = go.AddComponent<TechTreePanel>();
+            panel._root = go;
+            panel._state = state;
+            panel.BuildLayout();
+            go.SetActive(false);
+            return panel;
+        }
+
+        void BuildLayout()
+        {
+            _title = MakeText(_root.transform, "Title", new Vector2(0f, -30f), new Vector2(1100f, 40f),
+                24, TextAnchor.MiddleCenter, new Vector2(0.5f, 1f));
+
+            // Everything below the title and above the Done button.
+            var grid = new GameObject("Grid", typeof(RectTransform));
+            grid.transform.SetParent(_root.transform, false);
+            var gridRect = grid.GetComponent<RectTransform>();
+            gridRect.anchorMin = Vector2.zero;
+            gridRect.anchorMax = Vector2.one;
+            gridRect.offsetMin = new Vector2(16f, 62f);
+            gridRect.offsetMax = new Vector2(-16f, -64f);
+
+            var branches = TechTree.Branches;
+            int columns = branches.Count;
+            int rows = 0;
+            foreach (var b in branches) rows = Mathf.Max(rows, b.Nodes.Count);
+            float rowFraction = (1f - HeaderFraction) / rows;
+
+            for (int c = 0; c < columns; c++)
+            {
+                var branch = branches[c];
+                float x0 = c / (float)columns;
+                float x1 = (c + 1) / (float)columns;
+
+                var header = MakeStretched(gridRect, "Header" + c,
+                    new Vector2(x0 + PadX, 1f - HeaderFraction + PadY), new Vector2(x1 - PadX, 1f));
+                var headerText = AddText(header, 15, TextAnchor.MiddleCenter);
+                headerText.text = branch.Name;
+                headerText.color = branch.Tint;
+
+                for (int r = 0; r < branch.Nodes.Count; r++)
+                {
+                    float yTop = 1f - HeaderFraction - r * rowFraction;
+                    _views.Add(MakeNode(branch.Nodes[r], branch.Tint, gridRect,
+                        new Vector2(x0 + PadX, yTop - rowFraction + PadY), new Vector2(x1 - PadX, yTop - PadY)));
+                }
+            }
+
+            var doneGO = new GameObject("Done", typeof(RectTransform));
+            doneGO.transform.SetParent(_root.transform, false);
+            var doneRect = doneGO.GetComponent<RectTransform>();
+            doneRect.anchorMin = doneRect.anchorMax = new Vector2(0.5f, 0f);
+            doneRect.pivot = new Vector2(0.5f, 0f);
+            doneRect.anchoredPosition = new Vector2(0f, 12f);
+            doneRect.sizeDelta = new Vector2(300f, 40f);
+            doneGO.AddComponent<Image>().color = new Color(0.20f, 0.24f, 0.20f, 0.96f);
+            doneGO.AddComponent<Button>().onClick.AddListener(Close);
+
+            _doneLabel = MakeText(doneGO.transform, "Label", Vector2.zero, new Vector2(300f, 40f),
+                18, TextAnchor.MiddleCenter, new Vector2(0.5f, 0.5f));
+        }
+
+        static RectTransform MakeStretched(Transform parent, string name, Vector2 anchorMin, Vector2 anchorMax)
+        {
+            var go = new GameObject(name, typeof(RectTransform));
+            go.transform.SetParent(parent, false);
+            var rect = go.GetComponent<RectTransform>();
+            rect.anchorMin = anchorMin;
+            rect.anchorMax = anchorMax;
+            rect.offsetMin = Vector2.zero;
+            rect.offsetMax = Vector2.zero;
+            return rect;
+        }
+
+        static Text AddText(RectTransform parent, int fontSize, TextAnchor anchor)
+        {
+            var text = parent.gameObject.AddComponent<Text>();
+            text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            text.fontSize = fontSize;
+            text.alignment = anchor;
+            text.color = Color.white;
+            text.supportRichText = true;
+            text.horizontalOverflow = HorizontalWrapMode.Wrap;
+            text.verticalOverflow = VerticalWrapMode.Truncate;
+            return text;
+        }
+
+        NodeView MakeNode(TechNode node, Color tint, RectTransform parent, Vector2 anchorMin, Vector2 anchorMax)
+        {
+            var rect = MakeStretched(parent, "Node_" + node.Id, anchorMin, anchorMax);
+            var go = rect.gameObject;
+
+            var image = go.AddComponent<Image>();
+            var button = go.AddComponent<Button>();
+            button.targetGraphic = image;
+            button.onClick.AddListener(() => Take(node));
+
+            var labelRect = MakeStretched(rect, "Label", Vector2.zero, Vector2.one);
+            labelRect.offsetMin = new Vector2(7f, 5f);
+            labelRect.offsetMax = new Vector2(-7f, -5f);
+            var label = AddText(labelRect, 13, TextAnchor.MiddleCenter);
+
+            return new NodeView { Node = node, Button = button, Image = image, Label = label, Tint = tint };
+        }
+
+        static Text MakeText(Transform parent, string name, Vector2 position, Vector2 size,
+            int fontSize, TextAnchor anchor, Vector2 pivot)
+        {
+            var go = new GameObject(name, typeof(RectTransform));
+            go.transform.SetParent(parent, false);
+            var rect = go.GetComponent<RectTransform>();
+            rect.anchorMin = rect.anchorMax = new Vector2(0.5f, pivot.y);
+            rect.pivot = pivot;
+            rect.anchoredPosition = position;
+            rect.sizeDelta = size;
+
+            var text = go.AddComponent<Text>();
+            text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            text.fontSize = fontSize;
+            text.alignment = anchor;
+            text.color = Color.white;
+            text.supportRichText = true;
+            text.horizontalOverflow = HorizontalWrapMode.Wrap;
+            text.verticalOverflow = VerticalWrapMode.Truncate;
+            return text;
+        }
+
+        public void Show()
+        {
+            // The HUD's pause button, ability bar and toast are built after
+            // this panel, and uGUI draws later siblings on top — without this
+            // they punch through the middle of the tech tree.
+            _root.transform.SetAsLastSibling();
+            _root.SetActive(true);
+            Refresh();
+        }
+
+        void Take(TechNode node)
+        {
+            if (!_state.Take(node)) return;
+
+            Sfx.LevelUp();
+
+            // Spending the last point ends the screen on its own, so the
+            // common case (one point, one pick) needs no extra click.
+            if (_state.AvailablePoints <= 0)
+            {
+                Close();
+                return;
+            }
+            Refresh();
+        }
+
+        void Close()
+        {
+            _root.SetActive(false);
+            GameManager.Instance.ResolveUpgradeChoice();
+        }
+
+        void Refresh()
+        {
+            int points = _state.AvailablePoints;
+            _title.text = points == 1
+                ? $"Round {GameManager.Instance.CurrentRound} cleared — <color=#ffd863>1 point</color> to spend"
+                : $"Round {GameManager.Instance.CurrentRound} cleared — <color=#ffd863>{points} points</color> to spend";
+
+            _doneLabel.text = points > 0 ? $"Save {points} for later" : "Continue";
+
+            foreach (var view in _views)
+            {
+                int rank = _state.RankOf(view.Node.Id);
+                bool maxed = rank >= view.Node.MaxRank;
+                bool unlocked = _state.IsUnlocked(view.Node);
+                bool affordable = _state.CanTake(view.Node);
+
+                view.Button.interactable = affordable;
+
+                if (maxed)
+                {
+                    view.Image.color = MaxedFill;
+                }
+                else if (affordable)
+                {
+                    // Only nodes you can actually buy right now are lit, so
+                    // the screen reads as a short list of real options rather
+                    // than thirty boxes of text.
+                    view.Image.color = new Color(view.Tint.r * 0.42f, view.Tint.g * 0.42f, view.Tint.b * 0.42f, 0.97f);
+                }
+                else
+                {
+                    view.Image.color = LockedFill;
+                }
+
+                string rankTag = view.Node.MaxRank > 1 ? $"  <color=#9fd0ff>{rank}/{view.Node.MaxRank}</color>" : "";
+                string tick = maxed ? "<color=#8fe08f>✓</color> " : "";
+
+                if (!unlocked)
+                {
+                    var previous = TechTree.Find(view.Node.Requires);
+                    view.Label.text = $"<color=#5a5a5a><b>{view.Node.Title}</b>\n\n<size=11>Needs {previous?.Title}</size></color>";
+                }
+                else
+                {
+                    string body = maxed ? "<color=#7f9a7f>" : "<color=#c8c8c8>";
+                    view.Label.text = $"{tick}<b>{view.Node.Title}</b>{rankTag}\n{body}<size=11>{view.Node.Description}</size></color>";
+                }
+            }
+        }
+    }
+}

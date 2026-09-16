@@ -12,6 +12,14 @@ namespace GorillaSurvivors.Player
         public event Action<float, float> OnHealthChanged; // current, max
         public event Action OnDeath;
 
+        // Tech tree: "Scarred" stacks multiplicatively rather than adding, so
+        // three ranks of -12% can never reach immunity.
+        public float DamageTakenMultiplier { get; private set; } = 1f;
+        public void AddDamageReduction(float fraction) => DamageTakenMultiplier *= 1f - fraction;
+
+        // Tech tree: "Old Wounds Close".
+        public float RegenPerSecondFraction;
+
         float _invulnerableUntil;
         bool _dead;
 
@@ -58,6 +66,7 @@ namespace GorillaSurvivors.Player
         {
             if (_dead || IsInvulnerable) return;
 
+            amount *= DamageTakenMultiplier;
             CurrentHP -= amount;
             OnHealthChanged?.Invoke(CurrentHP, MaxHP);
             DamagePopup.Spawn(transform.position, amount);
@@ -92,6 +101,12 @@ namespace GorillaSurvivors.Player
         // i-frames deliberately don't blink — the dash is its own tell.
         void Update()
         {
+            if (!_dead && RegenPerSecondFraction > 0f && CurrentHP < MaxHP
+                && (GameManager.Instance == null || !GameManager.Instance.IsPaused))
+            {
+                Heal(MaxHP * RegenPerSecondFraction * Time.deltaTime);
+            }
+
             bool flashing = !_dead && Time.time < _hitFlashUntil;
             SetModelVisible(!flashing || Mathf.Repeat(Time.time, 0.12f) < 0.07f);
         }

@@ -27,6 +27,11 @@ namespace GorillaSurvivors.Player.Abilities
         public float ImpactRadius = 1.4f;
         public float AimAssistAngle = 18f;
 
+        // Tech tree.
+        public int MaxCharges = 1;       // "Stockpile"
+        public int ExtraProjectiles;     // "Handful"
+        public float RotFraction;        // "Foul"
+
         const float WindupTime = 0.16f;
         const float RecoverTime = 0.16f;
 
@@ -42,11 +47,40 @@ namespace GorillaSurvivors.Player.Abilities
         static readonly Vector3 WindupDir = new Vector3(0.35f, 0.62f, -0.70f).normalized;
         static readonly Vector3 ReleaseDir = new Vector3(0.25f, 0.30f, 0.92f).normalized;
 
+        // Charges recharge one at a time off the same cooldown. With a single
+        // charge (the default) this behaves exactly like the old timer; the
+        // "Stockpile" nodes just let unused cooldown bank into extra throws.
+        int _charges = -1;
+        int _lastMaxCharges;
+        float _rechargeAt;
+
+        public int Charges => Mathf.Max(0, _charges);
+
         public float CooldownRemaining01()
         {
+            if (_charges > 0) return 0f;
+
             float total = Cooldown * _stats.AbilityCooldownMultiplier;
-            float remaining = Mathf.Max(0f, _nextReadyTime - Time.time);
+            float remaining = Mathf.Max(0f, _rechargeAt - Time.time);
             return total <= 0f ? 0f : Mathf.Clamp01(remaining / total);
+        }
+
+        void TickCharges()
+        {
+            // First tick, and any time a Stockpile node raises the cap: hand
+            // over the new charge immediately rather than making the player
+            // wait a cooldown to see what they just bought.
+            if (_charges < 0) _charges = MaxCharges;
+            else if (MaxCharges > _lastMaxCharges) _charges += MaxCharges - _lastMaxCharges;
+            _lastMaxCharges = MaxCharges;
+
+            if (_charges >= MaxCharges) return;
+
+            if (Time.time >= _rechargeAt)
+            {
+                _charges++;
+                if (_charges < MaxCharges) _rechargeAt = Time.time + Cooldown * _stats.AbilityCooldownMultiplier;
+            }
         }
 
         void Awake()
@@ -62,10 +96,17 @@ namespace GorillaSurvivors.Player.Abilities
         {
             if (!Unlocked || _isThrowing) return;
             if (GameManager.Instance != null && GameManager.Instance.IsPaused) return;
-            if (Time.time < _nextReadyTime) return;
+
+            TickCharges();
+
+            if (_charges <= 0) return;
             if (!WasPressed()) return;
 
-            _nextReadyTime = Time.time + Cooldown * _stats.AbilityCooldownMultiplier;
+            // Spending the last-but-one charge is what starts the clock, so
+            // a full stockpile doesn't quietly refill while it is still full.
+            if (_charges >= MaxCharges) _rechargeAt = Time.time + Cooldown * _stats.AbilityCooldownMultiplier;
+            _charges--;
+
             StartCoroutine(ThrowSequence());
         }
 
@@ -98,7 +139,20 @@ namespace GorillaSurvivors.Player.Abilities
             float radius = ImpactRadius * _stats.AreaMultiplier;
             Vector3 origin = transform.position + Vector3.up * 1.3f + aim * 0.4f;
 
-            DungProjectile.Launch(origin, target, damage, radius);
+            DungProjectile.Launch(origin, target, damage, radius, RotFraction);
+
+            // "Handful": extra clods fanned either side of the aimed one, so
+            // the node covers ground rather than just multiplying damage on
+            // a single target.
+            for (int i = 1; i <= ExtraProjectiles; i++)
+            {
+                float spread = (i % 2 == 0 ? 1f : -1f) * (14f + 9f * (i / 2));
+                Vector3 offsetDir = Quaternion.Euler(0f, spread, 0f) * (target - transform.position);
+                Vector3 offsetTarget = transform.position + offsetDir;
+                offsetTarget.y = target.y;
+                DungProjectile.Launch(origin, offsetTarget, damage, radius, RotFraction);
+            }
+
             CameraShake.Shake(0.07f, 0.1f);
 
             yield return AnimateArm(WindupDir, ReleaseDir, 0.07f, -10f, 12f);

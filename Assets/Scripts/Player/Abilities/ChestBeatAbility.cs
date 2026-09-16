@@ -25,7 +25,11 @@ namespace GorillaSurvivors.Player.Abilities
         public float KnockbackForce = 10f;
         public float KnockbackDuration = 0.35f;
 
-        public const int PulseCount = 3;
+        // Tech tree.
+        public int PulseCount = 3;              // "Drum Roll"
+        public bool InvulnerableWhileBeating;   // "Unshakeable"
+        public float MoveFraction;              // "Rolling Thunder"; 0 = rooted
+
         const float RiseTime = 0.18f;
         const float ArmsOutTime = 0.16f;
         const float PoundTime = 0.10f;
@@ -119,7 +123,26 @@ namespace GorillaSurvivors.Player.Abilities
         {
             _isBeating = true;
             _pulsesFired = 0;
-            _controller.MovementLocked = true;
+
+            // "Rolling Thunder" trades the root for a slow walk. The facing
+            // is still locked either way so the animation doesn't spin.
+            if (MoveFraction > 0f)
+            {
+                _controller.SpeedScale = MoveFraction;
+                _controller.FacingLocked = true;
+            }
+            else
+            {
+                _controller.MovementLocked = true;
+            }
+
+            // "Unshakeable": covers the whole animation plus a moment after,
+            // so the recovery frames aren't a free hit on a rooted player.
+            if (InvulnerableWhileBeating)
+            {
+                _controller.GetComponent<PlayerHealth>()?.GrantInvulnerability(EstimatedDuration() + 0.15f);
+            }
+
             if (_animator != null)
             {
                 _animator.SuppressArms = true;
@@ -152,6 +175,11 @@ namespace GorillaSurvivors.Player.Abilities
             EndBeat();
         }
 
+        float EstimatedDuration()
+        {
+            return RiseTime + SettleTime + PulseCount * (PoundTime + ArmsOutTime + HoldTime);
+        }
+
         void EndBeat()
         {
             SetArm(_armR, RestDir, RestElbow, false);
@@ -165,6 +193,8 @@ namespace GorillaSurvivors.Player.Abilities
                 _animator.BodyPitch = 0f;
             }
             _controller.MovementLocked = false;
+            _controller.SpeedScale = 1f;
+            _controller.FacingLocked = false;
         }
 
         void Pulse()

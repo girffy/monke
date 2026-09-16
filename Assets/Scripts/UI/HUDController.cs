@@ -26,10 +26,7 @@ namespace GorillaSurvivors.UI
         Coroutine _toastRoutine;
         Text _roundBannerText;
         Coroutine _roundBannerRoutine;
-        GameObject _upgradePanel;
-        Text _upgradeTitle;
-        readonly List<Button> _upgradeButtons = new List<Button>();
-        readonly List<Text> _upgradeButtonLabels = new List<Text>();
+        TechTreePanel _techTreePanel;
 
         PlayerHealth _health;
         PlayerStats _stats;
@@ -88,8 +85,7 @@ namespace GorillaSurvivors.UI
             hud._gameOverPanel = CreateGameOverPanel(canvasGO.transform, out hud._gameOverText);
             hud._gameOverPanel.SetActive(false);
 
-            hud._upgradePanel = CreateUpgradePanel(canvasGO.transform, hud, out hud._upgradeTitle, hud._upgradeButtons, hud._upgradeButtonLabels);
-            hud._upgradePanel.SetActive(false);
+            hud._techTreePanel = TechTreePanel.Create(canvasGO.transform, health.GetComponent<TechTreeState>());
 
             hud.CreatePauseButton(canvasGO.transform);
             OffscreenEnemyMarkers.Create(canvasGO.transform);
@@ -359,35 +355,9 @@ namespace GorillaSurvivors.UI
             return text;
         }
 
-        public void ShowUpgradeChoice(List<RoundReward> choices)
+        public void ShowUpgradeChoice()
         {
-            _upgradeTitle.text = $"Round {GameManager.Instance.CurrentRound} Cleared!\nChoose a reward:";
-
-            for (int i = 0; i < _upgradeButtons.Count; i++)
-            {
-                if (i < choices.Count)
-                {
-                    var choice = choices[i];
-                    _upgradeButtonLabels[i].text = $"{choice.Title}\n<size=16>{choice.Description}</size>";
-                    _upgradeButtons[i].gameObject.SetActive(true);
-
-                    var button = _upgradeButtons[i];
-                    button.onClick.RemoveAllListeners();
-                    button.onClick.AddListener(() => SelectUpgrade(choice));
-                }
-                else
-                {
-                    _upgradeButtons[i].gameObject.SetActive(false);
-                }
-            }
-
-            _upgradePanel.SetActive(true);
-        }
-
-        void SelectUpgrade(RoundReward choice)
-        {
-            _upgradePanel.SetActive(false);
-            GameManager.Instance.ResolveUpgradeChoice(choice);
+            _techTreePanel.Show();
         }
 
         // A clickable pause control alongside the Esc/P keys. Browsers
@@ -577,83 +547,5 @@ namespace GorillaSurvivors.UI
             return panel;
         }
 
-        static GameObject CreateUpgradePanel(Transform parent, HUDController hud, out Text title, List<Button> buttons, List<Text> buttonLabels)
-        {
-            var panel = new GameObject("UpgradePanel", typeof(RectTransform));
-            panel.transform.SetParent(parent, false);
-            var rect = panel.GetComponent<RectTransform>();
-            rect.anchorMin = Vector2.zero;
-            rect.anchorMax = Vector2.one;
-            rect.offsetMin = Vector2.zero;
-            rect.offsetMax = Vector2.zero;
-
-            var bg = panel.AddComponent<Image>();
-            bg.color = new Color(0f, 0f, 0f, 0.8f);
-
-            var titleGO = new GameObject("Title", typeof(RectTransform));
-            titleGO.transform.SetParent(panel.transform, false);
-            var titleRect = titleGO.GetComponent<RectTransform>();
-            titleRect.anchorMin = new Vector2(0.5f, 1f);
-            titleRect.anchorMax = new Vector2(0.5f, 1f);
-            titleRect.pivot = new Vector2(0.5f, 1f);
-            titleRect.anchoredPosition = new Vector2(0f, -70f);
-            titleRect.sizeDelta = new Vector2(900, 100);
-
-            title = titleGO.AddComponent<Text>();
-            title.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            title.fontSize = 32;
-            title.alignment = TextAnchor.MiddleCenter;
-            title.color = Color.white;
-            title.text = "Round Cleared!";
-
-            const int count = 3;
-            const float buttonWidth = 260f;
-            const float spacing = 30f;
-            float totalWidth = count * buttonWidth + (count - 1) * spacing;
-            float startX = -totalWidth / 2f + buttonWidth / 2f;
-
-            for (int i = 0; i < count; i++)
-            {
-                var buttonGO = new GameObject($"Choice{i}", typeof(RectTransform));
-                buttonGO.transform.SetParent(panel.transform, false);
-                var btnRect = buttonGO.GetComponent<RectTransform>();
-                btnRect.anchorMin = new Vector2(0.5f, 0.5f);
-                btnRect.anchorMax = new Vector2(0.5f, 0.5f);
-                btnRect.pivot = new Vector2(0.5f, 0.5f);
-                btnRect.sizeDelta = new Vector2(buttonWidth, 220);
-                btnRect.anchoredPosition = new Vector2(startX + i * (buttonWidth + spacing), 0f);
-
-                var btnImage = buttonGO.AddComponent<Image>();
-                btnImage.color = new Color(0.18f, 0.2f, 0.16f, 0.95f);
-
-                var button = buttonGO.AddComponent<Button>();
-                var colors = button.colors;
-                colors.highlightedColor = new Color(0.32f, 0.36f, 0.28f);
-                colors.pressedColor = new Color(0.12f, 0.14f, 0.10f);
-                colors.selectedColor = colors.highlightedColor;
-                button.colors = colors;
-
-                var labelGO = new GameObject("Label", typeof(RectTransform));
-                labelGO.transform.SetParent(buttonGO.transform, false);
-                var labelRect = labelGO.GetComponent<RectTransform>();
-                labelRect.anchorMin = Vector2.zero;
-                labelRect.anchorMax = Vector2.one;
-                labelRect.offsetMin = new Vector2(14, 14);
-                labelRect.offsetMax = new Vector2(-14, -14);
-
-                var label = labelGO.AddComponent<Text>();
-                label.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-                label.fontSize = 20;
-                label.alignment = TextAnchor.MiddleCenter;
-                label.color = Color.white;
-                label.supportRichText = true;
-                label.text = "";
-
-                buttons.Add(button);
-                buttonLabels.Add(label);
-            }
-
-            return panel;
-        }
     }
 }

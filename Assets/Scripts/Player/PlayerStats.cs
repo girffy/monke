@@ -56,9 +56,13 @@ namespace GorillaSurvivors.Player
             if (changed) RecomputeMultipliers();
         }
 
+        // Tech tree: "Forager".
+        public float XPBonus { get; private set; }
+        public void AddXPBonus(float amount) => XPBonus += amount;
+
         public void AddXP(float amount)
         {
-            CurrentXP += amount;
+            CurrentXP += amount * (1f + XPBonus);
             while (CurrentXP >= XPToNextLevel)
             {
                 CurrentXP -= XPToNextLevel;
