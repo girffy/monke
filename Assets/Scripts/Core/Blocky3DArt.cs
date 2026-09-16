@@ -2,7 +2,7 @@ using UnityEngine;
 
 namespace GorillaSurvivors.Core
 {
-    public enum HumanVariant { Grunt, Runner, Brute, Thrower, Shieldman, Bomber, Medic, Wizard }
+    public enum HumanVariant { Grunt, Runner, Brute, Thrower, Shieldman, Bomber, Medic, Wizard, Ogre }
 
     // Primitive-assembled 3D models (spheres/capsules/cubes). Since the
     // project ships no art assets, quality comes from silhouette, proportion
@@ -139,9 +139,21 @@ namespace GorillaSurvivors.Core
                     build = 0.85f;
                     break;
                 case HumanVariant.Brute:
+                    // WIDE, not tall. This is the round-one heavy, and a man
+                    // half again the height of everyone else read as a boss —
+                    // far too imposing for the thing you meet in the first
+                    // wave. The threat is legible from bulk alone: barely
+                    // taller than a grunt, but half again as broad.
+                    shirtBase = new Color(0.42f, 0.40f, 0.44f);
+                    scale = 1.12f;
+                    build = 1.34f;
+                    break;
+                case HumanVariant.Ogre:
+                    // The old Brute, kept for what its height was always
+                    // right for: a late-game wall that hits like a truck.
                     shirtBase = new Color(0.40f, 0.17f, 0.50f);
-                    scale = 1.5f;
-                    build = 1.28f;
+                    scale = 1.55f;
+                    build = 1.34f;
                     break;
                 case HumanVariant.Thrower:
                     shirtBase = new Color(0.82f, 0.52f, 0.16f);
@@ -226,7 +238,7 @@ namespace GorillaSurvivors.Core
                 AddPart(weapon.transform, "Head", PrimitiveType.Sphere, new Vector3(0f, 1.05f, 0f), new Vector3(1.9f, 0.55f, 1.9f), weaponColor);
             }
 
-            BuildVariantProps(root, head.transform, variant, build, skin, hair);
+            BuildVariantProps(root, head.transform, variant, build, skin, hair, shirt);
             BuildModifierProps(root, modifiers);
 
             root.transform.localScale = Vector3.one * scale;
@@ -286,7 +298,7 @@ namespace GorillaSurvivors.Core
         // brow ridge in particular read as a pair of sunglasses hovering a
         // few centimetres off his nose.
         static void BuildVariantProps(GameObject root, Transform head, HumanVariant variant, float build,
-            Color skin, Color hair)
+            Color skin, Color hair, Color shirt)
         {
             switch (variant)
             {
@@ -352,12 +364,12 @@ namespace GorillaSurvivors.Core
                     AddPart(head, "CapCrossV", PrimitiveType.Cube, new Vector3(0f, 0.46f, 0.06f), new Vector3(0.14f, 0.16f, 0.44f), red);
                     break;
                 }
-                case HumanVariant.Brute:
+                case HumanVariant.Ogre:
                 {
                     var leather = new Color(0.27f, 0.20f, 0.16f);
 
                     // Slabs of shoulder and a heavy jaw: the bulk has to read
-                    // in silhouette, since a Brute is mostly just a bigger
+                    // in silhouette, since an Ogre is mostly just a bigger
                     // version of the same body.
                     for (int s = -1; s <= 1; s += 2)
                     {
@@ -375,6 +387,51 @@ namespace GorillaSurvivors.Core
 
                     AddPart(head, "Jaw", PrimitiveType.Cube, new Vector3(0f, -0.34f, 0.16f), new Vector3(0.80f, 0.26f, 0.72f), skin);
                     AddPart(head, "BrowRidge", PrimitiveType.Cube, new Vector3(0f, 0.20f, 0.34f), new Vector3(0.86f, 0.14f, 0.32f), hair);
+                    break;
+                }
+                case HumanVariant.Brute:
+                {
+                    var hide = new Color(0.24f, 0.22f, 0.21f);
+                    var iron = new Color(0.46f, 0.47f, 0.50f);
+
+                    // Everything here pushes width, because width is the only
+                    // thing separating this from a grunt at a glance — it is
+                    // barely taller than one. A barrel chest and a gut past
+                    // the belt, shoulders out past the arms, and no neck.
+                    AddPart(root.transform, "Barrel", PrimitiveType.Sphere,
+                        new Vector3(0f, 1.06f, 0.02f), new Vector3(0.54f * build, 0.33f, 0.42f * build), shirt);
+                    AddPart(root.transform, "Gut", PrimitiveType.Sphere,
+                        new Vector3(0f, 0.86f, 0.04f), new Vector3(0.46f * build, 0.23f, 0.38f * build), shirt);
+                    AddPart(root.transform, "Trapezius", PrimitiveType.Capsule,
+                        new Vector3(0f, 1.28f, -0.02f), new Vector3(0.40f * build, 0.10f, 0.25f * build), shirt);
+
+                    for (int s = -1; s <= 1; s += 2)
+                    {
+                        AddPart(root.transform, "Pauldron", PrimitiveType.Sphere,
+                            new Vector3(s * 0.30f * build, 1.22f, 0f),
+                            new Vector3(0.29f * build, 0.24f, 0.31f * build), hide);
+                        AddPart(root.transform, "PauldronStud", PrimitiveType.Sphere,
+                            new Vector3(s * 0.35f * build, 1.27f, 0f),
+                            new Vector3(0.09f, 0.075f, 0.09f), iron);
+
+                        var arm = root.transform.Find(s < 0 ? "ArmL" : "ArmR");
+                        var fist = arm != null ? arm.Find("Lower/End") : null;
+                        if (fist != null)
+                        {
+                            AddPart(fist.parent, "Wrap", PrimitiveType.Sphere,
+                                fist.localPosition + new Vector3(0f, 0.03f, 0f), new Vector3(0.17f, 0.10f, 0.17f), hide);
+                        }
+                    }
+
+                    // A wide leather band across the middle, which reads as a
+                    // belt straining rather than as a waist.
+                    AddPart(root.transform, "Girdle", PrimitiveType.Cube,
+                        new Vector3(0f, 0.78f, 0f), new Vector3(0.50f * build, 0.13f, 0.40f * build), hide);
+                    AddPart(root.transform, "Buckle", PrimitiveType.Cube,
+                        new Vector3(0f, 0.78f, 0.21f * build), new Vector3(0.14f, 0.11f, 0.06f), iron);
+
+                    AddPart(head, "Jaw", PrimitiveType.Cube, new Vector3(0f, -0.32f, 0.16f), new Vector3(0.92f, 0.30f, 0.78f), skin);
+                    AddPart(head, "BrowRidge", PrimitiveType.Cube, new Vector3(0f, 0.18f, 0.32f), new Vector3(0.94f, 0.18f, 0.34f), hair);
                     break;
                 }
                 case HumanVariant.Runner:

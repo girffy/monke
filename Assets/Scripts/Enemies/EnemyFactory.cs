@@ -74,9 +74,11 @@ namespace GorillaSurvivors.Enemies
                     break;
 
                 case HumanVariant.Brute:
-                    collider.radius = 0.55f;
-                    collider.height = 2.4f;
-                    collider.center = new Vector3(0f, 1.2f, 0f);
+                    // Wide rather than tall now, so the capsule follows: not
+                    // much above a grunt's head, twice its footprint.
+                    collider.radius = 0.48f;
+                    collider.height = 1.85f;
+                    collider.center = new Vector3(0f, 0.93f, 0f);
                     // The "big guy": the enemy the player's damage is measured
                     // against, so it has to stay several hits at every point
                     // in the run. The old figures let a light swipe one-shot
@@ -86,9 +88,28 @@ namespace GorillaSurvivors.Enemies
                     baseHP = 55f + 4.5f * difficultyScale;
                     baseXP = 7f;
                     baseMoveSpeed = 1.1f + 0.2f * Mathf.Min(difficultyScale, 4f);
-                    // The heaviest hitter that walks: about six of these and
-                    // you are dead, so being cornered by one is a real loss.
+                    // The heaviest hitter in the early game: about six of
+                    // these and you are dead, so being cornered by one is a
+                    // real loss.
                     baseContactDamage = 34f + 2.2f * r;
+                    break;
+
+                case HumanVariant.Ogre:
+                    collider.radius = 0.60f;
+                    collider.height = 2.5f;
+                    collider.center = new Vector3(0f, 1.25f, 0f);
+                    // What the Brute's height always suited: a late-game wall.
+                    // It arrives long after the player has a built tree, so it
+                    // is priced against that rather than against round-one
+                    // damage — roughly three times a Brute's pool, and it
+                    // takes a quarter of your life per hit.
+                    baseHP = 170f + 14f * difficultyScale;
+                    baseXP = 20f;
+                    // Slow enough to walk away from. Being hit by one is a
+                    // mistake you had time to avoid, which is the only way a
+                    // hit this hard is fair.
+                    baseMoveSpeed = 0.95f + 0.15f * Mathf.Min(difficultyScale, 4f);
+                    baseContactDamage = 58f + 3.6f * r;
                     break;
 
                 case HumanVariant.Thrower:

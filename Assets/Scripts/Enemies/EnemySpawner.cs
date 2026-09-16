@@ -195,6 +195,16 @@ namespace GorillaSurvivors.Enemies
                 roll -= wizardChance;
             }
 
+            // Ogres are the late game's wall — a hit takes a quarter of your
+            // life, so a crowd of them is not a fight. Checked before the
+            // Brute so the commoner heavy can't crowd it out of the roll.
+            if (round >= 8)
+            {
+                float ogreChance = Mathf.Min(0.09f, 0.02f + round * 0.006f);
+                if (roll < ogreChance) return HumanVariant.Ogre;
+                roll -= ogreChance;
+            }
+
             // Medics rewrite the fight (a crowd that heals), so they stay the
             // rarest of the specialists.
             if (round >= 6)
