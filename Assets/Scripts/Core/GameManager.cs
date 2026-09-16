@@ -92,16 +92,19 @@ namespace GorillaSurvivors.Core
 
         // Called by EnemySpawner once every enemy in the round has been both
         // spawned and killed.
-        // One tech point per round cleared, plus a bonus one every third
-        // round so the deeper nodes stay reachable without making every
-        // round's pick feel cheap.
+        // Two tech points per round cleared, plus a bonus one every fifth.
+        //
+        // Raised from one-plus-a-third: the tree is a route you walk, and at
+        // the old rate the first capstone landed around round 8 and most of
+        // the tree was never seen in a run at all. At this rate a branch
+        // capstone is round 5 and a full build is a plausible long run.
         public void BeginUpgradeChoice()
         {
             if (IsGameOver || IsChoosingUpgrade) return;
             IsChoosingUpgrade = true;
             Sfx.RoundClear();
 
-            int points = 1 + (CurrentRound % 3 == 0 ? 1 : 0);
+            int points = 2 + (CurrentRound % 5 == 0 ? 1 : 0);
             _player.GetComponent<TechTreeState>()?.GrantPoints(points);
 
             OnUpgradeChoiceReady?.Invoke();
@@ -115,6 +118,7 @@ namespace GorillaSurvivors.Core
 
             IsChoosingUpgrade = false;
             _player.GetComponent<PlayerHealth>()?.RefreshLastStand();
+            _player.GetComponent<PlayerPerks>()?.RefreshSecondWind();
             int nextRound = CurrentRound + 1;
             _spawner?.StartNewRound(nextRound);
             OnRoundStarted?.Invoke(nextRound);

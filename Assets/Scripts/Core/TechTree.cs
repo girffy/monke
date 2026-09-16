@@ -8,38 +8,43 @@ namespace GorillaSurvivors.Core
 {
     // What you spend round-clear points on.
     //
-    // This replaced a pool of three random rewards drawn between rounds,
-    // which had become redundant with levelling: both handed out the same
-    // flat "+15% damage" style bonuses, so clearing a round felt like a
-    // slower, less frequent level-up rather than a decision.
+    // This is a real tree, not a grid of columns. The version before it gated
+    // a node on "anything in the row above", which meant no node was ever
+    // downstream of a PARTICULAR choice — every leaf was reachable from every
+    // path, so the whole thing read as a shopping list you picked an order
+    // for. Here each node names its own parents, so taking Wind Up is what
+    // puts Earthshaker in reach and skipping it closes that limb off.
     //
-    // A tree fixes that by making the choices about your abilities and about
-    // each other. Every branch is a single ability, nodes unlock strictly
-    // left-to-right along their branch, and points can be banked, so going
-    // deep on one ability costs you breadth across the others.
+    // The shape per branch: a trunk splits into one limb per skill, each limb
+    // forks into its two distinct ideas, and those forks REJOIN into that
+    // skill's own payoff. The limb payoffs rejoin again into the branch
+    // capstone, and the three branch capstones feed one final node.
     public class TechNode
     {
         public string Id;
         public string Title;
         public string Description;
-        // Ranks beyond the first re-apply the same effect, which is how the
-        // plain "+4 damage" filler nodes stack.
+        // A short tag naming which skill this belongs to, for the panel.
+        public string Skill;
+
+        // Ranks beyond the first re-apply the same effect. Kept to trunks and
+        // limb roots, where flat filler does the least harm.
         public int MaxRank = 1;
         public Action<GameObject> Apply;
 
-        // Which row of its branch this sits on. Rows are the tree's depth:
-        // a node needs SOME node on the row above it taken first, not one
-        // specific parent, so a branch forks instead of being a queue.
+        // Parents. ANY ONE of them being owned opens this node — a join is a
+        // place two paths meet, not a toll requiring both. Empty means this
+        // is a root and is open from the start.
+        public string[] Parents = EmptyParents;
+        // The single exception: the grand capstone, which is the one place
+        // all three branches are meant to actually converge.
+        public bool RequiresAllParents;
+
         public int Row;
-        // Which of the branch's columns it occupies, for layout.
         public int Column;
-
-        // Extra gate: this many points spent anywhere in the same branch.
-        // How the branch-defining payoffs at the bottom are earned.
-        public int RequiresBranchPoints;
-
-        // Set by TechBranch.
         public TechBranch Branch;
+
+        static readonly string[] EmptyParents = new string[0];
     }
 
     public class TechBranch
@@ -84,128 +89,162 @@ namespace GorillaSurvivors.Core
 
         static T Get<T>(GameObject p) where T : Component => p.GetComponent<T>();
 
-        static TechNode N(string id, string title, string description, int row, int column,
-            Action<GameObject> apply, int maxRank = 1, int requiresBranchPoints = 0)
+        static TechNode N(string id, string title, string skill, string description,
+            int row, int column, Action<GameObject> apply, int maxRank = 1, params string[] parents)
         {
             return new TechNode
             {
-                Id = id, Title = title, Description = description,
-                Row = row, Column = column, Apply = apply,
-                MaxRank = maxRank, RequiresBranchPoints = requiresBranchPoints,
+                Id = id, Title = title, Skill = skill, Description = description,
+                Row = row, Column = column, Apply = apply, MaxRank = maxRank,
+                Parents = parents ?? new string[0],
             };
         }
 
+        // Column positions are in HALF-columns so a trunk can sit centred
+        // between its limbs: a two-limb branch is 4 half-columns wide with
+        // limbs at 1 and 3, and the trunk at 2.
         static List<TechBranch> Build()
         {
             return new List<TechBranch>
             {
-                // ---- Melee: the two mouse buttons --------------------
-                new TechBranch("Melee", "Swipe  /  Slam", new Color(0.88f, 0.72f, 0.32f), 2,
-                    N("swipe_dmg", "Sharpened Claws", "+4 swipe damage", 0, 0,
-                        p => Get<QuickSwipeAttack>(p).BaseDamage += 4f, 3),
-                    N("slam_dmg", "Heavy Fists", "+8 slam damage", 0, 1,
-                        p => Get<PlayerAttack>(p).BaseDamage += 8f, 3),
-
-                    N("swipe_arc", "Wide Sweep", "The swipe cuts a much wider arc", 1, 0,
-                        p => Get<QuickSwipeAttack>(p).ArcDegrees = 155f),
-                    N("slam_stun", "Concussive", "Slammed enemies are stunned for 0.8s", 1, 1,
-                        p => Get<PlayerAttack>(p).StunSeconds = 0.8f),
-
-                    N("swipe_reach", "Long Arms", "+0.4 swipe reach and a wider band", 2, 0,
-                        p => { var s = Get<QuickSwipeAttack>(p); s.Reach += 0.4f; s.BandWidth += 0.15f; }, 2),
-                    N("slam_charge", "Wind Up", "Hold RMB to charge: up to 2.2x damage and reach", 2, 1,
-                        p => Get<PlayerAttack>(p).ChargeEnabled = true),
-
-                    N("swipe_bleed", "Rake", "Swiped enemies bleed for half the hit again over 2s", 3, 0,
-                        p => Get<QuickSwipeAttack>(p).BleedFraction = 0.5f),
-                    N("slam_cd", "Follow Through", "-20% slam cooldown", 3, 1,
-                        p => Get<PlayerAttack>(p).BaseCooldown *= 0.8f, 2),
-
-                    N("swipe_double", "Flurry", "Every swipe lands a second time for 60%", 4, 0,
-                        p => Get<QuickSwipeAttack>(p).SecondHitFraction = 0.6f),
-                    N("slam_quake", "Earthshaker", "The slam sends a shockwave out all around for half damage", 4, 1,
-                        p => Get<PlayerAttack>(p).QuakeEnabled = true),
-
-                    // Capstone. Deliberately gated on POINTS SPENT IN THE
-                    // BRANCH rather than on one parent, so it is earned by
-                    // committing to melee rather than by walking one column.
-                    N("melee_capstone", "Overwhelm", "+40% damage with both melee attacks", 5, 0,
+                // ================= MELEE =================
+                new TechBranch("Melee", "Swipe (LMB)  ·  Slam (RMB)", new Color(0.88f, 0.72f, 0.32f), 4,
+                    N("brawler", "Brawler", "Trunk", "+3 damage to both melee attacks", 0, 2,
                         p =>
                         {
-                            Get<QuickSwipeAttack>(p).BaseDamage *= 1.4f;
-                            Get<PlayerAttack>(p).BaseDamage *= 1.4f;
-                        }, 1, 8)),
+                            Get<QuickSwipeAttack>(p).BaseDamage += 3f;
+                            Get<PlayerAttack>(p).BaseDamage += 3f;
+                        }, 3),
 
-                // ---- Abilities: the three cooldowns ------------------
-                new TechBranch("Abilities", "Dash  /  Beat  /  Toss", new Color(0.45f, 0.72f, 0.90f), 3,
-                    N("dash_cd", "Light Feet", "-20% dash cooldown", 0, 0,
-                        p => Get<PlayerController>(p).DashCooldown *= 0.8f, 2),
-                    N("beat_unlock", "Unlock: Chest Beat", "Q — rear up and pound out shockwaves", 0, 1,
-                        p => Get<ChestBeatAbility>(p).Unlocked = true),
-                    N("dung_unlock", "Unlock: Dung Toss", "E — hurl dung; splash damage and a slowing patch", 0, 2,
-                        p => Get<DungTossAbility>(p).Unlocked = true),
+                    N("swipe_dmg", "Sharpened Claws", "Swipe", "+4 swipe damage", 1, 1,
+                        p => Get<QuickSwipeAttack>(p).BaseDamage += 4f, 3, "brawler"),
+                    N("slam_dmg", "Heavy Fists", "Slam", "+8 slam damage", 1, 3,
+                        p => Get<PlayerAttack>(p).BaseDamage += 8f, 3, "brawler"),
 
-                    N("dash_through", "Barge", "Dash passes straight through enemies", 1, 0,
-                        p => Get<PlayerController>(p).DashPassesThrough = true),
-                    N("beat_dmg", "Thunderous", "+4 damage per pulse", 1, 1,
-                        p => Get<ChestBeatAbility>(p).BaseDamage += 4f, 3),
-                    N("dung_dmg", "Packed Tight", "+4 dung damage", 1, 2,
-                        p => Get<DungTossAbility>(p).BaseDamage += 4f, 3),
+                    N("swipe_arc", "Wide Sweep", "Swipe", "+22° arc and +0.3 reach", 2, 0,
+                        p =>
+                        {
+                            var s = Get<QuickSwipeAttack>(p);
+                            s.ArcDegrees += 22f;
+                            s.Reach += 0.3f;
+                        }, 2, "swipe_dmg"),
+                    N("swipe_bleed", "Rake", "Swipe", "Swiped enemies bleed for half the hit again over 2s", 2, 2,
+                        p => Get<QuickSwipeAttack>(p).BleedFraction = 0.5f, 1, "swipe_dmg"),
+                    N("slam_charge", "Wind Up", "Slam", "Hold RMB to charge: up to 2.2x damage and reach", 2, 4,
+                        p => Get<PlayerAttack>(p).ChargeEnabled = true, 1, "slam_dmg"),
+                    N("slam_stun", "Concussive", "Slam", "Slammed enemies are stunned for 0.5s, +0.3s per rank", 2, 6,
+                        p =>
+                        {
+                            var a = Get<PlayerAttack>(p);
+                            a.StunSeconds += a.StunSeconds > 0f ? 0.3f : 0.5f;
+                        }, 2, "slam_dmg"),
 
-                    N("dash_far", "Ground Eater", "+40% dash distance", 2, 0,
-                        p => Get<PlayerController>(p).DashDuration *= 1.4f),
-                    N("beat_pulses", "Drum Roll", "+1 pulse", 2, 1,
-                        p => Get<ChestBeatAbility>(p).PulseCount += 1, 2),
-                    N("dung_charges", "Stockpile", "+1 stored throw", 2, 2,
-                        p => Get<DungTossAbility>(p).MaxCharges += 1, 2),
+                    N("swipe_double", "Flurry", "Swipe join", "Every swipe lands a second time for 60%", 3, 1,
+                        p => Get<QuickSwipeAttack>(p).SecondHitFraction = 0.6f, 1, "swipe_arc", "swipe_bleed"),
+                    N("slam_quake", "Earthshaker", "Slam join", "The slam sends a shockwave out all around for half damage", 3, 3,
+                        p => Get<PlayerAttack>(p).QuakeEnabled = true, 1, "slam_charge", "slam_stun"),
 
-                    N("dash_dmg", "Freight Train", "Dashing deals +14 damage to everything you pass through", 3, 0,
-                        p => Get<PlayerController>(p).DashDamage += 14f, 2),
-                    N("beat_iron", "Unshakeable", "Invulnerable for the whole chest beat", 3, 1,
-                        p => Get<ChestBeatAbility>(p).InvulnerableWhileBeating = true),
-                    N("dung_spread", "Handful", "+1 extra clod thrown in a spread", 3, 2,
-                        p => Get<DungTossAbility>(p).ExtraProjectiles += 1, 2),
+                    N("melee_capstone", "Silverback", "Capstone",
+                        "Melee kills build Frenzy: +8% melee damage each, up to 5, fading 3s after your last kill", 4, 2,
+                        p => Get<PlayerPerks>(p).FrenzyEnabled = true, 1, "swipe_double", "slam_quake")),
 
-                    N("dash_refresh", "Momentum", "Finishing a dash instantly readies the slam", 4, 0,
-                        p => Get<PlayerController>(p).DashRefreshesAttacks = true),
-                    N("beat_march", "Rolling Thunder", "Walk at half speed while beating instead of being rooted", 4, 1,
-                        p => Get<ChestBeatAbility>(p).MoveFraction = 0.5f),
-                    N("dung_rot", "Foul", "Hit enemies rot, taking the impact damage again over 3s", 4, 2,
-                        p => Get<DungTossAbility>(p).RotFraction = 1f),
+                // ================= ABILITIES =================
+                new TechBranch("Abilities", "Dash (SPC)  ·  Chest Beat (Q)  ·  Dung Toss (E)", new Color(0.45f, 0.72f, 0.90f), 6,
+                    N("instinct", "Instinct", "Trunk", "-12% cooldown on every ability", 0, 3,
+                        p => Get<PlayerStats>(p).AddPermanentCooldownReduction(0.12f), 2),
 
-                    N("ability_capstone", "Second Wind", "-30% cooldown on every ability", 5, 1,
-                        p => Get<PlayerStats>(p).AddPermanentCooldownReduction(0.3f), 1, 9)),
+                    N("dash_cd", "Light Feet", "Dash", "-20% dash cooldown", 1, 1,
+                        p => Get<PlayerController>(p).DashCooldown *= 0.8f, 2, "instinct"),
+                    N("beat_unlock", "Chest Beat", "Unlock Q", "Rear up and pound out shockwaves", 1, 3,
+                        p => Get<ChestBeatAbility>(p).Unlocked = true, 1, "instinct"),
+                    N("dung_unlock", "Dung Toss", "Unlock E", "Hurl dung; splash damage and a slowing patch", 1, 5,
+                        p => Get<DungTossAbility>(p).Unlocked = true, 1, "instinct"),
 
-                // ---- Hide: staying alive ----------------------------
-                new TechBranch("Hide", "Body  /  Instinct", new Color(0.55f, 0.78f, 0.48f), 2,
-                    N("hide_hp", "Thicker Hide", "+30 max HP, heal to full", 0, 0,
-                        p => Get<PlayerStats>(p).AddPermanentMaxHP(30f), 4),
-                    N("hide_speed", "Long Strides", "+12% move speed", 0, 1,
-                        p => Get<PlayerStats>(p).AddPermanentMoveSpeedBonus(0.12f), 3),
+                    N("dash_through", "Barge", "Dash", "Dash passes straight through enemies", 2, 0,
+                        p => Get<PlayerController>(p).DashPassesThrough = true, 1, "dash_cd"),
+                    N("dash_far", "Ground Eater", "Dash", "+40% dash distance", 2, 2,
+                        p => Get<PlayerController>(p).DashDuration *= 1.4f, 1, "dash_cd"),
+                    N("beat_dmg", "Thunderous", "Beat", "+4 damage per pulse", 2, 4,
+                        p => Get<ChestBeatAbility>(p).BaseDamage += 4f, 3, "beat_unlock"),
+                    N("beat_pulses", "Drum Roll", "Beat", "+1 pulse", 2, 6,
+                        p => Get<ChestBeatAbility>(p).PulseCount += 1, 2, "beat_unlock"),
+                    N("dung_dmg", "Packed Tight", "Toss", "+4 dung damage", 2, 8,
+                        p => Get<DungTossAbility>(p).BaseDamage += 4f, 3, "dung_unlock"),
+                    N("dung_charges", "Stockpile", "Toss", "+1 stored throw", 2, 10,
+                        p => Get<DungTossAbility>(p).MaxCharges += 1, 2, "dung_unlock"),
 
-                    N("hide_armor", "Scarred", "-12% damage taken", 1, 0,
-                        p => Get<PlayerHealth>(p).AddDamageReduction(0.12f), 3),
-                    N("hide_greed", "Forager", "+30% XP and +50% pickup range", 1, 1,
+                    N("dash_dmg", "Freight Train", "Dash join", "Dashing deals 20 damage to everything you pass through", 3, 1,
+                        p => Get<PlayerController>(p).DashDamage += 20f, 1, "dash_through", "dash_far"),
+                    N("beat_march", "Rolling Thunder", "Beat join", "Walk at half speed while beating, and stay invulnerable throughout", 3, 3,
+                        p =>
+                        {
+                            var b = Get<ChestBeatAbility>(p);
+                            b.MoveFraction = 0.5f;
+                            b.InvulnerableWhileBeating = true;
+                        }, 1, "beat_dmg", "beat_pulses"),
+                    N("dung_rot", "Foul", "Toss join", "Throws come as a spread of three, and hits rot for the impact damage again over 3s", 3, 5,
+                        p =>
+                        {
+                            var d = Get<DungTossAbility>(p);
+                            d.RotFraction = 1f;
+                            d.ExtraProjectiles += 2;
+                        }, 1, "dung_dmg", "dung_charges"),
+
+                    N("ability_capstone", "Second Wind", "Capstone",
+                        "-30% cooldown on everything, and dropping below 25% HP instantly readies every ability (once a round)", 4, 3,
+                        p =>
+                        {
+                            Get<PlayerStats>(p).AddPermanentCooldownReduction(0.3f);
+                            Get<PlayerPerks>(p).SecondWindEnabled = true;
+                        }, 1, "dash_dmg", "beat_march", "dung_rot")),
+
+                // ================= HIDE =================
+                new TechBranch("Hide", "Body  ·  Instinct", new Color(0.55f, 0.78f, 0.48f), 4,
+                    N("hide_hp", "Thicker Hide", "Trunk", "+30 max HP, heal to full", 0, 2,
+                        p => Get<PlayerStats>(p).AddPermanentMaxHP(30f), 3),
+
+                    N("hide_armor", "Scarred", "Body", "-12% damage taken", 1, 1,
+                        p => Get<PlayerHealth>(p).AddDamageReduction(0.12f), 3, "hide_hp"),
+                    N("hide_speed", "Long Strides", "Instinct", "+12% move speed", 1, 3,
+                        p => Get<PlayerStats>(p).AddPermanentMoveSpeedBonus(0.12f), 3, "hide_hp"),
+
+                    N("hide_regen", "Old Wounds", "Body", "Regenerate 1.5% of max HP per second", 2, 0,
+                        p => Get<PlayerHealth>(p).RegenPerSecondFraction += 0.015f, 2, "hide_armor"),
+                    N("hide_thorns", "Bristling", "Body", "Anything that touches you takes 12 damage", 2, 2,
+                        p => Get<PlayerHealth>(p).ThornsDamage += 12f, 2, "hide_armor"),
+                    N("hide_iframes", "Hard to Pin", "Instinct", "+0.3s of invulnerability after being hit", 2, 4,
+                        p => Get<PlayerHealth>(p).BonusHitInvulnerability += 0.3f, 2, "hide_speed"),
+                    N("hide_greed", "Forager", "Instinct", "+30% XP and +50% pickup range", 2, 6,
                         p =>
                         {
                             Get<PlayerStats>(p).AddXPBonus(0.3f);
                             Get<PlayerStats>(p).AddPermanentPickupRadiusBonus(0.5f);
-                        }, 2),
+                        }, 2, "hide_speed"),
 
-                    N("hide_regen", "Old Wounds Close", "Regenerate 1.5% of max HP per second", 2, 0,
-                        p => Get<PlayerHealth>(p).RegenPerSecondFraction += 0.015f),
-                    N("hide_iframes", "Hard to Pin", "+0.3s of invulnerability after being hit", 2, 1,
-                        p => Get<PlayerHealth>(p).BonusHitInvulnerability += 0.3f, 2),
+                    N("hide_laststand", "Last Stand", "Body join",
+                        "Once a round, a lethal hit leaves you at 1 HP and invulnerable for 3s", 3, 1,
+                        p => Get<PlayerHealth>(p).HasLastStand = true, 1, "hide_regen", "hide_thorns"),
+                    N("hide_knock", "Immovable", "Instinct join", "Being hit no longer knocks you back", 3, 3,
+                        p => Get<PlayerController>(p).IgnoreKnockback = true, 1, "hide_iframes", "hide_greed"),
 
-                    N("hide_thorns", "Bristling", "Anything that touches you takes 12 damage", 3, 0,
-                        p => Get<PlayerHealth>(p).ThornsDamage += 12f, 2),
-                    N("hide_knock", "Immovable", "Being hit no longer knocks you back", 3, 1,
-                        p => Get<PlayerController>(p).IgnoreKnockback = true),
-
-                    N("hide_capstone", "Last Stand", "Once a round, a lethal hit leaves you at 1 HP and invulnerable for 3s", 4, 0,
-                        p => Get<PlayerHealth>(p).HasLastStand = true, 1, 8)),
+                    N("hide_capstone", "Apex", "Capstone",
+                        "+25% damage above 80% HP; -30% damage taken below 30%", 4, 2,
+                        p => Get<PlayerPerks>(p).ApexEnabled = true, 1, "hide_laststand", "hide_knock")),
             };
         }
+
+        // The one node that is not inside a branch: it sits under all three
+        // capstones and is the only place that needs ALL of its parents.
+        public static readonly TechNode GrandCapstone = new TechNode
+        {
+            Id = "one_gorilla",
+            Title = "One Gorilla",
+            Skill = "Grand capstone",
+            Description = "You take damage from at most one man per second, and every kill heals 2% of max HP",
+            Parents = new[] { "melee_capstone", "ability_capstone", "hide_capstone" },
+            RequiresAllParents = true,
+            Apply = p => p.GetComponent<PlayerPerks>().OneGorillaEnabled = true,
+        };
     }
 
     // Per-run state: how many points are banked and what has been taken.
@@ -219,15 +258,8 @@ namespace GorillaSurvivors.Core
 
         public int RankOf(string id) => _ranks.TryGetValue(id, out int r) ? r : 0;
 
-        public void GrantPoints(int count)
-        {
-            AvailablePoints += count;
-            OnChanged?.Invoke();
-        }
-
-        // Points spent anywhere in one branch — what the capstones are gated
-        // on, so committing to a branch is what earns its payoff rather than
-        // walking one specific column to the bottom.
+        // Points spent in one branch — shown on its tab so the player can
+        // see at a glance where they've committed.
         public int PointsIn(TechBranch branch)
         {
             int total = 0;
@@ -235,30 +267,50 @@ namespace GorillaSurvivors.Core
             return total;
         }
 
-        // A node opens once ANY node on the row above it has been taken. That
-        // is what makes this a tree rather than a queue: a row is a rank of
-        // choices, and reaching the next rank costs one of them, not a
-        // specific one.
+        public void GrantPoints(int count)
+        {
+            AvailablePoints += count;
+            OnChanged?.Invoke();
+        }
+
+        // ANY ONE parent opens a node. A join is a place two paths meet, not
+        // a toll requiring both of them — requiring both would force you to
+        // buy the fork you didn't want, which is the opposite of branching.
+        // The grand capstone is the single exception.
         public bool IsUnlocked(TechNode node)
         {
-            if (node.RequiresBranchPoints > 0 && PointsIn(node.Branch) < node.RequiresBranchPoints) return false;
-            if (node.Row == 0) return true;
+            if (node.Parents == null || node.Parents.Length == 0) return true;
 
-            foreach (var other in node.Branch.Nodes)
+            if (node.RequiresAllParents)
             {
-                if (other.Row == node.Row - 1 && RankOf(other.Id) > 0) return true;
+                foreach (var parent in node.Parents)
+                {
+                    if (RankOf(parent) == 0) return false;
+                }
+                return true;
+            }
+
+            foreach (var parent in node.Parents)
+            {
+                if (RankOf(parent) > 0) return true;
             }
             return false;
         }
 
-        // What a locked node is still waiting on, for the panel to show.
         public string LockReason(TechNode node)
         {
-            if (node.RequiresBranchPoints > 0 && PointsIn(node.Branch) < node.RequiresBranchPoints)
+            if (node.Parents == null || node.Parents.Length == 0) return null;
+
+            var names = new List<string>();
+            foreach (var parent in node.Parents)
             {
-                return $"needs {node.RequiresBranchPoints} points in {node.Branch.Name} ({PointsIn(node.Branch)}/{node.RequiresBranchPoints})";
+                var found = TechTree.Find(parent);
+                if (found != null) names.Add(found.Title);
             }
-            return node.Row == 0 ? null : "needs anything on the row above";
+            if (names.Count == 0) return null;
+
+            string joiner = node.RequiresAllParents ? " + " : " or ";
+            return "needs " + string.Join(joiner, names);
         }
 
         public bool CanTake(TechNode node)

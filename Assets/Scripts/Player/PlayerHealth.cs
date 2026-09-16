@@ -32,6 +32,9 @@ namespace GorillaSurvivors.Player
         float _invulnerableUntil;
         bool _dead;
 
+        PlayerPerks _perksCache;
+        PlayerPerks Perks => _perksCache != null ? _perksCache : (_perksCache = GetComponent<PlayerPerks>());
+
         void Awake()
         {
             CurrentHP = MaxHP;
@@ -79,7 +82,14 @@ namespace GorillaSurvivors.Player
         {
             if (_dead || IsInvulnerable) return;
 
+            // "One Gorilla": at most one man can hurt you per second. Sits in
+            // front of the ordinary i-frames rather than replacing them.
+            if (Perks != null && Perks.BlocksDamageNow()) return;
+
             amount *= DamageTakenMultiplier;
+            if (Perks != null) amount *= Perks.DamageTakenMultiplier;
+            Perks?.NotifyDamaged();
+
             CurrentHP -= amount;
             OnHealthChanged?.Invoke(CurrentHP, MaxHP);
             DamagePopup.Spawn(transform.position, amount);
@@ -112,6 +122,7 @@ namespace GorillaSurvivors.Player
             _hitFlashUntil = Time.time + iframes;
 
             ApplyThorns(sourcePosition);
+            Perks?.NotifyHealthDropped();
 
             if (sourcePosition.HasValue)
             {

@@ -126,6 +126,8 @@ namespace GorillaSurvivors.Core
             // Holds the run's spent tech points; the nodes mutate the
             // ability components added below, so it must sit on the player.
             go.AddComponent<TechTreeState>();
+            // Holds the tech tree's four conditional capstone effects.
+            go.AddComponent<PlayerPerks>();
             go.AddComponent<PlayerController>();
             go.AddComponent<PlayerAttack>();
             go.AddComponent<QuickSwipeAttack>();

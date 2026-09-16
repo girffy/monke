@@ -206,6 +206,10 @@ namespace GorillaSurvivors.Enemies
             }
 
             Sfx.EnemyDeath(transform.position);
+            // "One Gorilla" heals off every death, whatever killed it — a
+            // bleed, a blast and a dash all count, not just the swing.
+            GorillaSurvivors.Player.PlayerController.Instance
+                ?.GetComponent<GorillaSurvivors.Player.PlayerPerks>()?.NotifyKill();
             EnemySpawner.Instance?.NotifyEnemyDied();
             Destroy(gameObject);
         }

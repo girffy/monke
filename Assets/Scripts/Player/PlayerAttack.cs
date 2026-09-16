@@ -56,6 +56,9 @@ namespace GorillaSurvivors.Player
         // between the two attack components isn't guaranteed either way.
         QuickSwipeAttack Swipe => _swipeCache != null ? _swipeCache : (_swipeCache = GetComponent<QuickSwipeAttack>());
 
+        PlayerPerks _perksCache;
+        PlayerPerks Perks => _perksCache != null ? _perksCache : (_perksCache = GetComponent<PlayerPerks>());
+
         static readonly Collider[] HitBuffer = new Collider[32];
 
         public float AttackCooldownRemaining01()
@@ -423,7 +426,8 @@ namespace GorillaSurvivors.Player
             aimDirection.y = 0f;
             aimDirection.Normalize();
 
-            float damage = BaseDamage * _stats.LevelDamageBonus * _stats.DamageMultiplier * chargeMultiplier;
+            float perkMultiplier = Perks != null ? Perks.MeleeDamageMultiplier : 1f;
+            float damage = BaseDamage * _stats.LevelDamageBonus * _stats.DamageMultiplier * chargeMultiplier * perkMultiplier;
             float reach = Reach * _stats.LevelAttackRadiusBonus * _stats.AreaMultiplier
                           * Mathf.Lerp(1f, MaxChargeReach, Mathf.InverseLerp(1f, MaxChargeDamage, chargeMultiplier));
             float band = BandWidth * _stats.AreaMultiplier;
@@ -439,7 +443,8 @@ namespace GorillaSurvivors.Player
                     knockDir.y = 0f;
                     if (knockDir.sqrMagnitude < 0.0001f) knockDir = aimDirection;
                     enemyHealth.TakeDamage(damage, knockDir, 7f);
-                    if (StunSeconds > 0f) HitBuffer[i].GetComponentInParent<EnemyAI>()?.ApplyStun(StunSeconds);
+                    if (enemyHealth.CurrentHP <= 0f) Perks?.NotifyMeleeKill();
+                    else if (StunSeconds > 0f) HitBuffer[i].GetComponentInParent<EnemyAI>()?.ApplyStun(StunSeconds);
                     continue;
                 }
 

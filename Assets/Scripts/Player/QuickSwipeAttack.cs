@@ -160,9 +160,13 @@ namespace GorillaSurvivors.Player
             _armR.localRotation = Quaternion.FromToRotation(Vector3.down, localDirection);
         }
 
+        PlayerPerks _perksCache;
+        PlayerPerks Perks => _perksCache != null ? _perksCache : (_perksCache = GetComponent<PlayerPerks>());
+
         void PerformSwipeHit(Vector3 aimDirection, float damageScale = 1f)
         {
-            float damage = BaseDamage * _stats.LevelDamageBonus * _stats.DamageMultiplier * damageScale;
+            float perkMultiplier = Perks != null ? Perks.MeleeDamageMultiplier : 1f;
+            float damage = BaseDamage * _stats.LevelDamageBonus * _stats.DamageMultiplier * damageScale * perkMultiplier;
             float reach = Reach * _stats.LevelAttackRadiusBonus * _stats.AreaMultiplier;
             Vector3 hitCenter = transform.position + aimDirection * (reach * 0.5f);
 
@@ -178,7 +182,11 @@ namespace GorillaSurvivors.Player
                     knockDir.y = 0f;
                     if (knockDir.sqrMagnitude < 0.0001f) knockDir = aimDirection;
                     enemyHealth.TakeDamage(damage, knockDir, 4f);
-                    if (BleedFraction > 0f) enemyHealth.ApplyDamageOverTime(damage * BleedFraction, 2f);
+                    // Checked straight after the hit: EnemyHealth drops its
+                    // HP immediately and only destroys the object at end of
+                    // frame, so this is the kill the swipe just made.
+                    if (enemyHealth.CurrentHP <= 0f) Perks?.NotifyMeleeKill();
+                    else if (BleedFraction > 0f) enemyHealth.ApplyDamageOverTime(damage * BleedFraction, 2f);
                     continue;
                 }
 

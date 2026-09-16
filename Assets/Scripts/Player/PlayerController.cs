@@ -448,6 +448,9 @@ namespace GorillaSurvivors.Player
             _knockbackUntil = Time.time + duration;
         }
 
+        // "Second Wind": clears the dash cooldown outright.
+        public void ReadyDash() => _dashReadyTime = 0f;
+
         public float DashCooldownRemaining01()
         {
             float total = DashCooldown * (_stats != null ? _stats.AbilityCooldownMultiplier : 1f);

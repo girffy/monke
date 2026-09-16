@@ -72,6 +72,9 @@ namespace GorillaSurvivors.Player.Abilities
             return total <= 0f ? 0f : Mathf.Clamp01(remaining / total);
         }
 
+        // "Second Wind": clears the cooldown outright.
+        public void ReadyNow() => _nextReadyTime = 0f;
+
         void Awake()
         {
             _stats = GetComponent<PlayerStats>();

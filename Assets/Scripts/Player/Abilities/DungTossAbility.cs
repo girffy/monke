@@ -65,6 +65,13 @@ namespace GorillaSurvivors.Player.Abilities
             return total <= 0f ? 0f : Mathf.Clamp01(remaining / total);
         }
 
+        // "Second Wind": refills the whole stockpile.
+        public void ReadyNow()
+        {
+            _charges = MaxCharges;
+            _rechargeAt = 0f;
+        }
+
         void TickCharges()
         {
             // First tick, and any time a Stockpile node raises the cap: hand
