@@ -75,7 +75,19 @@ namespace GorillaSurvivors.Environment
                 // Only pieces actually BETWEEN the two count — something
                 // behind the camera or past the player is never in the way.
                 bool between = projected > 0.5f && projected < length;
+
+                // Measured in SCREEN terms, not world ones.
+                //
+                // A fixed world radius is the wrong test for "is this in the
+                // way", because the same 4 metres is most of the screen for
+                // something right in front of the lens and a thumbnail for
+                // something at the back of the stands. Standing in a corner,
+                // that had the far stands — which are nowhere near the
+                // gorilla on screen — culling themselves. Dividing by the
+                // distance asks the question the player is actually asking:
+                // is this drawing over the fight.
                 float offset = Vector3.Distance(toPiece, along * projected);
+                offset *= length / Mathf.Max(0.5f, projected);
 
                 // The threshold to cross depends on which side it is already
                 // on, so a piece hovering on the line stays where it is.

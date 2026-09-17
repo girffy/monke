@@ -56,6 +56,7 @@ namespace GorillaSurvivors.Enemies
         public void ApplyStun(float seconds)
         {
             _stunnedUntil = Mathf.Max(_stunnedUntil, Time.time + seconds);
+            StunMarker.Show(transform, _stunnedUntil);
         }
 
         // Multiplicative slow applied while standing in something nasty (the
@@ -214,7 +215,11 @@ namespace GorillaSurvivors.Enemies
 
             // The ring wall holds them in; the central well keeps them out of
             // the middle, the same as it does the player.
-            Vector3 inside = arena.ClampInside(_rb.position, 0.5f);
+            // 0.5 was the distance from the wall to a body's CENTRE, which
+            // left the wide ones standing with their shoulders inside the
+            // stone. This is the widest half-width anything has, plus a
+            // little, so nothing clips the ring.
+            Vector3 inside = arena.ClampInside(_rb.position, 0.95f);
             if (inside != _rb.position)
             {
                 _rb.position = inside;
