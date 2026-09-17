@@ -86,16 +86,63 @@ namespace GorillaSurvivors.Enemies
             }
         }
 
+        // How long the Wizard is committed before it actually goes.
+        public float TeleportWindup = 0.45f;
+
+        bool _teleporting;
+
         void TryTeleport()
         {
-            if (_casting || Time.time < _nextTeleportTime) return;
-
-            var player = PlayerController.Instance;
-            if (player == null) return;
+            if (_casting || _teleporting || Time.time < _nextTeleportTime) return;
+            if (PlayerController.Instance == null) return;
 
             _nextTeleportTime = Time.time + TeleportCooldown;
+            StartCoroutine(TeleportSequence());
+        }
 
-            Vector3 destination = FindDestination(player.transform.position);
+        // Instant escape with no tell meant the Wizard simply wasn't there
+        // any more — you lost it mid-swing and then had to find it again,
+        // which is frustrating rather than difficult. The windup is the
+        // counterplay: a moment where it is committed and still standing in
+        // front of you, and a streak that says which way it is about to go
+        // so you know where to look instead of scanning the whole arena.
+        IEnumerator TeleportSequence()
+        {
+            _teleporting = true;
+
+            var player = PlayerController.Instance;
+            Vector3 destination = player != null
+                ? FindDestination(player.transform.position)
+                : transform.position;
+
+            Vector3 origin = transform.position;
+            Vector3 heading = destination - origin;
+            heading.y = 0f;
+            if (heading.sqrMagnitude > 0.0001f) heading.Normalize();
+
+            var streak = SpawnStreak(origin, heading);
+            var gather = Blocky3DArt.SwipeDisc(new Color(0.55f, 0.75f, 1f));
+            gather.transform.position = origin + Vector3.up * 0.06f;
+            TimedDespawn.After(gather, TeleportWindup + 2f);
+
+            float t = 0f;
+            while (t < TeleportWindup)
+            {
+                t += Time.deltaTime;
+                if (GameManager.Instance != null && GameManager.Instance.IsPaused) { yield return null; continue; }
+
+                // The ring closes IN as the blink builds, which reads as
+                // gathering rather than as another blast warning.
+                float p = Mathf.Clamp01(t / TeleportWindup);
+                float size = Mathf.Lerp(2.6f, 0.4f, p);
+                gather.transform.position = transform.position + Vector3.up * 0.06f;
+                gather.transform.localScale = new Vector3(size, 0.02f, size);
+                yield return null;
+            }
+
+            if (gather != null) Destroy(gather);
+            if (streak != null) Destroy(streak);
+
             SpawnBlink(transform.position);
 
             var rb = GetComponent<Rigidbody>();
@@ -104,6 +151,33 @@ namespace GorillaSurvivors.Enemies
 
             SpawnBlink(destination);
             Sfx.Dash(destination);
+            _teleporting = false;
+        }
+
+        // A tapering trail of motes pointing the way it is about to jump.
+        GameObject SpawnStreak(Vector3 origin, Vector3 heading)
+        {
+            var root = new GameObject("BlinkStreak");
+            root.transform.position = origin;
+
+            const int motes = 5;
+            for (int i = 0; i < motes; i++)
+            {
+                float along = 0.9f + i * 0.55f;
+                var mote = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+                Object.Destroy(mote.GetComponent<Collider>());
+                mote.transform.SetParent(root.transform, false);
+                mote.transform.localPosition = heading * along + Vector3.up * 0.9f;
+                mote.transform.localScale = Vector3.one * Mathf.Lerp(0.30f, 0.10f, i / (float)(motes - 1));
+
+                var mr = mote.GetComponent<MeshRenderer>();
+                mr.sharedMaterial = MaterialCache.GetUnlit(new Color(0.55f, 0.75f, 1f));
+                mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                mr.receiveShadows = false;
+            }
+
+            TimedDespawn.After(root, TeleportWindup + 2f);
+            return root;
         }
 
         Vector3 FindDestination(Vector3 playerPos)
@@ -156,13 +230,25 @@ namespace GorillaSurvivors.Enemies
             var staff = _model != null ? _model.Find("Staff") : null;
             Quaternion staffRest = staff != null ? staff.localRotation : Quaternion.identity;
 
+            // The filling circle has to finish when the fireball LANDS, not
+            // when it is thrown. It used to complete at the end of the
+            // windup and then vanish, leaving the ball to fly for up to
+            // another second and a half and detonate on a patch of ground
+            // with no marker on it at all — so the telegraph appeared to go
+            // off long before anything happened, and the actual hit had no
+            // warning attached to it. The countdown now spans the whole
+            // thing, windup and flight together.
+            Vector3 origin = transform.position + Vector3.up * 1.6f;
+            float flight = Fireball.EstimateFlightTime(origin, target);
+            float total = CastWindup + flight;
+
             float t = 0f;
             while (t < CastWindup)
             {
                 t += Time.deltaTime;
                 if (GameManager.Instance != null && GameManager.Instance.IsPaused) { yield return null; continue; }
 
-                float p = Mathf.Clamp01(t / CastWindup);
+                float p = Mathf.Clamp01(t / total);
                 float filled = FireballRadius * 2f * p;
                 fill.transform.localScale = new Vector3(filled, 0.02f, filled);
                 if (staff != null) staff.localRotation = staffRest * Quaternion.Euler(-60f * p, 0f, 0f);
@@ -170,10 +256,11 @@ namespace GorillaSurvivors.Enemies
             }
 
             if (staff != null) staff.localRotation = staffRest;
-            Destroy(rim);
-            Destroy(fill);
 
-            Fireball.Launch(transform.position + Vector3.up * 1.6f, target, FireballDamage, FireballRadius);
+            // The ball takes the markers with it and finishes the fill on
+            // the way down, so they die exactly when it bursts.
+            Fireball.Launch(origin, target, FireballDamage, FireballRadius,
+                rim, fill, CastWindup / total);
             _casting = false;
         }
     }
@@ -191,7 +278,19 @@ namespace GorillaSurvivors.Enemies
 
         static readonly Collider[] HitBuffer = new Collider[32];
 
-        public static Fireball Launch(Vector3 from, Vector3 target, float damage, float radius)
+        GameObject _rim;
+        GameObject _fill;
+        float _fillFrom;
+
+        // Published so the caster can draw a countdown that spans the flight
+        // as well as the windup.
+        public static float EstimateFlightTime(Vector3 from, Vector3 target)
+        {
+            return Mathf.Clamp(Vector3.Distance(from, target) / 11f, 0.3f, 1.4f);
+        }
+
+        public static Fireball Launch(Vector3 from, Vector3 target, float damage, float radius,
+            GameObject rim = null, GameObject fill = null, float fillFrom = 0f)
         {
             var go = new GameObject("Fireball");
             go.transform.position = from;
@@ -213,10 +312,17 @@ namespace GorillaSurvivors.Enemies
             ball._radius = radius;
             ball._start = from;
             ball._target = target;
+            ball._rim = rim;
+            ball._fill = fill;
+            ball._fillFrom = fillFrom;
 
             float distance = Vector3.Distance(from, target);
-            ball._flightTime = Mathf.Clamp(distance / 11f, 0.3f, 1.4f);
+            ball._flightTime = EstimateFlightTime(from, target);
             ball._arcHeight = Mathf.Clamp(distance * 0.18f, 0.8f, 3f);
+
+            // If anything below goes wrong, the markers still go away.
+            if (rim != null) TimedDespawn.After(rim, ball._flightTime + 3f);
+            if (fill != null) TimedDespawn.After(fill, ball._flightTime + 3f);
 
             Sfx.Throw(from);
             ball.StartCoroutine(ball.Fly());
@@ -235,6 +341,14 @@ namespace GorillaSurvivors.Enemies
                 Vector3 pos = Vector3.Lerp(_start, _target, p);
                 pos.y += _arcHeight * 4f * p * (1f - p);
                 transform.position = pos;
+
+                // Finish the countdown the caster started, so the ring seals
+                // on the frame the ball arrives.
+                if (_fill != null)
+                {
+                    float filled = _radius * 2f * Mathf.Lerp(_fillFrom, 1f, p);
+                    _fill.transform.localScale = new Vector3(filled, 0.02f, filled);
+                }
                 yield return null;
             }
 
@@ -243,6 +357,9 @@ namespace GorillaSurvivors.Enemies
 
         void Burst()
         {
+            if (_rim != null) Destroy(_rim);
+            if (_fill != null) Destroy(_fill);
+
             Sfx.RockExplosion(transform.position);
             CameraShake.Shake(0.2f, 0.2f);
 

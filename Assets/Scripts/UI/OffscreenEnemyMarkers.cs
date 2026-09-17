@@ -134,11 +134,38 @@ namespace GorillaSurvivors.UI
             rect.anchorMin = new Vector2(0.5f, 0.5f);
             rect.anchorMax = new Vector2(0.5f, 0.5f);
             rect.pivot = new Vector2(0.5f, 0.5f);
-            rect.sizeDelta = new Vector2(34f, 34f);
+            // Half again the size, fully opaque, and sitting on a dark disc.
+            // These only appear when the arena is nearly empty and you are
+            // hunting the last two men — at which point the whole job of the
+            // marker is to be seen from the corner of your eye, and a small
+            // translucent chevron against sand was not managing it.
+            rect.sizeDelta = new Vector2(52f, 52f);
 
-            var image = go.AddComponent<Image>();
+            var backing = new GameObject("Backing", typeof(RectTransform));
+            backing.transform.SetParent(rect, false);
+            var backRect = backing.GetComponent<RectTransform>();
+            backRect.anchorMin = Vector2.zero;
+            backRect.anchorMax = Vector2.one;
+            backRect.offsetMin = new Vector2(-5f, -5f);
+            backRect.offsetMax = new Vector2(5f, 5f);
+            var backImage = backing.AddComponent<Image>();
+            backImage.sprite = PlaceholderSprites.Circle(Color.white, 48);
+            backImage.color = new Color(0.10f, 0.05f, 0.05f, 0.75f);
+            backImage.raycastTarget = false;
+
+            var glyph = new GameObject("Glyph", typeof(RectTransform));
+            glyph.transform.SetParent(rect, false);
+            var glyphRect = glyph.GetComponent<RectTransform>();
+            glyphRect.anchorMin = Vector2.zero;
+            glyphRect.anchorMax = Vector2.one;
+            glyphRect.offsetMin = Vector2.zero;
+            glyphRect.offsetMax = Vector2.zero;
+            var image = glyph.AddComponent<Image>();
             image.sprite = PlaceholderSprites.Icon(PlaceholderSprites.IconShape.Chevron, Color.white, 48);
-            image.color = new Color(0.95f, 0.25f, 0.2f, 0.9f);
+            image.color = new Color(1f, 0.30f, 0.22f, 1f);
+            image.raycastTarget = false;
+
+            rect.gameObject.AddComponent<PulsingMarker>();
             return rect;
         }
 
@@ -148,6 +175,22 @@ namespace GorillaSurvivors.UI
             {
                 if (_arrows[i] != null) _arrows[i].gameObject.SetActive(false);
             }
+        }
+    }
+
+    // A slow throb. Motion is what the eye catches at the edge of vision,
+    // which is exactly where these sit and exactly who they are for.
+    public class PulsingMarker : MonoBehaviour
+    {
+        RectTransform _rect;
+
+        void Awake() => _rect = GetComponent<RectTransform>();
+
+        void Update()
+        {
+            if (_rect == null) return;
+            float pulse = 1f + 0.12f * Mathf.Sin(Time.unscaledTime * 6f);
+            _rect.localScale = new Vector3(pulse, pulse, 1f);
         }
     }
 }

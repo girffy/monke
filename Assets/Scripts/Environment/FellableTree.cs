@@ -163,6 +163,10 @@ namespace GorillaSurvivors.Environment
     {
         public void Play(float targetScale, float duration)
         {
+            // Backstop: if anything stops the coroutine below, the disc goes
+            // away regardless rather than staying on the ground for the rest
+            // of the run.
+            TimedDespawn.After(gameObject, duration + 2f);
             StartCoroutine(Animate(targetScale, duration));
         }
 

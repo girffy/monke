@@ -1,6 +1,7 @@
 using System.Collections;
 using UnityEngine;
 using GorillaSurvivors.Core;
+using GorillaSurvivors.Environment;
 using GorillaSurvivors.Player;
 
 namespace GorillaSurvivors.Enemies
@@ -107,12 +108,29 @@ namespace GorillaSurvivors.Enemies
                 // it from the centre out. When the orange reaches the rim,
                 // it goes off — so the countdown reads as a distance as well
                 // as a time, and you can see exactly what "clear" means.
+                // PARENTED, and on a deadline.
+                //
+                // These used to be loose in the scene, cleaned up only by the
+                // line at the end of this coroutine — so anything that
+                // stopped the coroutine early left them on the ground
+                // forever. Which happened: a carried bomb whose Bomber was
+                // killed by something else mid-fuse threw on the destroyed
+                // `_follow` below, the coroutine died, and the yellow ring
+                // with the orange centre stayed for the rest of the run.
+                //
+                // Parenting means they cannot outlive the fuse object, and
+                // the despawn timer means the fuse object cannot outlive its
+                // own fuse either.
                 var rim = Blocky3DArt.SwipeDisc(new Color(0.96f, 0.84f, 0.18f));
+                rim.transform.SetParent(transform, true);
                 rim.transform.position = transform.position + Vector3.up * 0.05f;
                 rim.transform.localScale = new Vector3(_radius * 2f, 0.02f, _radius * 2f);
 
                 var fill = Blocky3DArt.SwipeDisc(new Color(0.95f, 0.42f, 0.10f));
+                fill.transform.SetParent(transform, true);
                 fill.transform.position = transform.position + Vector3.up * 0.07f;
+
+                TimedDespawn.After(gameObject, fuse + 2f);
 
                 float t = 0f;
                 while (t < fuse)
@@ -120,6 +138,8 @@ namespace GorillaSurvivors.Enemies
                     t += Time.deltaTime;
                     float p = Mathf.Clamp01(t / fuse);
 
+                    // Unity's null check covers "destroyed since", which is
+                    // the case that used to throw.
                     if (_follow != null) transform.position = _follow.position;
 
                     Vector3 discPos = transform.position;
