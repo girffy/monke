@@ -25,7 +25,10 @@ namespace GorillaSurvivors.Player.Abilities
         public float BaseDamage = 8f;
         public float Range = 11f;
         public float ImpactRadius = 1.4f;
-        public float AimAssistAngle = 18f;
+        // How far from the chosen landing point a man can stand and still
+        // pull the throw onto himself. Small: the point of aiming at the
+        // ground is that the ground is where it lands.
+        public float SnapRadius = 1.1f;
 
         // Tech tree.
         public int MaxCharges = 1;       // "Stockpile"
@@ -173,11 +176,32 @@ namespace GorillaSurvivors.Player.Abilities
             _isThrowing = false;
         }
 
-        // Snap to the enemy closest to the aim line within a narrow cone;
-        // otherwise just throw the full distance along the aim.
+        // It lands WHERE YOU POINT.
+        //
+        // This used to always throw the full distance along the aim, so the
+        // cursor chose a direction and the game chose how far — which meant
+        // there was no way to drop a patch on the crowd between you and the
+        // far wall, and short throws were impossible. The cursor's ground
+        // position is the target, clamped to Range so pointing at the far
+        // side of the arena still throws as far as the arm goes rather than
+        // refusing or falling short.
+        //
+        // The enemy snap still applies, but only to targets near where you
+        // actually aimed, so it helps a lobbed throw track a moving man
+        // without overriding a deliberate placement.
         Vector3 ResolveTarget(Vector3 aim)
         {
             Vector3 fallback = transform.position + aim * Range;
+            if (_controller.TryGetAimPoint(out Vector3 cursor))
+            {
+                Vector3 toCursor = cursor - transform.position;
+                toCursor.y = 0f;
+                float distance = toCursor.magnitude;
+                fallback = distance <= Range
+                    ? cursor
+                    : transform.position + toCursor.normalized * Range;
+                fallback.y = transform.position.y;
+            }
 
             var enemies = Object.FindObjectsByType<EnemyHealth>(FindObjectsSortMode.None);
             EnemyHealth best = null;
@@ -187,15 +211,17 @@ namespace GorillaSurvivors.Player.Abilities
             {
                 Vector3 toEnemy = enemy.transform.position - transform.position;
                 toEnemy.y = 0f;
-                float distance = toEnemy.magnitude;
-                if (distance > Range || distance < 0.01f) continue;
+                if (toEnemy.magnitude > Range || toEnemy.magnitude < 0.01f) continue;
 
-                float angle = Vector3.Angle(aim, toEnemy);
-                if (angle > AimAssistAngle) continue;
+                // Measured from where the clod is GOING, not from a cone off
+                // the player — with a cursor-chosen landing point, "nearest
+                // along the aim line" would snap a deliberate short throw
+                // onto whatever happened to be standing further away.
+                Vector3 offset = enemy.transform.position - fallback;
+                offset.y = 0f;
+                float score = offset.magnitude;
+                if (score > SnapRadius) continue;
 
-                // Prefer the nearest target inside the cone, nudged by how
-                // centred it is, so the throw favours what you're looking at.
-                float score = distance + angle * 0.08f;
                 if (score < bestScore)
                 {
                     bestScore = score;
@@ -206,7 +232,7 @@ namespace GorillaSurvivors.Player.Abilities
             if (best == null) return fallback;
 
             var hit = best.transform.position;
-            hit.y = 0f;
+            hit.y = transform.position.y;
             return hit;
         }
 

@@ -208,6 +208,31 @@ namespace GorillaSurvivors.Player
             }
         }
 
+        // Where on the ground the player is pointing, for the things that
+        // need a POINT rather than a direction — a lobbed throw lands
+        // somewhere, and "somewhere" is under the cursor.
+        //
+        // False on a gamepad or a touch screen, where there is no cursor to
+        // ask; those aim by direction and the caller falls back to that.
+        public bool TryGetAimPoint(out Vector3 point)
+        {
+            point = transform.position;
+            if (UI.TouchControls.Active) return false;
+
+            var mouse = Mouse.current;
+            var cam = Camera.main;
+            if (mouse == null || cam == null) return false;
+
+            Vector2 screenPos = mouse.position.ReadValue();
+            var ray = cam.ScreenPointToRay(new Vector3(screenPos.x, screenPos.y, 0f));
+            var groundPlane = new Plane(Vector3.up, new Vector3(0f, transform.position.y, 0f));
+            if (!groundPlane.Raycast(ray, out float dist)) return false;
+
+            point = ray.GetPoint(dist);
+            point.y = transform.position.y;
+            return true;
+        }
+
         // Mouse (raycast onto the ground plane) or gamepad right stick;
         // falls back to last movement direction if neither gives a reading.
         // Shared by the model-facing above and by attack/ability aiming.
