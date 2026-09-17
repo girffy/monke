@@ -21,9 +21,15 @@ namespace GorillaSurvivors.Player
         // wrong shape for it. The swipe keeps the arc; that one really is a
         // swung arm.
         public float Radius = 1.52f;
-        // How far forward the circle sits, as a fraction of its own radius.
-        // Enough that the back edge is roughly at the gorilla's heels.
-        public const float CenterOffset = 0.45f;
+        // How far forward the circle sits, in METRES.
+        //
+        // This used to be a fraction of the radius, which meant every area
+        // bonus shoved the whole circle away from the gorilla as it grew —
+        // so a bigger slam covered different ground rather than more of it,
+        // and the thing standing on your toes that the small slam would have
+        // hit fell out of the back of the big one. The fists land where the
+        // arms reach, which is a fixed distance, whatever the blow's size.
+        public const float CenterOffset = 0.68f;
         public float BaseCooldown = 0.48f;
         public const float SlamDuration = 0.5f;
 
@@ -241,7 +247,7 @@ namespace GorillaSurvivors.Player
             // Sits where the blow will actually land — forward of the body,
             // same as the hit test — so the preview isn't promising an area
             // the slam won't cover.
-            Vector3 center = transform.position + ChargeAim() * (full * CenterOffset);
+            Vector3 center = transform.position + ChargeAim() * CenterOffset;
             if (_chargeRim != null)
             {
                 _chargeRim.transform.position = center + Vector3.up * 0.05f;
@@ -487,7 +493,7 @@ namespace GorillaSurvivors.Player
             // fists land ahead of the body, so a circle on the body's centre
             // spent half its area behind him where nothing was ever hit, and
             // fell short of what he was visibly reaching for.
-            Vector3 hitCenter = transform.position + aimDirection * (radius * CenterOffset);
+            Vector3 hitCenter = transform.position + aimDirection * CenterOffset;
 
             int count = Physics.OverlapSphereNonAlloc(hitCenter, radius, HitBuffer);
             for (int i = 0; i < count; i++)

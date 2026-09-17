@@ -188,14 +188,23 @@ namespace GorillaSurvivors.Player
             // panic swipe is for — fell through the middle of it. A bigger
             // area should never shrink what an attack covers, and growing
             // only the band means it never can.
+            // Area buys DISTANCE, and only distance. The angle is the shape
+            // of the attack — a swipe that widened with every buff stopped
+            // being a swipe — so the sweep stays where the tech tree put it
+            // and the band reaches further out.
+            //
+            // Critically the INNER edge is pinned. Scaling reach and band
+            // together would march the near edge forward as well, which is
+            // the old bug that made a bigger swipe miss the man standing on
+            // your toes. Only the outer edge moves, so the covered ground
+            // can grow but can never shrink.
             float grow = _stats.LevelAttackRadiusBonus * _stats.AreaMultiplier;
-            float reach = Reach;
-            float band = BandWidth;
-            // Area buys ANGLE. The arm is the length it is; what a bigger
-            // swing means for a swipe is that it sweeps round further, not
-            // that it reaches past where the hand goes or thickens into a
-            // wall. One thing grows, and it is the one you can see.
-            float arc = Mathf.Min(230f, ArcDegrees * grow);
+            float inner = Mathf.Max(0f, Reach - BandWidth);
+            float outer = inner + (Reach + BandWidth - inner) * grow;
+
+            float reach = (inner + outer) * 0.5f;
+            float band = (outer - inner) * 0.5f;
+            float arc = ArcDegrees;
 
             Vector3 hitCenter = transform.position + aimDirection * (reach * 0.5f);
 

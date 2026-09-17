@@ -47,7 +47,7 @@ namespace GorillaSurvivors.Pickups
             { PowerupType.Adrenaline, new Info { Label = "Adrenaline", ToastText = "Adrenaline! Move & attack speed up (8s)" } },
             { PowerupType.Rampage, new Info { Label = "Rampage", ToastText = "Rampage! Damage up (8s)" } },
             { PowerupType.Haste, new Info { Label = "Haste", ToastText = "Haste! Cooldowns down (10s)" } },
-            { PowerupType.AreaBoost, new Info { Label = "Area Boost", ToastText = "Area Boost! AoE size up (10s)" } },
+            { PowerupType.AreaBoost, new Info { Label = "Area Boost", ToastText = "Area Boost! Attacks reach further (10s)" } },
         };
 
         public static PowerupPickup SpawnRandom(Vector3 position)
@@ -154,7 +154,10 @@ namespace GorillaSurvivors.Pickups
                     stats?.ApplyTemporaryCooldownBuff(0.4f, 10f);
                     break;
                 case PowerupType.AreaBoost:
-                    stats?.ApplyTemporaryAreaBuff(0.5f, 10f);
+                    // +50% was enormous once it applied to a radius: area
+                    // goes with the square, so half again the reach was
+                    // better than double the damage on every attack at once.
+                    stats?.ApplyTemporaryAreaBuff(0.25f, 10f);
                     break;
             }
 
