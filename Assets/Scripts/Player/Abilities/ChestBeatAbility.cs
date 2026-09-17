@@ -30,15 +30,23 @@ namespace GorillaSurvivors.Player.Abilities
         public bool InvulnerableWhileBeating;   // "Unshakeable"
         public float MoveFraction;              // "Rolling Thunder"; 0 = rooted
 
-        // A gorilla drums. The old timings gave a 0.55s cycle — barely two
-        // beats a second, which reads as a man slowly patting himself rather
-        // than the rapid hollow drumroll this is supposed to be. At 0.2s a
-        // cycle it is five a second, which is about life.
+        // The ARMS are fast; the damage is not.
+        //
+        // Speeding the animation up also sped the pulses up, because each
+        // strike fired one — so the whole ability landed in a third of the
+        // time and its crowd control became an instant burst. The arms keep
+        // the quick drumroll, and a separate interval holds the pulses at
+        // the cadence they were balanced at, with the strike nearest each
+        // due pulse being the one that throws it.
         const float RiseTime = 0.16f;
         const float ArmsOutTime = 0.07f;
         const float PoundTime = 0.06f;
         const float HoldTime = 0.05f;
         const float SettleTime = 0.18f;
+
+        // What one beat cycle used to cost, and so how far apart the pulses
+        // stay however fast the arms move.
+        const float PulseInterval = 0.55f;
 
         PlayerStats _stats;
         PlayerController _controller;
@@ -170,15 +178,26 @@ namespace GorillaSurvivors.Player.Abilities
             // a gorilla drums its chest one fist at a time, and alternating
             // reads as drumming where both arms moving together reads as a
             // shrug. Each strike lands one of the three damage pulses.
-            for (int i = 0; i < PulseCount; i++)
+            // The arms drum continuously for as long as the pulses need; a
+            // pulse goes off on whichever strike is the first past its due
+            // time, so the damage keeps its old rhythm while the animation
+            // runs at whatever speed looks right.
+            float started = Time.time;
+            int strike = 0;
+
+            while (_pulsesFired < PulseCount)
             {
-                bool right = i % 2 == 0;
+                bool right = strike % 2 == 0;
+                strike++;
 
                 // Fist in against the chest, body dipping into the blow.
                 yield return Pose(ArmsWideDir, ArmsChestDir, ReadyElbow, StrikeElbow, right, !right, PoundTime, 0.20f, 0.16f, -12f, -6f);
 
-                Pulse();
-                StartCoroutine(HeadPulse());
+                if (Time.time - started >= _pulsesFired * PulseInterval)
+                {
+                    Pulse();
+                    StartCoroutine(HeadPulse());
+                }
 
                 // ...and back out to the cocked position.
                 yield return Pose(ArmsChestDir, ArmsWideDir, StrikeElbow, ReadyElbow, right, !right, ArmsOutTime, 0.16f, 0.20f, -6f, -12f);
@@ -191,7 +210,10 @@ namespace GorillaSurvivors.Player.Abilities
 
         float EstimatedDuration()
         {
-            return RiseTime + SettleTime + PulseCount * (PoundTime + ArmsOutTime + HoldTime);
+            // Paced by the pulses now, not by the arms, since the drumming
+            // keeps going until the last one has gone off.
+            return RiseTime + SettleTime + (PulseCount - 1) * PulseInterval
+                   + PoundTime + ArmsOutTime + HoldTime;
         }
 
         void EndBeat()

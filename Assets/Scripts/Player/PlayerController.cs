@@ -16,7 +16,11 @@ namespace GorillaSurvivors.Player
 
         [Header("Dash")]
         public float DashSpeed = 16f;
-        public float DashDuration = 0.18f;
+        // 15% shorter than it was (0.18). The dash crossed enough of the
+        // arena to be the answer to every bad position rather than one of
+        // several. Speed is untouched, so it still FEELS the same — it just
+        // doesn't carry as far.
+        public float DashDuration = 0.153f;
         public float DashCooldown = 2.4f;
         public float DashInvulnerabilitySeconds = 0.45f;
 

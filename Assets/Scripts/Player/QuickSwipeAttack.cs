@@ -27,7 +27,10 @@ namespace GorillaSurvivors.Player
         // sat at 0.5 — right at contact range, so a close enemy was a coin
         // flip. This covers about 0.2 to 1.8.
         public float Reach = 1.0f;
-        public float ArcDegrees = 105f;
+        // Pulled in from 105: a swipe should be what is in FRONT of you, and
+        // at 105 it was already reaching round past your shoulders before
+        // any upgrade widened it further.
+        public float ArcDegrees = 85f;
         // Half-thickness of the swept band, either side of the arc.
         public float BandWidth = 0.8f;
         // Slowed 20% from 0.22: at the old speed the arm was a blur and the
@@ -187,10 +190,12 @@ namespace GorillaSurvivors.Player
             // only the band means it never can.
             float grow = _stats.LevelAttackRadiusBonus * _stats.AreaMultiplier;
             float reach = Reach;
-            float band = BandWidth * grow;
-            // The sweep widens too, at half the rate — "more area" ought to
-            // read as a broader swing, not only a deeper one.
-            float arc = Mathf.Min(170f, ArcDegrees * Mathf.Lerp(1f, grow, 0.5f));
+            float band = BandWidth;
+            // Area buys ANGLE. The arm is the length it is; what a bigger
+            // swing means for a swipe is that it sweeps round further, not
+            // that it reaches past where the hand goes or thickens into a
+            // wall. One thing grows, and it is the one you can see.
+            float arc = Mathf.Min(230f, ArcDegrees * grow);
 
             Vector3 hitCenter = transform.position + aimDirection * (reach * 0.5f);
 
@@ -227,10 +232,16 @@ namespace GorillaSurvivors.Player
                 }
             }
 
+            // Projectiles have no Collider, so the overlap pass above never
+            // sees them. This used to test a small sphere at the swing's
+            // midpoint, which is nowhere near the band the swipe actually
+            // covers — so batting a rock away with a claw swipe almost never
+            // worked. Same shape as the hit test now.
             foreach (var projectile in Projectile.Active)
             {
                 if (projectile == null) continue;
-                if (Vector3.Distance(projectile.transform.position, hitCenter) <= reach * 0.5f)
+                if (MeleeArc.Contains(transform.position, aimDirection, reach, arc, band,
+                        projectile.transform.position, 0.25f))
                 {
                     projectile.Deflect(aimDirection);
                 }
@@ -245,7 +256,8 @@ namespace GorillaSurvivors.Player
         void SpawnSwipeEffect(Vector3 aimDirection, float reach, float arc, float band)
         {
             var go = Blocky3DArt.SwipeArc(new Color(0.95f, 0.88f, 0.35f), reach, arc, band);
-            go.transform.position = transform.position;
+            // Clear of the sand and of the ground decals that live at 0.04.
+            go.transform.position = transform.position + Vector3.up * 0.07f;
             go.transform.rotation = Quaternion.LookRotation(aimDirection, Vector3.up);
 
             StartCoroutine(FadeArc(go));

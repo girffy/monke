@@ -1137,30 +1137,54 @@ namespace GorillaSurvivors.Core
         // that never matched.
         public static GameObject SwipeArc(Color color, float radius, float arcDegrees, float bandWidth)
         {
+            // A REAL arc: one generated ring-sector mesh, not a row of boxes
+            // laid along a curve. The boxes left visible corners and gaps
+            // between them, tapered to a point at the tips, and so drew a
+            // shape the hit test does not use — the test is an even band at
+            // a fixed distance, and this is now exactly that band.
             var root = new GameObject("SwipeArc");
 
-            const int steps = 11;
+            const int steps = 28;
             float half = arcDegrees * 0.5f;
+            float inner = Mathf.Max(0.01f, radius - bandWidth);
+            float outer = radius + bandWidth;
+
+            var vertices = new Vector3[(steps + 1) * 2];
+            var triangles = new int[steps * 6];
+
+            for (int i = 0; i <= steps; i++)
+            {
+                float angle = Mathf.Lerp(-half, half, i / (float)steps);
+                Vector3 dir = Quaternion.Euler(0f, angle, 0f) * Vector3.forward;
+                vertices[i * 2] = dir * inner;
+                vertices[i * 2 + 1] = dir * outer;
+            }
+
             for (int i = 0; i < steps; i++)
             {
-                float t = steps == 1 ? 0.5f : i / (float)(steps - 1);
-                float angle = Mathf.Lerp(-half, half, t);
-                Vector3 dir = Quaternion.Euler(0f, angle, 0f) * Vector3.forward;
-
-                var seg = CreateBarePrimitive(PrimitiveType.Cube, "Seg" + i, root.transform);
-                seg.transform.localPosition = dir * radius + Vector3.up * 0.06f;
-                seg.transform.localRotation = Quaternion.LookRotation(dir, Vector3.up);
-                // Tapered toward the tips so it reads as a slash rather than
-                // a painted band.
-                float taper = Mathf.Lerp(0.45f, 1f, 1f - Mathf.Abs(t - 0.5f) * 2f);
-                float arcStep = arcDegrees * Mathf.Deg2Rad * radius / steps;
-                seg.transform.localScale = new Vector3(arcStep * 1.5f, 0.02f, bandWidth * 2f * taper);
-
-                var mr = seg.GetComponent<MeshRenderer>();
-                mr.sharedMaterial = MaterialCache.GetUnlit(color);
-                mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-                mr.receiveShadows = false;
+                int v = i * 2;
+                int t = i * 6;
+                triangles[t] = v;
+                triangles[t + 1] = v + 1;
+                triangles[t + 2] = v + 3;
+                triangles[t + 3] = v;
+                triangles[t + 4] = v + 3;
+                triangles[t + 5] = v + 2;
             }
+
+            var mesh = new Mesh { name = "SwipeArcMesh" };
+            mesh.vertices = vertices;
+            mesh.triangles = triangles;
+            mesh.RecalculateNormals();
+            mesh.RecalculateBounds();
+
+            var filter = root.AddComponent<MeshFilter>();
+            filter.mesh = mesh;
+
+            var renderer = root.AddComponent<MeshRenderer>();
+            renderer.sharedMaterial = MaterialCache.GetUnlit(color);
+            renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            renderer.receiveShadows = false;
 
             return root;
         }

@@ -53,40 +53,50 @@ namespace GorillaSurvivors.Core
                 float distance = toTarget.magnitude;
 
                 float bodyRadius = Mathf.Max(col.bounds.extents.x, col.bounds.extents.z);
-                float allowed = bandWidth + bodyRadius;
+                if (DistanceToArc(origin, aim, halfAngle, arcRadius, col.bounds.center)
+                    > bandWidth + bodyRadius) continue;
 
-                float distanceToArc;
-                if (distance < 0.0001f)
-                {
-                    // Standing exactly on the player: the arc is arcRadius away.
-                    distanceToArc = arcRadius;
-                }
-                else
-                {
-                    float angle = Vector3.Angle(aim, toTarget / distance);
-                    if (angle <= halfAngle)
-                    {
-                        // Inside the arc's sweep: only the radial gap matters.
-                        distanceToArc = Mathf.Abs(distance - arcRadius);
-                    }
-                    else
-                    {
-                        // Past the end of the sweep: measure to the nearer tip
-                        // of the arc, so the swing stops where the hand does
-                        // instead of at a hard angular wall.
-                        float side = Vector3.Dot(Vector3.Cross(Vector3.up, aim), toTarget) >= 0f ? 1f : -1f;
-                        Vector3 tip = origin + (Quaternion.Euler(0f, side * halfAngle, 0f) * aim) * arcRadius;
-                        Vector3 toTip = col.bounds.center - tip;
-                        toTip.y = 0f;
-                        distanceToArc = toTip.magnitude;
-                    }
-                }
-
-                if (distanceToArc > allowed) continue;
                 buffer[kept++] = col;
             }
 
             return kept;
+        }
+
+        // Point test against the same band, for things that have no collider
+        // to be found by an overlap — thrown rocks, mainly.
+        public static bool Contains(Vector3 origin, Vector3 aim, float arcRadius, float arcDegrees,
+            float bandWidth, Vector3 point, float pointRadius = 0f)
+        {
+            aim.y = 0f;
+            if (aim.sqrMagnitude < 0.0001f) aim = Vector3.forward;
+            aim.Normalize();
+
+            return DistanceToArc(origin, aim, arcDegrees * 0.5f, arcRadius, point)
+                   <= bandWidth + pointRadius;
+        }
+
+        // How far a point lies from the swept arc line itself.
+        static float DistanceToArc(Vector3 origin, Vector3 aim, float halfAngle, float arcRadius, Vector3 point)
+        {
+            Vector3 toTarget = point - origin;
+            toTarget.y = 0f;
+            float distance = toTarget.magnitude;
+
+            // Standing exactly on the player: the arc is arcRadius away.
+            if (distance < 0.0001f) return arcRadius;
+
+            float angle = Vector3.Angle(aim, toTarget / distance);
+            // Inside the arc's sweep: only the radial gap matters.
+            if (angle <= halfAngle) return Mathf.Abs(distance - arcRadius);
+
+            // Past the end of the sweep: measure to the nearer tip of the
+            // arc, so the swing stops where the hand does instead of at a
+            // hard angular wall.
+            float side = Vector3.Dot(Vector3.Cross(Vector3.up, aim), toTarget) >= 0f ? 1f : -1f;
+            Vector3 tip = origin + (Quaternion.Euler(0f, side * halfAngle, 0f) * aim) * arcRadius;
+            Vector3 toTip = point - tip;
+            toTip.y = 0f;
+            return toTip.magnitude;
         }
     }
 }
