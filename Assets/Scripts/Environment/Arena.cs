@@ -288,8 +288,15 @@ namespace GorillaSurvivors.Environment
         // the way.
         void BuildStands(int index, Vector3 dir, Vector3 basePos, Quaternion facing, float baseY = 0f)
         {
+            // Only the segments the camera genuinely looks THROUGH may hide.
+            //
+            // This was < 0.35, which is three quarters of the ring — every
+            // stand that wasn't pointing away from the camera was allowed to
+            // cull itself, so standing in a corner made spectators off to
+            // the side vanish while they were nowhere near the fight. The
+            // band is now the southern arc only.
             float northness = Vector3.Dot(dir, Vector3.forward);
-            bool near = northness < 0.35f;
+            bool near = northness < -0.6f;
 
             basePos += Vector3.up * baseY;
 
@@ -372,11 +379,33 @@ namespace GorillaSurvivors.Environment
         const float TunnelHeight = GateSpring + GateHalfWidth + 0.5f;
         const float GateStructureTop = TunnelHeight + 0.7f;
 
+        // Which pieces are ALLOWED to hide themselves.
+        //
+        // This is an explicit opt-in rather than a rule the occluder works
+        // out for itself, because no distance test gets it right: the bits
+        // that genuinely stand between the camera and the fight are the
+        // southern gate's superstructure and the tier directly behind it,
+        // and everything else that qualified under a radius test — the side
+        // stands, their crowds — was only ever disappearing by accident.
+        bool _canHide;
+
+        // The gate the camera looks straight down. The others are seen edge
+        // on or from behind and never cover the gorilla.
+        static bool IsSouth(Vector3 dir) => Vector3.Dot(dir, Vector3.back) > 0.7f;
+
+        void RegisterOccluder(GameObject piece)
+        {
+            if (!_canHide || piece == null) return;
+            _occluders?.Register(piece);
+        }
+
         void BuildGate(Vector3 dir)
         {
             Vector3 center = Center + dir * Radius;
             Vector3 side = Vector3.Cross(Vector3.up, dir).normalized;
             var rotation = Quaternion.LookRotation(dir, Vector3.up);
+
+            _canHide = IsSouth(dir);
 
             for (int s = -1; s <= 1; s += 2)
             {
@@ -428,8 +457,8 @@ namespace GorillaSurvivors.Environment
                 var finialCap = CreateBlock("GateFinialCap", jamb + Vector3.up * (GateStructureTop + 0.76f),
                     Vector3.one * 0.36f, StoneLight);
                 finialCap.transform.rotation = rotation;
-                _occluders?.Register(finial);
-                _occluders?.Register(finialCap);
+                RegisterOccluder(finial);
+                RegisterOccluder(finialCap);
             }
 
             // A cornice course across the top of the arch, tying the two
@@ -438,7 +467,7 @@ namespace GorillaSurvivors.Environment
                 center + Vector3.up * (GateStructureTop - 0.2f),
                 new Vector3(GateHalfWidth * 2f + 2.6f, 0.38f, 2.6f), StoneLight);
             cornice.transform.rotation = rotation;
-            _occluders?.Register(cornice);
+            RegisterOccluder(cornice);
 
             BuildArch(center, dir, side, rotation);
             BuildTunnel(center, dir, side, rotation);
@@ -478,7 +507,7 @@ namespace GorillaSurvivors.Environment
                     keystone ? StoneLight : (k % 2 == 0 ? Sandstone : Stone));
                 // Long axis radial, face pointing out of the arena.
                 block.transform.rotation = Quaternion.LookRotation(dir, radial);
-                _occluders?.Register(block);
+                RegisterOccluder(block);
 
                 // An archivolt: a second, thinner ring of stone outside the
                 // first, which is what gives a real arch its depth.
@@ -486,7 +515,7 @@ namespace GorillaSurvivors.Environment
                     center + Vector3.up * GateSpring + radial * (GateHalfWidth + 0.82f),
                     new Vector3(0.58f, 0.40f, 1.5f), k % 2 == 0 ? Stone : StoneDark);
                 outer.transform.rotation = Quaternion.LookRotation(dir, radial);
-                _occluders?.Register(outer);
+                RegisterOccluder(outer);
             }
 
             // The keystone proud of the ring, and a boss on its face.
@@ -494,12 +523,12 @@ namespace GorillaSurvivors.Environment
             var crownBlock = CreateBlock("GateKeystoneCap", crown + Vector3.up * 0.42f,
                 new Vector3(0.78f, 0.44f, 2.4f), StoneLight);
             crownBlock.transform.rotation = rotation;
-            _occluders?.Register(crownBlock);
+            RegisterOccluder(crownBlock);
 
             var boss = CreateBlock("GateBoss", crown - dir * 1.15f + Vector3.up * 0.1f,
                 new Vector3(0.44f, 0.44f, 0.22f), Sandstone);
             boss.transform.rotation = rotation;
-            _occluders?.Register(boss);
+            RegisterOccluder(boss);
         }
 
         // The passage the enemies come out of. Side walls and a roof run
@@ -571,7 +600,7 @@ namespace GorillaSurvivors.Environment
                 center + dir * (TunnelDepth * 0.5f) + Vector3.up * (height + 0.35f),
                 new Vector3(GateHalfWidth * 2f + 3.0f, 0.7f, TunnelDepth + 1.4f), new Color(0.34f, 0.32f, 0.29f));
             roof.transform.rotation = rotation;
-            _occluders?.Register(roof);
+            RegisterOccluder(roof);
 
             // The darkness the passage ends in.
             var back = CreateUnlitBlock("TunnelDark",

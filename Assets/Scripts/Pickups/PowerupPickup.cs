@@ -20,8 +20,20 @@ namespace GorillaSurvivors.Pickups
         // Powerups have no magnet, so their grab radius does all the work.
         public float PickupRadius = 1.3f;
 
+        // A powerup is an offer to break off what you are doing and go and
+        // get something, which only means anything if the offer expires.
+        // Left lying around forever they became a pile of free buffs to hoover
+        // up between rounds, and the arena slowly filled with spinning
+        // labels nobody had got round to.
+        public float Lifetime = 15f;
+        // How long it spends visibly blinking before it goes, so it never
+        // disappears out from under someone already walking toward it.
+        const float WarnSeconds = 4f;
+
+        float _expiresAt;
         Transform _player;
         Transform _visual;
+        Renderer[] _renderers;
 
         struct Info
         {
@@ -81,11 +93,32 @@ namespace GorillaSurvivors.Pickups
         void Start()
         {
             if (PlayerController.Instance != null) _player = PlayerController.Instance.transform;
+            _expiresAt = Time.time + Lifetime;
+            _renderers = GetComponentsInChildren<Renderer>();
         }
 
         void Update()
         {
             if (_visual != null) _visual.Rotate(0f, 60f * Time.deltaTime, 0f, Space.World);
+
+            float remaining = _expiresAt - Time.time;
+            if (remaining <= 0f)
+            {
+                Destroy(gameObject);
+                return;
+            }
+
+            // Blinks faster the closer it is to going, so "hurry" is legible
+            // from the other side of the arena without reading a timer.
+            if (remaining < WarnSeconds && _renderers != null)
+            {
+                float rate = Mathf.Lerp(14f, 4f, remaining / WarnSeconds);
+                bool on = Mathf.Sin(Time.time * rate) > -0.3f;
+                foreach (var r in _renderers)
+                {
+                    if (r != null) r.enabled = on;
+                }
+            }
 
             if (_player == null)
             {

@@ -30,7 +30,7 @@ namespace GorillaSurvivors.Player
         // Pulled in from 105: a swipe should be what is in FRONT of you, and
         // at 105 it was already reaching round past your shoulders before
         // any upgrade widened it further.
-        public float ArcDegrees = 85f;
+        public float ArcDegrees = 60f;
         // Half-thickness of the swept band, either side of the arc.
         public float BandWidth = 0.8f;
         // Slowed 20% from 0.22: at the old speed the arm was a blur and the

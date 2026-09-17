@@ -76,18 +76,16 @@ namespace GorillaSurvivors.Environment
                 // behind the camera or past the player is never in the way.
                 bool between = projected > 0.5f && projected < length;
 
-                // Measured in SCREEN terms, not world ones.
+                // Plain world distance from the sight line.
                 //
-                // A fixed world radius is the wrong test for "is this in the
-                // way", because the same 4 metres is most of the screen for
-                // something right in front of the lens and a thumbnail for
-                // something at the back of the stands. Standing in a corner,
-                // that had the far stands — which are nowhere near the
-                // gorilla on screen — culling themselves. Dividing by the
-                // distance asks the question the player is actually asking:
-                // is this drawing over the fight.
+                // A screen-relative version of this was tried and was worse
+                // on both counts: it let the near gate sit in shot because
+                // the gate is close enough that dividing by distance shrank
+                // its offset, while distant stands still qualified. The
+                // aggressiveness was never the measurement's fault — it was
+                // that far too much geometry was registered in the first
+                // place, which is fixed at the registration end instead.
                 float offset = Vector3.Distance(toPiece, along * projected);
-                offset *= length / Mathf.Max(0.5f, projected);
 
                 // The threshold to cross depends on which side it is already
                 // on, so a piece hovering on the line stays where it is.
