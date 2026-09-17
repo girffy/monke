@@ -170,6 +170,8 @@ namespace GorillaSurvivors.UI
             _buttons[(int)TouchButton.Dash].SetCooldown(player.DashCooldownRemaining01());
             _buttons[(int)TouchButton.ChestBeat].SetCooldown(beatReady ? beat.CooldownRemaining01() : 0f);
             _buttons[(int)TouchButton.DungToss].SetCooldown(dungReady ? dung.CooldownRemaining01() : 0f);
+            _buttons[(int)TouchButton.DungToss].SetCharges(
+                dungReady ? dung.Charges : 0, dungReady ? dung.MaxCharges : 1);
         }
 
         void BuildLayout(RectTransform root)
@@ -572,11 +574,65 @@ namespace GorillaSurvivors.UI
             cooldown.fillClockwise = false;
             cooldown.fillAmount = 0f;
 
+            // Charge count, over everything. Anchored by fraction like the
+            // icon so it scales with whatever size the strip allows.
+            var pipGO = new GameObject("Charges", typeof(RectTransform));
+            pipGO.transform.SetParent(go.transform, false);
+            var pipRect = pipGO.GetComponent<RectTransform>();
+            pipRect.anchorMin = new Vector2(0.58f, 0.62f);
+            pipRect.anchorMax = new Vector2(1.02f, 1.06f);
+            pipRect.offsetMin = Vector2.zero;
+            pipRect.offsetMax = Vector2.zero;
+            var pipBg = pipGO.AddComponent<Image>();
+            pipBg.sprite = CircleSprite.Get();
+            pipBg.color = new Color(0.06f, 0.06f, 0.08f, 0.92f);
+            pipBg.raycastTarget = false;
+
+            var pipTextGO = new GameObject("Text", typeof(RectTransform));
+            pipTextGO.transform.SetParent(pipGO.transform, false);
+            var pipTextRect = pipTextGO.GetComponent<RectTransform>();
+            pipTextRect.anchorMin = Vector2.zero;
+            pipTextRect.anchorMax = Vector2.one;
+            pipTextRect.offsetMin = Vector2.zero;
+            pipTextRect.offsetMax = Vector2.zero;
+            var pipText = pipTextGO.AddComponent<Text>();
+            pipText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            pipText.fontSize = 22;
+            pipText.fontStyle = FontStyle.Bold;
+            pipText.alignment = TextAnchor.MiddleCenter;
+            pipText.resizeTextForBestFit = true;
+            pipText.resizeTextMinSize = 8;
+            pipText.resizeTextMaxSize = 40;
+            pipText.color = new Color(1f, 0.93f, 0.60f);
+            pipText.raycastTarget = false;
+            pipGO.SetActive(false);
+
             var widget = go.AddComponent<TouchButtonWidget>();
             widget._background = background;
             widget._idleColor = background.color;
             widget._cooldown = cooldown;
+            widget._chargeBadge = pipGO;
+            widget._chargeText = pipText;
             return widget;
+        }
+
+        GameObject _chargeBadge;
+        Text _chargeText;
+
+        // Shown only for abilities that actually stock charges — a permanent
+        // "1" on every button is noise.
+        public void SetCharges(int charges, int maxCharges)
+        {
+            if (_chargeBadge == null) return;
+
+            bool show = maxCharges > 1;
+            if (_chargeBadge.activeSelf != show) _chargeBadge.SetActive(show);
+            if (!show) return;
+
+            _chargeText.text = charges.ToString();
+            _chargeText.color = charges > 0
+                ? new Color(1f, 0.93f, 0.60f)
+                : new Color(0.55f, 0.55f, 0.58f);
         }
 
         public void OnPointerDown(PointerEventData eventData)

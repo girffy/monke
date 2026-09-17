@@ -76,6 +76,19 @@ namespace GorillaSurvivors.Enemies
             TakeDamage(amount, null, 0f);
         }
 
+        // ---- Vulnerable ("Rake") ------------------------------------------
+
+        public const float VulnerableBonus = 0.5f;
+
+        float _vulnerableUntil;
+        public bool IsVulnerable => Time.time < _vulnerableUntil;
+
+        public void ApplyVulnerable(float seconds)
+        {
+            _vulnerableUntil = Mathf.Max(_vulnerableUntil, Time.time + seconds);
+            VulnerableMarker.Show(transform, _vulnerableUntil);
+        }
+
         // Knockback direction/force are optional — callers that represent a
         // directional hit (the ground-slam, Charge) pass them so a surviving
         // enemy gets shoved back; omnidirectional damage (contact, Roar
@@ -110,6 +123,12 @@ namespace GorillaSurvivors.Enemies
                     Sfx.ShieldBlock(transform.position);
                 }
             }
+
+            // "Rake" marks a target rather than bleeding it, so EVERY source
+            // benefits — the slam that follows, a bomber's blast, another
+            // enemy's friendly fire. Applied last so it multiplies whatever
+            // the shield and the frontal block left.
+            if (IsVulnerable) amount *= 1f + VulnerableBonus;
 
             _currentHP -= amount;
             OnDamaged?.Invoke(amount);

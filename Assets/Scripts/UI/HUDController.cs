@@ -42,6 +42,8 @@ namespace GorillaSurvivors.UI
             public Image Background;
             public Image CooldownMask;
             public Text Label;
+            public GameObject ChargeBadge;
+            public Text ChargeText;
         }
         AbilityIcon _atkIcon, _swipeIcon, _dashIcon, _roarIcon, _chargeIcon;
 
@@ -307,7 +309,59 @@ namespace GorillaSurvivors.UI
             mask.fillOrigin = (int)Image.OriginVertical.Top;
             mask.fillAmount = 0f;
 
-            return new AbilityIcon { Background = background, CooldownMask = mask, Label = labelText };
+            // Charge count, top-right, above the cooldown mask so a stocked
+            // ability still shows what it is holding while it recharges the
+            // next one. Hidden entirely for abilities that have no stock —
+            // a permanent "1" on everything is noise.
+            var pipGO = new GameObject("Charges", typeof(RectTransform));
+            pipGO.transform.SetParent(root.transform, false);
+            var pipRect = pipGO.GetComponent<RectTransform>();
+            pipRect.anchorMin = new Vector2(1f, 1f);
+            pipRect.anchorMax = new Vector2(1f, 1f);
+            pipRect.pivot = new Vector2(1f, 1f);
+            pipRect.anchoredPosition = new Vector2(-2f, -2f);
+            pipRect.sizeDelta = new Vector2(size * 0.42f, size * 0.36f);
+            var pipBg = pipGO.AddComponent<Image>();
+            pipBg.sprite = PlaceholderSprites.RoundedRect();
+            pipBg.type = Image.Type.Sliced;
+            pipBg.color = new Color(0.06f, 0.06f, 0.08f, 0.92f);
+
+            var pipTextGO = new GameObject("Text", typeof(RectTransform));
+            pipTextGO.transform.SetParent(pipGO.transform, false);
+            var pipTextRect = pipTextGO.GetComponent<RectTransform>();
+            pipTextRect.anchorMin = Vector2.zero;
+            pipTextRect.anchorMax = Vector2.one;
+            pipTextRect.offsetMin = Vector2.zero;
+            pipTextRect.offsetMax = Vector2.zero;
+            var pipText = pipTextGO.AddComponent<Text>();
+            pipText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            pipText.fontSize = 14;
+            pipText.fontStyle = FontStyle.Bold;
+            pipText.alignment = TextAnchor.MiddleCenter;
+            pipText.color = new Color(1f, 0.93f, 0.60f);
+            pipGO.SetActive(false);
+
+            return new AbilityIcon
+            {
+                Background = background, CooldownMask = mask, Label = labelText,
+                ChargeBadge = pipGO, ChargeText = pipText,
+            };
+        }
+
+        // Charges are shown only where they exist: an ability with a single
+        // charge is fully described by its cooldown ring already.
+        static void SetCharges(AbilityIcon icon, int charges, int maxCharges)
+        {
+            if (icon.ChargeBadge == null) return;
+
+            bool show = maxCharges > 1;
+            if (icon.ChargeBadge.activeSelf != show) icon.ChargeBadge.SetActive(show);
+            if (!show) return;
+
+            icon.ChargeText.text = charges.ToString();
+            icon.ChargeText.color = charges > 0
+                ? new Color(1f, 0.93f, 0.60f)
+                : new Color(0.55f, 0.55f, 0.58f);
         }
 
         void RefreshAbilityIcon(AbilityIcon icon, Color unlockedColor, bool unlocked, float cooldownRemaining01)
@@ -353,6 +407,8 @@ namespace GorillaSurvivors.UI
             RefreshAbilityIcon(_dashIcon, DashColor, true, _controller != null ? _controller.DashCooldownRemaining01() : 0f);
             RefreshAbilityIcon(_roarIcon, RoarColor, _chestBeat != null && _chestBeat.Unlocked, _chestBeat != null ? _chestBeat.CooldownRemaining01() : 0f);
             RefreshAbilityIcon(_chargeIcon, ChargeColor, _dungToss != null && _dungToss.Unlocked, _dungToss != null ? _dungToss.CooldownRemaining01() : 0f);
+            SetCharges(_chargeIcon, _dungToss != null ? _dungToss.Charges : 0,
+                _dungToss != null ? _dungToss.MaxCharges : 1);
         }
 
         public void ShowRoundBanner(int round)

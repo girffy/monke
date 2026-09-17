@@ -28,7 +28,12 @@ namespace GorillaSurvivors.Player
         // "Barge" node, so the early dash is an escape you have to aim
         // through gaps rather than a straight line through a hundred men.
         public bool DashPassesThrough;      // "Barge"
-        public float DashDamage;            // "Freight Train"
+        public float DashDamage;            // unused; kept for tuning hooks
+
+        // "Stamina". Charges recharge one at a time off the same cooldown,
+        // so at the default of one this behaves exactly as a plain timer did
+        // and the node simply banks unused cooldown into a spare dash.
+        public int MaxDashCharges = 1;
         public bool DashRefreshesAttacks;   // "Momentum"
 
         // Movement happens on the flat XZ ground plane; Y stays constant.
@@ -113,6 +118,7 @@ namespace GorillaSurvivors.Player
             }
 
             ReadInput();
+            TickDashCharges();
             bool dashPressed = WasDashPressed();
 
             // "Rolling Thunder" leaves the player mobile through a chest
@@ -132,7 +138,7 @@ namespace GorillaSurvivors.Player
                 // beat usually follows a dash and the dash is still cooling
                 // down when you try to cancel out of it. If there's no dash
                 // to be had, the press buffers instead.
-                bool dashReady = Time.time >= _dashReadyTime;
+                bool dashReady = DashAvailable;
                 bool cancelled = dashReady
                     && ((Attack != null && Attack.TryCancelWithDash())
                         || (ChestBeat != null && ChestBeat.TryCancelWithDash()));
@@ -157,13 +163,13 @@ namespace GorillaSurvivors.Player
             else if (_wasMovementLocked && _dashBuffered)
             {
                 _dashBuffered = false;
-                if (Time.time >= _dashReadyTime)
+                if (DashAvailable)
                 {
                     _moveInput = _dashBufferedDirection;
                     StartDash();
                 }
             }
-            else if (dashPressed && Time.time >= _dashReadyTime && _moveInput.sqrMagnitude > 0.01f)
+            else if (dashPressed && DashAvailable && _moveInput.sqrMagnitude > 0.01f)
             {
                 StartDash();
             }
@@ -454,7 +460,7 @@ namespace GorillaSurvivors.Player
             if (_collider != null && DashPassesThrough) _collider.enabled = false;
             _dashDirection = _moveInput.normalized;
             _dashEndTime = Time.time + DashDuration;
-            _dashReadyTime = Time.time + DashCooldown * (_stats != null ? _stats.AbilityCooldownMultiplier : 1f);
+            SpendDashCharge();
             // Always cover at least the full dash — iframes are the point of
             // dashing through a crowd, not an accidental side effect.
             // Cover the whole dash plus a landing buffer. Invulnerability
@@ -494,11 +500,56 @@ namespace GorillaSurvivors.Player
             _knockbackUntil = Time.time + duration;
         }
 
-        // "Second Wind": clears the dash cooldown outright.
-        public void ReadyDash() => _dashReadyTime = 0f;
+        public void ReadyDash()
+        {
+            _dashCharges = MaxDashCharges;
+            _dashReadyTime = 0f;
+        }
+
+        // ---- Dash charges -------------------------------------------------
+
+        int _dashCharges = -1;
+        int _lastMaxDashCharges;
+
+        public int DashCharges => Mathf.Max(0, _dashCharges);
+        public bool DashAvailable => _dashCharges > 0 || (_dashCharges < 0 && Time.time >= _dashReadyTime);
+
+        void TickDashCharges()
+        {
+            // First tick, and any time a Stamina rank raises the cap: hand
+            // the new charge over immediately rather than making the player
+            // wait a cooldown to see what they just bought.
+            if (_dashCharges < 0) _dashCharges = MaxDashCharges;
+            else if (MaxDashCharges > _lastMaxDashCharges) _dashCharges += MaxDashCharges - _lastMaxDashCharges;
+            _lastMaxDashCharges = MaxDashCharges;
+
+            if (_dashCharges >= MaxDashCharges) return;
+
+            if (DashAvailable)
+            {
+                _dashCharges++;
+                if (_dashCharges < MaxDashCharges)
+                {
+                    _dashReadyTime = Time.time + DashCooldown * (_stats != null ? _stats.AbilityCooldownMultiplier : 1f);
+                }
+            }
+        }
+
+        void SpendDashCharge()
+        {
+            // Spending from a full stock is what starts the clock, so a full
+            // stock doesn't quietly refill while it is still full.
+            if (_dashCharges >= MaxDashCharges)
+            {
+                _dashReadyTime = Time.time + DashCooldown * (_stats != null ? _stats.AbilityCooldownMultiplier : 1f);
+            }
+            _dashCharges = Mathf.Max(0, _dashCharges - 1);
+        }
 
         public float DashCooldownRemaining01()
         {
+            if (_dashCharges > 0) return 0f;
+
             float total = DashCooldown * (_stats != null ? _stats.AbilityCooldownMultiplier : 1f);
             float remaining = Mathf.Max(0f, _dashReadyTime - Time.time);
             return total <= 0f ? 0f : remaining / total;

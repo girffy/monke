@@ -131,8 +131,9 @@ namespace GorillaSurvivors.Core
                     // the gorilla — an upgrade that covered less than before.
                     N("swipe_arc", "Wide Sweep", "Swipe", "Swipe sweeps +26° wider", 2, 0,
                         p => Get<QuickSwipeAttack>(p).ArcDegrees += 26f, 2, "swipe_dmg"),
-                    N("swipe_bleed", "Rake", "Swipe", "Swiped enemies bleed for half the hit again over 2s", 2, 2,
-                        p => Get<QuickSwipeAttack>(p).BleedFraction = 0.5f, 1, "swipe_dmg"),
+                    N("swipe_bleed", "Rake", "Swipe",
+                        "Swiped enemies are Vulnerable for 4s: they take +50% damage from everything", 2, 2,
+                        p => Get<QuickSwipeAttack>(p).VulnerableSeconds = 4f, 1, "swipe_dmg"),
                     N("slam_core", "Focal Impact", "Slam",
                         "The inner third of the slam hits for +50%, marked out while you charge", 2, 4,
                         p => Get<PlayerAttack>(p).CoreImpactEnabled = true, 1, "slam_charge"),
@@ -143,7 +144,7 @@ namespace GorillaSurvivors.Core
                             a.StunSeconds += a.StunSeconds > 0f ? 0.3f : 0.5f;
                         }, 2, "slam_charge"),
 
-                    N("swipe_double", "Flurry", "Swipe join", "Every swipe lands a second time for 60%", 3, 1,
+                    N("swipe_double", "Ambidextrous", "Swipe join", "Every swipe lands a second time for 60%, off the other hand", 3, 1,
                         p => Get<QuickSwipeAttack>(p).SecondHitFraction = 0.6f, 1, "swipe_arc", "swipe_bleed"),
                     N("slam_braced", "Braced", "Slam join", "Take 45% less damage while holding a charge", 3, 3,
                         p => Get<PlayerAttack>(p).ChargeDamageReduction = 0.45f, 1, "slam_core", "slam_stun"),
@@ -164,8 +165,8 @@ namespace GorillaSurvivors.Core
                     N("dung_unlock", "Dung Toss", "Unlock E", "Unlocks Dung Toss (E): splash damage and a slowing patch", 1, 5,
                         p => Get<DungTossAbility>(p).Unlocked = true, 1, "instinct"),
 
-                    N("dash_through", "Barge", "Dash", "Dash passes straight through enemies", 2, 0,
-                        p => Get<PlayerController>(p).DashPassesThrough = true, 1, "dash_cd"),
+                    N("dash_stamina", "Stamina", "Dash", "+1 stored dash", 2, 0,
+                        p => Get<PlayerController>(p).MaxDashCharges += 1, 2, "dash_cd"),
                     N("dash_far", "Ground Eater", "Dash", "+40% dash distance", 2, 2,
                         p => Get<PlayerController>(p).DashDuration *= 1.4f, 1, "dash_cd"),
                     N("beat_dmg", "Thunderous", "Beat", "+30% chest beat damage per pulse", 2, 4,
@@ -178,10 +179,10 @@ namespace GorillaSurvivors.Core
                         "Dung hits rot for the impact damage again over 3s", 2, 8,
                         p => Get<DungTossAbility>(p).RotFraction = 1f, 1, "dung_unlock"),
                     N("dung_charges", "Stockpile", "Toss", "+1 stored dung throw", 2, 10,
-                        p => Get<DungTossAbility>(p).MaxCharges += 1, 2, "dung_unlock"),
+                        p => Get<DungTossAbility>(p).MaxCharges += 1, 3, "dung_unlock"),
 
-                    N("dash_dmg", "Freight Train", "Dash join", "Dashing deals 20 damage to everything you pass through", 3, 1,
-                        p => Get<PlayerController>(p).DashDamage += 20f, 1, "dash_through", "dash_far"),
+                    N("dash_through", "Barge", "Dash join", "Dash passes straight through enemies", 3, 1,
+                        p => Get<PlayerController>(p).DashPassesThrough = true, 1, "dash_stamina", "dash_far"),
                     N("beat_march", "Rolling Thunder", "Beat join", "Walk at half speed during a chest beat, and stay invulnerable throughout", 3, 3,
                         p =>
                         {
@@ -191,16 +192,16 @@ namespace GorillaSurvivors.Core
                         }, 1, "beat_dmg", "beat_pulses"),
                     // The spread alone. Carrying the rot as well made this one
                     // node the whole Toss limb's payoff twice over.
-                    N("dung_rot", "Foul", "Toss join", "Dung comes as a spread of three", 3, 5,
-                        p => Get<DungTossAbility>(p).ExtraProjectiles += 2, 1, "dung_dmg", "dung_charges"),
+                    N("dung_rot", "Foul", "Toss join", "+1 clod per throw, fanned either side", 3, 5,
+                        p => Get<DungTossAbility>(p).ExtraProjectiles += 1, 3, "dung_dmg", "dung_charges"),
 
-                    N("ability_capstone", "Second Wind", "Capstone",
-                        "-30% cooldown on everything, and dropping below 25% HP instantly readies every ability (once a round)", 4, 3,
+                    N("ability_capstone", "Harvesting", "Capstone",
+                        "-30% cooldown on everything, and every kill has a 50% chance to return a dung charge", 4, 3,
                         p =>
                         {
                             Get<PlayerStats>(p).AddPermanentCooldownReduction(0.3f);
-                            Get<PlayerPerks>(p).SecondWindEnabled = true;
-                        }, 1, "dash_dmg", "beat_march", "dung_rot")),
+                            Get<PlayerPerks>(p).HarvestingEnabled = true;
+                        }, 1, "dash_through", "beat_march", "dung_rot")),
 
                 // ================= HIDE =================
                 new TechBranch("Hide", "Body  ·  Instinct", new Color(0.55f, 0.78f, 0.48f), 4,
@@ -231,9 +232,9 @@ namespace GorillaSurvivors.Core
                     N("hide_knock", "Immovable", "Instinct join", "Being hit no longer knocks you back", 3, 3,
                         p => Get<PlayerController>(p).IgnoreKnockback = true, 1, "hide_iframes", "hide_greed"),
 
-                    N("hide_capstone", "Apex", "Capstone",
-                        "+25% damage above 80% HP; -30% damage taken below 30%", 4, 2,
-                        p => Get<PlayerPerks>(p).ApexEnabled = true, 1, "hide_laststand", "hide_knock")),
+                    N("hide_capstone", "Carnivore", "Capstone",
+                        "Every kill has a 30% chance to heal 5 HP", 4, 2,
+                        p => Get<PlayerPerks>(p).CarnivoreEnabled = true, 1, "hide_laststand", "hide_knock")),
             };
         }
 

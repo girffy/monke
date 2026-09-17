@@ -68,11 +68,24 @@ namespace GorillaSurvivors.Player.Abilities
             return total <= 0f ? 0f : Mathf.Clamp01(remaining / total);
         }
 
-        // "Second Wind": refills the whole stockpile.
         public void ReadyNow()
         {
             _charges = MaxCharges;
             _rechargeAt = 0f;
+        }
+
+        // "Harvesting": a kill hands a throw straight back. Capped at the
+        // stockpile, so the perk fills the bar you paid for rather than
+        // quietly inventing a bigger one.
+        public void GrantCharge()
+        {
+            if (_charges < 0) _charges = MaxCharges;
+            if (_charges >= MaxCharges) return;
+
+            _charges++;
+            // A charge arriving out of order shouldn't also reset the timer
+            // that was already part-way to the next one.
+            if (_charges >= MaxCharges) _rechargeAt = 0f;
         }
 
         void TickCharges()

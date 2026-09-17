@@ -38,14 +38,15 @@ namespace GorillaSurvivors.Player
         public const float SwipeDuration = 0.264f;
 
         // Tech tree.
-        public float BleedFraction;       // "Rake"
-        public float SecondHitFraction;   // "Flurry"
+        public float VulnerableSeconds;   // "Rake"
+        public float SecondHitFraction;   // "Ambidextrous"
 
         PlayerStats _stats;
         PlayerController _controller;
         CharacterAnimator _animator;
         PlayerAttack _attackCache;
         Transform _armR;
+        Transform _armL;
         bool _isSwiping;
 
         static readonly Collider[] HitBuffer = new Collider[32];
@@ -68,6 +69,7 @@ namespace GorillaSurvivors.Player
             _animator = GetComponent<CharacterAnimator>();
             var model = transform.Find("GorillaModel");
             _armR = model != null ? model.Find("ArmR") : null;
+            _armL = model != null ? model.Find("ArmL") : null;
         }
 
         void Update()
@@ -123,6 +125,7 @@ namespace GorillaSurvivors.Player
             // The body counter-rotates into the swing and unwinds out of it,
             // so a fast poke still reads as a whole-body motion rather than
             // one arm flapping.
+            _useLeftArm = false;
             yield return AnimateArm(RestDir, SwipeStartDir, outT, model, lockedRotation, 0f, -14f);
             yield return AnimateArm(SwipeStartDir, SwipeEndDir, hitT, model, lockedRotation, -14f, 16f);
 
@@ -131,13 +134,19 @@ namespace GorillaSurvivors.Player
 
             yield return AnimateArm(SwipeEndDir, RestDir, backT, model, lockedRotation, 16f, 0f);
 
-            // "Flurry": a back-handed return swing on the way out, landing
-            // in the same committed direction.
+            // "Ambidextrous": the LEFT hand comes straight back the other
+            // way, so the pair reads as right-then-left rather than as one
+            // arm swinging twice. The body unwinds the opposite way with it.
             if (SecondHitFraction > 0f)
             {
-                yield return AnimateArm(RestDir, SwipeEndDir, 0.06f, model, lockedRotation, 0f, 10f);
+                RestArm(false);
+                _useLeftArm = true;
+                yield return AnimateArm(RestDir, SwipeStartDir, 0.05f, model, lockedRotation, 0f, 12f);
+                yield return AnimateArm(SwipeStartDir, SwipeEndDir, 0.04f, model, lockedRotation, 12f, -10f);
                 PerformSwipeHit(aim, SecondHitFraction);
-                yield return AnimateArm(SwipeEndDir, RestDir, 0.08f, model, lockedRotation, 10f, 0f);
+                yield return AnimateArm(SwipeEndDir, RestDir, 0.07f, model, lockedRotation, -10f, 0f);
+                _useLeftArm = false;
+                RestArm(true);
             }
 
             if (_animator != null)
@@ -167,10 +176,30 @@ namespace GorillaSurvivors.Player
             SetArmDirection(toDir);
         }
 
+        // Which hand is swinging. "Ambidextrous" is a right-then-left pair,
+        // so the second swing has to come off the other arm — a repeat on
+        // the same arm reads as one arm twitching twice, not as two blows.
+        bool _useLeftArm;
+
         void SetArmDirection(Vector3 localDirection)
         {
-            if (_armR == null) return;
-            _armR.localRotation = Quaternion.FromToRotation(Vector3.down, localDirection);
+            var arm = _useLeftArm ? _armL : _armR;
+            if (arm == null) return;
+
+            // Mirrored on X for the left, so the left hand sweeps inward
+            // across the body exactly as the right one sweeps outward.
+            var dir = _useLeftArm
+                ? new Vector3(-localDirection.x, localDirection.y, localDirection.z)
+                : localDirection;
+            arm.localRotation = Quaternion.FromToRotation(Vector3.down, dir);
+        }
+
+        // Puts whichever arm is NOT swinging back where it belongs, or it
+        // stays frozen wherever the last swing left it.
+        void RestArm(bool left)
+        {
+            var arm = left ? _armL : _armR;
+            if (arm != null) arm.localRotation = Quaternion.FromToRotation(Vector3.down, RestDir);
         }
 
         PlayerPerks _perksCache;
@@ -222,7 +251,11 @@ namespace GorillaSurvivors.Player
                     // HP immediately and only destroys the object at end of
                     // frame, so this is the kill the swipe just made.
                     if (enemyHealth.CurrentHP <= 0f) Perks?.NotifyMeleeKill();
-                    else if (BleedFraction > 0f) enemyHealth.ApplyDamageOverTime(damage * BleedFraction, 2f);
+                    // Marked rather than bled. A swipe is the fast, cheap
+                    // attack; making it set something UP for the slam and
+                    // for everything else on the field is a better use of it
+                    // than a small trickle of its own damage.
+                    else if (VulnerableSeconds > 0f) enemyHealth.ApplyVulnerable(VulnerableSeconds);
                     continue;
                 }
 

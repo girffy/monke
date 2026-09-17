@@ -33,15 +33,22 @@ namespace GorillaSurvivors.Player
             _frenzyExpires = Time.time + FrenzyDuration;
         }
 
-        // ---- Apex ------------------------------------------------------
-        public bool ApexEnabled;
-        const float ApexHighHP = 0.8f;
-        const float ApexLowHP = 0.3f;
+        // ---- Carnivore ---------------------------------------------------
+        // Replaces "Apex", whose two health-threshold effects were invisible
+        // in play: nothing marked the moment you crossed 80% or 30%, so the
+        // numbers silently changed under you. A chance on kill is legible —
+        // you see the heal happen.
+        public bool CarnivoreEnabled;
+        public const float CarnivoreChance = 0.3f;
+        public const float CarnivoreHeal = 5f;
 
-        // ---- Second Wind -----------------------------------------------
-        public bool SecondWindEnabled;
-        bool _secondWindSpent;
-        public void RefreshSecondWind() => _secondWindSpent = false;
+        // ---- Harvesting --------------------------------------------------
+        // Replaces "Second Wind", which was a once-a-round panic button that
+        // fired on its own and so was never a decision. This one pays out
+        // constantly and in a currency the Toss limb already cares about, so
+        // the capstone reinforces the branch you spent the points in.
+        public bool HarvestingEnabled;
+        public const float HarvestChance = 0.5f;
 
         PlayerHealth _health;
 
@@ -61,53 +68,39 @@ namespace GorillaSurvivors.Player
             return _health.CurrentHP / _health.MaxHP;
         }
 
-        // Multiplies both melee attacks. Frenzy and Apex stack additively
-        // with each other so the ceiling stays legible: 5 stacks and full
-        // health is +65%, not +81%.
+        // Multiplies both melee attacks.
         public float MeleeDamageMultiplier
         {
             get
             {
                 float bonus = 0f;
                 if (FrenzyEnabled) bonus += FrenzyStacks * FrenzyPerStack;
-                if (ApexEnabled && HealthFraction() > ApexHighHP) bonus += 0.25f;
                 return 1f + bonus;
             }
         }
 
-        public float DamageTakenMultiplier
-        {
-            get
-            {
-                if (ApexEnabled && HealthFraction() < ApexLowHP) return 0.7f;
-                return 1f;
-            }
-        }
+        public float DamageTakenMultiplier => 1f;
 
         public void NotifyDamaged() { }
 
-        // "Second Wind": falling under a quarter health readies everything,
-        // once a round. Fires from PlayerHealth after the hit resolves.
-        public void NotifyHealthDropped()
+        public void NotifyHealthDropped() { }
+
+        // "Harvesting": half of everything you kill hands back a throw.
+        // Hooked to the enemy's death rather than to the attack, so it pays
+        // out for bleeds, blasts, dash damage and the dung itself — which is
+        // the point, since a big enough spread can pay for its own next one.
+        public void NotifyKill()
         {
-            if (!SecondWindEnabled || _secondWindSpent) return;
-            if (HealthFraction() >= 0.25f) return;
+            if (HarvestingEnabled && Random.value <= HarvestChance)
+            {
+                GetComponent<Abilities.DungTossAbility>()?.GrantCharge();
+            }
 
-            _secondWindSpent = true;
-            ReadyEverything();
-            UI.HUDController.Instance?.ShowToast("SECOND WIND");
+            // "Carnivore": a bite out of whatever just went down.
+            if (CarnivoreEnabled && _health != null && Random.value <= CarnivoreChance)
+            {
+                _health.Heal(CarnivoreHeal);
+            }
         }
-
-        void ReadyEverything()
-        {
-            GetComponent<PlayerAttack>()?.ReadyNow();
-            GetComponent<PlayerController>()?.ReadyDash();
-            GetComponent<Abilities.ChestBeatAbility>()?.ReadyNow();
-            GetComponent<Abilities.DungTossAbility>()?.ReadyNow();
-        }
-
-        // Kept as a hook for future kill-triggered perks; nothing listens
-        // since "One Gorilla" was removed.
-        public void NotifyKill() { }
     }
 }

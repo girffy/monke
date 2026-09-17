@@ -118,7 +118,6 @@ namespace GorillaSurvivors.Core
 
             IsChoosingUpgrade = false;
             _player.GetComponent<PlayerHealth>()?.RefreshLastStand();
-            _player.GetComponent<PlayerPerks>()?.RefreshSecondWind();
             int nextRound = CurrentRound + 1;
             _spawner?.StartNewRound(nextRound);
             OnRoundStarted?.Invoke(nextRound);
