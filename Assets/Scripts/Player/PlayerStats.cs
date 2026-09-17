@@ -216,6 +216,15 @@ namespace GorillaSurvivors.Player
             _health?.SetMaxHP(_health.MaxHP + amount, healToFull: true);
         }
 
+        // A flat +30 was most of a health bar in round one and a rounding
+        // error by round ten. A fraction is worth the same at both ends of
+        // a run, which is what a tech node should be.
+        public void AddPermanentMaxHPFraction(float fraction)
+        {
+            if (_health == null) return;
+            _health.SetMaxHP(_health.MaxHP * (1f + fraction), healToFull: true);
+        }
+
         public void AddPermanentCooldownReduction(float amount)
         {
             PermanentCooldownReduction += amount;

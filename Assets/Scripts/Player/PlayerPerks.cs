@@ -38,10 +38,6 @@ namespace GorillaSurvivors.Player
         const float ApexHighHP = 0.8f;
         const float ApexLowHP = 0.3f;
 
-        // ---- One Gorilla -----------------------------------------------
-        public bool OneGorillaEnabled;
-        public const float KillHealFraction = 0.02f;
-
         // ---- Second Wind -----------------------------------------------
         public bool SecondWindEnabled;
         bool _secondWindSpent;
@@ -88,18 +84,7 @@ namespace GorillaSurvivors.Player
             }
         }
 
-        // "One Gorilla": at most one man can hurt you per second. Checked by
-        // PlayerHealth before anything else, so it stacks on top of the
-        // ordinary i-frames rather than replacing them.
-        float _lastDamageTime = float.NegativeInfinity;
-
-        public bool BlocksDamageNow()
-        {
-            if (!OneGorillaEnabled) return false;
-            return Time.time - _lastDamageTime < 1f;
-        }
-
-        public void NotifyDamaged() => _lastDamageTime = Time.time;
+        public void NotifyDamaged() { }
 
         // "Second Wind": falling under a quarter health readies everything,
         // once a round. Fires from PlayerHealth after the hit resolves.
@@ -121,13 +106,8 @@ namespace GorillaSurvivors.Player
             GetComponent<Abilities.DungTossAbility>()?.ReadyNow();
         }
 
-        // Every kill heals a slice of max HP once One Gorilla is up. Hooked
-        // to the enemy's death rather than to the attack, so it pays out for
-        // bleeds, blasts and dash damage too.
-        public void NotifyKill()
-        {
-            if (!OneGorillaEnabled || _health == null) return;
-            _health.Heal(_health.MaxHP * KillHealFraction);
-        }
+        // Kept as a hook for future kill-triggered perks; nothing listens
+        // since "One Gorilla" was removed.
+        public void NotifyKill() { }
     }
 }

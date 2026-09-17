@@ -17,6 +17,8 @@ namespace GorillaSurvivors.Player
         public float DamageTakenMultiplier { get; private set; } = 1f;
         public void AddDamageReduction(float fraction) => DamageTakenMultiplier *= 1f - fraction;
 
+        PlayerAttack _attackCache;
+
         // Tech tree: "Old Wounds Close".
         public float RegenPerSecondFraction;
         // "Hard to Pin": longer i-frames after a hit.
@@ -82,12 +84,19 @@ namespace GorillaSurvivors.Player
         {
             if (_dead || IsInvulnerable) return;
 
-            // "One Gorilla": at most one man can hurt you per second. Sits in
-            // front of the ordinary i-frames rather than replacing them.
-            if (Perks != null && Perks.BlocksDamageNow()) return;
-
             amount *= DamageTakenMultiplier;
             if (Perks != null) amount *= Perks.DamageTakenMultiplier;
+
+            // "Braced": charging a slam roots you in place, which is exactly
+            // when you are least able to answer being hit. This is what
+            // makes holding a charge in a crowd a decision rather than a
+            // straightforward mistake.
+            var attack = _attackCache != null ? _attackCache : (_attackCache = GetComponent<PlayerAttack>());
+            if (attack != null && attack.IsCharging && attack.ChargeDamageReduction > 0f)
+            {
+                amount *= 1f - Mathf.Clamp01(attack.ChargeDamageReduction);
+            }
+
             Perks?.NotifyDamaged();
 
             CurrentHP -= amount;

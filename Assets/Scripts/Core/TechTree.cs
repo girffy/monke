@@ -109,48 +109,48 @@ namespace GorillaSurvivors.Core
             {
                 // ================= MELEE =================
                 new TechBranch("Melee", "Swipe (LMB)  ·  Slam (RMB)", new Color(0.88f, 0.72f, 0.32f), 4,
-                    N("brawler", "Brawler", "Trunk", "+3 damage to both melee attacks", 0, 2,
+                    N("brawler", "Brawler", "Trunk", "+12% damage with both melee attacks", 0, 2,
                         p =>
                         {
-                            Get<QuickSwipeAttack>(p).BaseDamage += 3f;
-                            Get<PlayerAttack>(p).BaseDamage += 3f;
+                            Get<QuickSwipeAttack>(p).BaseDamage *= 1.12f;
+                            Get<PlayerAttack>(p).BaseDamage *= 1.12f;
                         }, 3),
 
-                    N("swipe_dmg", "Sharpened Claws", "Swipe", "+4 swipe damage", 1, 1,
-                        p => Get<QuickSwipeAttack>(p).BaseDamage += 4f, 3, "brawler"),
-                    N("slam_dmg", "Heavy Fists", "Slam", "+8 slam damage", 1, 3,
-                        p => Get<PlayerAttack>(p).BaseDamage += 8f, 3, "brawler"),
+                    N("swipe_dmg", "Sharpened Claws", "Swipe", "+25% swipe damage", 1, 1,
+                        p => Get<QuickSwipeAttack>(p).BaseDamage *= 1.25f, 3, "brawler"),
+                    // The slam limb's gate. Everything below it needs the
+                    // charge, so taking the limb IS taking Wind Up — the flat
+                    // damage node that used to sit here was filler, and it
+                    // let you reach the charge payoffs without the charge.
+                    N("slam_charge", "Wind Up", "Slam", "Hold RMB to charge the slam: up to +40% radius", 1, 3,
+                        p => Get<PlayerAttack>(p).ChargeEnabled = true, 1, "brawler"),
 
                     // Widens and thickens; deliberately does NOT extend. Reach
                     // used to grow here too, which pushed the inner edge of
                     // the swing forward and made it whiff enemies standing on
                     // the gorilla — an upgrade that covered less than before.
-                    N("swipe_arc", "Wide Sweep", "Swipe", "Swipe covers +22° more arc and a 0.25 thicker band", 2, 0,
-                        p =>
-                        {
-                            var s = Get<QuickSwipeAttack>(p);
-                            s.ArcDegrees += 22f;
-                            s.BandWidth += 0.25f;
-                        }, 2, "swipe_dmg"),
+                    N("swipe_arc", "Wide Sweep", "Swipe", "Swipe sweeps +26° wider", 2, 0,
+                        p => Get<QuickSwipeAttack>(p).ArcDegrees += 26f, 2, "swipe_dmg"),
                     N("swipe_bleed", "Rake", "Swipe", "Swiped enemies bleed for half the hit again over 2s", 2, 2,
                         p => Get<QuickSwipeAttack>(p).BleedFraction = 0.5f, 1, "swipe_dmg"),
-                    N("slam_charge", "Wind Up", "Slam", "Hold RMB to charge: up to 2.2x damage and reach", 2, 4,
-                        p => Get<PlayerAttack>(p).ChargeEnabled = true, 1, "slam_dmg"),
+                    N("slam_core", "Focal Impact", "Slam",
+                        "The inner third of the slam hits for +50%, marked out while you charge", 2, 4,
+                        p => Get<PlayerAttack>(p).CoreImpactEnabled = true, 1, "slam_charge"),
                     N("slam_stun", "Concussive", "Slam", "Slammed enemies are stunned for 0.5s, +0.3s per rank", 2, 6,
                         p =>
                         {
                             var a = Get<PlayerAttack>(p);
                             a.StunSeconds += a.StunSeconds > 0f ? 0.3f : 0.5f;
-                        }, 2, "slam_dmg"),
+                        }, 2, "slam_charge"),
 
                     N("swipe_double", "Flurry", "Swipe join", "Every swipe lands a second time for 60%", 3, 1,
                         p => Get<QuickSwipeAttack>(p).SecondHitFraction = 0.6f, 1, "swipe_arc", "swipe_bleed"),
-                    N("slam_quake", "Earthshaker", "Slam join", "The slam sends a shockwave out all around for half damage", 3, 3,
-                        p => Get<PlayerAttack>(p).QuakeEnabled = true, 1, "slam_charge", "slam_stun"),
+                    N("slam_braced", "Braced", "Slam join", "Take 45% less damage while holding a charge", 3, 3,
+                        p => Get<PlayerAttack>(p).ChargeDamageReduction = 0.45f, 1, "slam_core", "slam_stun"),
 
                     N("melee_capstone", "Silverback", "Capstone",
                         "Melee kills build Frenzy: +8% melee damage each, up to 5, fading 3s after your last kill", 4, 2,
-                        p => Get<PlayerPerks>(p).FrenzyEnabled = true, 1, "swipe_double", "slam_quake")),
+                        p => Get<PlayerPerks>(p).FrenzyEnabled = true, 1, "swipe_double", "slam_braced")),
 
                 // ================= ABILITIES =================
                 new TechBranch("Abilities", "Dash (SPC)  ·  Chest Beat (Q)  ·  Dung Toss (E)", new Color(0.45f, 0.72f, 0.90f), 6,
@@ -168,12 +168,15 @@ namespace GorillaSurvivors.Core
                         p => Get<PlayerController>(p).DashPassesThrough = true, 1, "dash_cd"),
                     N("dash_far", "Ground Eater", "Dash", "+40% dash distance", 2, 2,
                         p => Get<PlayerController>(p).DashDuration *= 1.4f, 1, "dash_cd"),
-                    N("beat_dmg", "Thunderous", "Beat", "+4 chest beat damage per pulse", 2, 4,
-                        p => Get<ChestBeatAbility>(p).BaseDamage += 4f, 3, "beat_unlock"),
+                    N("beat_dmg", "Thunderous", "Beat", "+30% chest beat damage per pulse", 2, 4,
+                        p => Get<ChestBeatAbility>(p).BaseDamage *= 1.3f, 3, "beat_unlock"),
                     N("beat_pulses", "Drum Roll", "Beat", "+1 chest beat pulse", 2, 6,
                         p => Get<ChestBeatAbility>(p).PulseCount += 1, 2, "beat_unlock"),
-                    N("dung_dmg", "Packed Tight", "Toss", "+4 dung damage", 2, 8,
-                        p => Get<DungTossAbility>(p).BaseDamage += 4f, 3, "dung_unlock"),
+                    // Was flat damage; it is the rot now, moved off Foul so
+                    // that node isn't carrying two effects at once.
+                    N("dung_dmg", "Packed Tight", "Toss",
+                        "Dung hits rot for the impact damage again over 3s", 2, 8,
+                        p => Get<DungTossAbility>(p).RotFraction = 1f, 1, "dung_unlock"),
                     N("dung_charges", "Stockpile", "Toss", "+1 stored dung throw", 2, 10,
                         p => Get<DungTossAbility>(p).MaxCharges += 1, 2, "dung_unlock"),
 
@@ -186,13 +189,10 @@ namespace GorillaSurvivors.Core
                             b.MoveFraction = 0.5f;
                             b.InvulnerableWhileBeating = true;
                         }, 1, "beat_dmg", "beat_pulses"),
-                    N("dung_rot", "Foul", "Toss join", "Dung comes as a spread of three, and hits rot for the impact damage again over 3s", 3, 5,
-                        p =>
-                        {
-                            var d = Get<DungTossAbility>(p);
-                            d.RotFraction = 1f;
-                            d.ExtraProjectiles += 2;
-                        }, 1, "dung_dmg", "dung_charges"),
+                    // The spread alone. Carrying the rot as well made this one
+                    // node the whole Toss limb's payoff twice over.
+                    N("dung_rot", "Foul", "Toss join", "Dung comes as a spread of three", 3, 5,
+                        p => Get<DungTossAbility>(p).ExtraProjectiles += 2, 1, "dung_dmg", "dung_charges"),
 
                     N("ability_capstone", "Second Wind", "Capstone",
                         "-30% cooldown on everything, and dropping below 25% HP instantly readies every ability (once a round)", 4, 3,
@@ -204,8 +204,8 @@ namespace GorillaSurvivors.Core
 
                 // ================= HIDE =================
                 new TechBranch("Hide", "Body  ·  Instinct", new Color(0.55f, 0.78f, 0.48f), 4,
-                    N("hide_hp", "Thicker Hide", "Trunk", "+30 max HP, heal to full", 0, 2,
-                        p => Get<PlayerStats>(p).AddPermanentMaxHP(30f), 3),
+                    N("hide_hp", "Thicker Hide", "Trunk", "+20% max HP, heal to full", 0, 2,
+                        p => Get<PlayerStats>(p).AddPermanentMaxHPFraction(0.2f), 3),
 
                     N("hide_armor", "Scarred", "Body", "-12% damage taken", 1, 1,
                         p => Get<PlayerHealth>(p).AddDamageReduction(0.12f), 3, "hide_hp"),
@@ -237,18 +237,6 @@ namespace GorillaSurvivors.Core
             };
         }
 
-        // The one node that is not inside a branch: it sits under all three
-        // capstones and is the only place that needs ALL of its parents.
-        public static readonly TechNode GrandCapstone = new TechNode
-        {
-            Id = "one_gorilla",
-            Title = "One Gorilla",
-            Skill = "Grand capstone",
-            Description = "You take damage from at most one man per second, and every kill heals 2% of max HP",
-            Parents = new[] { "melee_capstone", "ability_capstone", "hide_capstone" },
-            RequiresAllParents = true,
-            Apply = p => p.GetComponent<PlayerPerks>().OneGorillaEnabled = true,
-        };
     }
 
     // Per-run state: how many points are banked and what has been taken.

@@ -20,7 +20,7 @@ namespace GorillaSurvivors.Player
         // direction from the point of impact, so a wedge in front was the
         // wrong shape for it. The swipe keeps the arc; that one really is a
         // swung arm.
-        public float Radius = 1.9f;
+        public float Radius = 1.52f;
         // How far forward the circle sits, as a fraction of its own radius.
         // Enough that the back edge is roughly at the gorilla's heels.
         public const float CenterOffset = 0.45f;
@@ -30,12 +30,27 @@ namespace GorillaSurvivors.Player
         // Tech tree.
         public float StunSeconds;      // "Concussive"
         public bool ChargeEnabled;     // "Wind Up"
-        public bool QuakeEnabled;      // "Earthshaker"
+        public bool CoreImpactEnabled; // "Focal Impact"
+        public float ChargeDamageReduction; // "Braced"
+
+        // Everything under the gorilla's fists takes extra. This is the
+        // inner THIRD of the circle, marked out on the ground both when the
+        // blow lands and while it is being charged, so the reward for
+        // standing on top of what you are hitting is something you can see
+        // and aim rather than a hidden number.
+        public const float CoreFraction = 1f / 3f;
+        public const float CoreDamageBonus = 0.5f;
 
         // How long holding RMB can build for, and what a full hold is worth.
+        //
+        // Charging grows the blow's REACH, not its damage. A 2.2x damage
+        // multiplier on an attack that already one-shots most things was
+        // worth holding for every single time, which made the uncharged slam
+        // the wrong move and the charge a tax rather than a choice. Area is
+        // a decision instead: hold to catch the crowd, tap to hit the one in
+        // front of you now.
         public const float MaxChargeTime = 1.1f;
-        public const float MaxChargeDamage = 2.2f;
-        public const float MaxChargeReach = 1.35f;
+        public const float MaxChargeReach = 1.4f;
 
         PlayerStats _stats;
         PlayerController _controller;
@@ -169,6 +184,7 @@ namespace GorillaSurvivors.Player
         float _chargeStart;
         GameObject _chargeRim;
         GameObject _chargeFill;
+        GameObject _chargeCore;
 
         public bool IsCharging => _charging;
 
@@ -191,6 +207,10 @@ namespace GorillaSurvivors.Player
             // legible at a glance and says "how much" and "how far" at once.
             _chargeRim = Blocky3DArt.SwipeDisc(new Color(0.55f, 0.50f, 0.32f));
             _chargeFill = Blocky3DArt.SwipeDisc(new Color(1f, 0.86f, 0.35f));
+            // The bonus zone is drawn while you hold, not only when you land
+            // — a bonus for standing on top of something is only worth
+            // having if you can aim it before committing.
+            if (CoreImpactEnabled) _chargeCore = Blocky3DArt.SwipeDisc(new Color(1f, 0.62f, 0.18f));
         }
 
         // Where the held slam is currently pointed, flattened. The gorilla
@@ -233,19 +253,31 @@ namespace GorillaSurvivors.Player
                 _chargeFill.transform.position = center + Vector3.up * 0.07f;
                 _chargeFill.transform.localScale = new Vector3(filled, 0.02f, filled);
             }
+            if (_chargeCore != null)
+            {
+                // Tracks the radius the blow has ACTUALLY reached, not the
+                // full-charge one, so it reads as the bonus zone growing
+                // under your hands rather than a fixed target.
+                float now = Radius * _stats.LevelAttackRadiusBonus * _stats.AreaMultiplier
+                            * Mathf.Lerp(1f, MaxChargeReach, c) * CoreFraction * 2f;
+                _chargeCore.transform.position = center + Vector3.up * 0.09f;
+                _chargeCore.transform.localScale = new Vector3(now, 0.02f, now);
+            }
         }
 
         void ClearChargeVisual()
         {
             if (_chargeRim != null) Destroy(_chargeRim);
             if (_chargeFill != null) Destroy(_chargeFill);
+            if (_chargeCore != null) Destroy(_chargeCore);
             _chargeRim = null;
             _chargeFill = null;
+            _chargeCore = null;
         }
 
         void ReleaseCharge()
         {
-            float multiplier = Mathf.Lerp(1f, MaxChargeDamage, Charge01);
+            float charge = Charge01;
             _charging = false;
             ClearChargeVisual();
 
@@ -256,7 +288,7 @@ namespace GorillaSurvivors.Player
             // fromWindup: the charge already held the arms up, so the swing
             // carries on from where they are instead of snapping back to rest
             // and winding up a second time.
-            _slamCoroutine = StartCoroutine(SlamSequence(aim, multiplier, fromWindup: true));
+            _slamCoroutine = StartCoroutine(SlamSequence(aim, charge, fromWindup: true));
         }
 
         // "Momentum": a finished dash clears the slam's recovery outright.
@@ -272,7 +304,7 @@ namespace GorillaSurvivors.Player
             // losing it, same as dashing out of the swing itself.
             if (_charging)
             {
-                float built = Mathf.Lerp(1f, MaxChargeDamage, Charge01);
+                float built = Charge01;
                 _charging = false;
                 ClearChargeVisual();
                 PerformSlamHit(_controller.GetAimDirection(), built);
@@ -342,7 +374,7 @@ namespace GorillaSurvivors.Player
             return UI.TouchControls.Held(UI.TouchButton.Slam);
         }
 
-        IEnumerator SlamSequence(Vector3 aimDirection, float chargeMultiplier = 1f, bool fromWindup = false)
+        IEnumerator SlamSequence(Vector3 aimDirection, float charge01 = 0f, bool fromWindup = false)
         {
             _isSlamming = true;
             _hitLanded = false;
@@ -388,7 +420,7 @@ namespace GorillaSurvivors.Player
                 yield return AnimateArms(WindupDir, SlamDir, slam, model, lockedRotation, 0.13f, -0.16f, -9f, 14f);
             }
 
-            PerformSlamHit(aimDirection, chargeMultiplier);
+            PerformSlamHit(aimDirection, charge01);
             _hitLanded = true;
             CameraShake.Shake(0.22f, 0.22f);
 
@@ -440,15 +472,17 @@ namespace GorillaSurvivors.Player
             if (_armR != null) _armR.localRotation = rot;
         }
 
-        void PerformSlamHit(Vector3 aimDirection, float chargeMultiplier = 1f)
+        void PerformSlamHit(Vector3 aimDirection, float charge01 = 0f)
         {
             aimDirection.y = 0f;
             aimDirection.Normalize();
 
             float perkMultiplier = Perks != null ? Perks.MeleeDamageMultiplier : 1f;
-            float damage = BaseDamage * _stats.LevelDamageBonus * _stats.DamageMultiplier * chargeMultiplier * perkMultiplier;
+            float damage = BaseDamage * _stats.LevelDamageBonus * _stats.DamageMultiplier * perkMultiplier;
+            // Charging buys AREA, nothing else.
             float radius = Radius * _stats.LevelAttackRadiusBonus * _stats.AreaMultiplier
-                           * Mathf.Lerp(1f, MaxChargeReach, Mathf.InverseLerp(1f, MaxChargeDamage, chargeMultiplier));
+                           * Mathf.Lerp(1f, MaxChargeReach, Mathf.Clamp01(charge01));
+            float coreRadius = radius * CoreFraction;
             // Pushed out in front rather than centred on the gorilla. His
             // fists land ahead of the body, so a circle on the body's centre
             // spent half its area behind him where nothing was ever hit, and
@@ -464,7 +498,12 @@ namespace GorillaSurvivors.Player
                     Vector3 knockDir = enemyHealth.transform.position - hitCenter;
                     knockDir.y = 0f;
                     if (knockDir.sqrMagnitude < 0.0001f) knockDir = aimDirection;
-                    enemyHealth.TakeDamage(damage, knockDir, 7f);
+
+                    // "Focal Impact": directly under the fists hits harder.
+                    float blow = damage;
+                    if (CoreImpactEnabled && knockDir.magnitude <= coreRadius) blow *= 1f + CoreDamageBonus;
+
+                    enemyHealth.TakeDamage(blow, knockDir, 7f);
                     if (enemyHealth.CurrentHP <= 0f) Perks?.NotifyMeleeKill();
                     else if (StunSeconds > 0f) HitBuffer[i].GetComponentInParent<EnemyAI>()?.ApplyStun(StunSeconds);
                     continue;
@@ -502,35 +541,17 @@ namespace GorillaSurvivors.Player
             }
 
             SpawnSlamEffect(hitCenter, radius);
+            if (CoreImpactEnabled) SpawnCoreEffect(hitCenter, coreRadius);
             Sfx.Slam(hitCenter);
-
-            // 1.5x the slam, not the whole arena. At the original figure the
-            // ring reached most of the floor from anywhere in it, which made
-            // the node an "erase the screen" button rather than an answer to
-            // being surrounded.
-            if (QuakeEnabled) Quake(damage * 0.5f, radius * 1.5f);
         }
 
-        // "Earthshaker": a ring going out in EVERY direction for half damage.
-        // Deliberately not an arc — the point of the node is that the slam
-        // stops being purely frontal, so being surrounded is survivable.
-        void Quake(float damage, float radius)
+        // The bright inner disc, matching where the damage bonus applies.
+        void SpawnCoreEffect(Vector3 center, float radius)
         {
-            int count = Physics.OverlapSphereNonAlloc(transform.position, radius, HitBuffer);
-            for (int i = 0; i < count; i++)
-            {
-                var enemy = HitBuffer[i].GetComponentInParent<EnemyHealth>();
-                if (enemy == null) continue;
-
-                Vector3 away = enemy.transform.position - transform.position;
-                away.y = 0f;
-                enemy.TakeDamage(damage, away, 5f);
-            }
-
-            var ring = Blocky3DArt.SwipeDisc(new Color(0.85f, 0.70f, 0.42f));
-            ring.transform.position = transform.position + Vector3.up * 0.06f;
-            ring.transform.localScale = new Vector3(0.2f, 0.02f, 0.2f);
-            ring.AddComponent<GorillaSurvivors.Environment.ExpandingDisc>().Play(radius * 2f, 0.3f);
+            var go = Blocky3DArt.SwipeDisc(new Color(1f, 0.82f, 0.30f));
+            go.transform.position = center + Vector3.up * 0.09f;
+            go.transform.localScale = new Vector3(0.2f, 0.02f, 0.2f);
+            go.AddComponent<GorillaSurvivors.Environment.ExpandingDisc>().Play(radius * 2f, 0.16f);
         }
 
         // A ring going out from where the fists land, matching the circular
