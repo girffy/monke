@@ -20,6 +20,42 @@ namespace GorillaSurvivors.Core
             return GetOrCreate($"square_{ColorKey(color)}_{size}", () => BuildSquare(color, size));
         }
 
+        // A white rounded rectangle for 9-slicing. Tinted by Image.color, so
+        // one sprite serves every state a panel needs; the border is set by
+        // the caller to match `radius`, which is what keeps the corners
+        // circular however wide the box is stretched.
+        public static Sprite RoundedRect(int size = 48, int radius = 22)
+        {
+            return GetOrCreate($"round_{size}_{radius}", () => BuildRoundedRect(size, radius));
+        }
+
+        static Sprite BuildRoundedRect(int size, int radius)
+        {
+            var tex = new Texture2D(size, size, TextureFormat.RGBA32, false) { filterMode = FilterMode.Bilinear };
+            radius = Mathf.Clamp(radius, 1, size / 2);
+
+            for (int y = 0; y < size; y++)
+            {
+                for (int x = 0; x < size; x++)
+                {
+                    // Distance to the nearest corner circle's centre; inside
+                    // the straight edges this is always <= radius, so only
+                    // the corners actually round off.
+                    float cx = Mathf.Clamp(x + 0.5f, radius, size - radius);
+                    float cy = Mathf.Clamp(y + 0.5f, radius, size - radius);
+                    float d = Vector2.Distance(new Vector2(x + 0.5f, y + 0.5f), new Vector2(cx, cy));
+
+                    // One pixel of feather, so the curve isn't a staircase.
+                    float a = Mathf.Clamp01(radius - d + 0.5f);
+                    tex.SetPixel(x, y, new Color(1f, 1f, 1f, a));
+                }
+            }
+
+            tex.Apply();
+            return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), size,
+                0, SpriteMeshType.FullRect, new Vector4(radius, radius, radius, radius));
+        }
+
         public enum IconShape { Fist, Claw, Chevron, Burst, Bolt }
 
         // Simple silhouette glyphs for the ability bar, drawn as a handful

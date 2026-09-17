@@ -105,7 +105,12 @@ namespace GorillaSurvivors.UI
                 // this is what un-squashes the trunk and the capstone, which
                 // carry the longest text and previously had to fit the same
                 // narrow column as the leaves.
-                float width = Mathf.Min(0.94f / Mathf.Max(1, byRow[r].Count), 0.32f);
+                //
+                // Wide and shallow is the shape that suits the content: a
+                // title and a one-line effect. Tall boxes left a band of
+                // empty space under every description and forced the text
+                // into a narrow column that wrapped after three words.
+                float width = Mathf.Min(0.97f / Mathf.Max(1, byRow[r].Count), 0.42f);
                 for (int i = 0; i < byRow[r].Count; i++)
                 {
                     var node = byRow[r][i];
@@ -179,6 +184,8 @@ namespace GorillaSurvivors.UI
         static readonly Color LockedFill = new Color(0.135f, 0.135f, 0.15f, 1f);
         static readonly Color LockedFrame = new Color(0.27f, 0.27f, 0.30f, 1f);
         static readonly Color MaxedFill = new Color(0.16f, 0.30f, 0.18f, 0.97f);
+        static readonly Color PartialFill = new Color(0.26f, 0.42f, 0.27f, 0.97f);
+        static readonly Color PartialFrame = new Color(0.56f, 0.82f, 0.55f, 1f);
         static readonly Color EdgeIdle = new Color(0.32f, 0.32f, 0.34f, 0.85f);
 
         public static TechTreePanel Create(Transform parent, TechTreeState state)
@@ -316,14 +323,7 @@ namespace GorillaSurvivors.UI
 
             int rows = 0;
             foreach (var n in branch.Nodes) rows = Mathf.Max(rows, n.Row + 1);
-            // One extra row for the grand capstone, which is shown at the
-            // foot of every branch because it is the one node all three of
-            // them lead to — hiding it on two pages out of three would make
-            // the convergence invisible.
             view.Slots = Layout(branch, rows);
-
-            int grandRow = rows;
-            rows += 1;
             view.Rows = rows;
             float rowFraction = (1f - HeaderFraction) / rows;
 
@@ -348,61 +348,30 @@ namespace GorillaSurvivors.UI
                 }
             }
 
-            // The branch capstone feeds the grand capstone; draw that link so
-            // the page shows where the branch is going.
-            var capstone = BranchCapstone(branch);
-            var grand = TechTree.GrandCapstone;
-            if (capstone != null)
-            {
-                var a = NodeBounds(view, capstone, rowFraction);
-                var b = GrandBounds(branch, grandRow, rowFraction);
-                float ax = (a.min.x + a.max.x) * 0.5f;
-                float bx = (b.min.x + b.max.x) * 0.5f;
-                float mid = (a.min.y + b.max.y) * 0.5f;
-                const float t = 0.0022f;
-                AddBar(pageRect, view, new Vector2(ax - t, mid), new Vector2(ax + t, a.min.y));
-                AddBar(pageRect, view, new Vector2(Mathf.Min(ax, bx), mid - t * 1.6f), new Vector2(Mathf.Max(ax, bx), mid + t * 1.6f));
-                AddBar(pageRect, view, new Vector2(bx - t, b.max.y), new Vector2(bx + t, mid));
-            }
-
             foreach (var node in branch.Nodes)
             {
                 var bounds = NodeBounds(view, node, rowFraction);
                 _views.Add(MakeNode(node, branch.Tint, pageRect, bounds.min, bounds.max));
             }
-
-            var grandBounds = GrandBounds(branch, grandRow, rowFraction);
-            _views.Add(MakeNode(grand, new Color(0.85f, 0.62f, 0.32f), pageRect, grandBounds.min, grandBounds.max));
         }
 
-        static TechNode BranchCapstone(TechBranch branch)
-        {
-            TechNode best = null;
-            foreach (var node in branch.Nodes)
-            {
-                if (best == null || node.Row > best.Row) best = node;
-            }
-            return best;
-        }
-
-        // Centred, and wider than a normal node: it is not part of any one
-        // branch's layout.
-        static (Vector2 min, Vector2 max) GrandBounds(TechBranch branch, int row, float rowFraction)
-        {
-            float yTop = 1f - HeaderFraction - row * rowFraction;
-            return (new Vector2(0.32f, yTop - rowFraction + PadY),
-                    new Vector2(0.68f, yTop - PadY));
-        }
+        // How much of a row's height the box itself takes. The rest is the
+        // gap the connecting lines run through — a box filling its whole row
+        // left nowhere for the edges to be seen.
+        const float NodeHeightFraction = 0.66f;
 
         static (Vector2 min, Vector2 max) NodeBounds(BranchView view, TechNode node, float rowFraction)
         {
             var slot = view.Slots[node.Id];
             float x0 = slot.X - slot.Width * 0.5f;
             float x1 = slot.X + slot.Width * 0.5f;
-            float yTop = 1f - HeaderFraction - slot.Row * rowFraction;
 
-            return (new Vector2(x0 + PadX, yTop - rowFraction + PadY),
-                    new Vector2(x1 - PadX, yTop - PadY));
+            float yTop = 1f - HeaderFraction - slot.Row * rowFraction;
+            float centre = yTop - rowFraction * 0.5f;
+            float half = rowFraction * NodeHeightFraction * 0.5f;
+
+            return (new Vector2(x0 + PadX, centre - half),
+                    new Vector2(x1 - PadX, centre + half));
         }
 
         void BuildEdge(RectTransform parentRect, BranchView view,
@@ -453,19 +422,25 @@ namespace GorillaSurvivors.UI
             var rect = MakeStretched(parent, "Node_" + node.Id, anchorMin, anchorMax);
             var go = rect.gameObject;
             var frame = go.AddComponent<Image>();
+            frame.sprite = PlaceholderSprites.RoundedRect();
+            frame.type = Image.Type.Sliced;
 
             var fillRect = MakeStretched(rect, "Fill", Vector2.zero, Vector2.one);
             fillRect.offsetMin = new Vector2(2f, 2f);
             fillRect.offsetMax = new Vector2(-2f, -2f);
             var image = fillRect.gameObject.AddComponent<Image>();
+            image.sprite = PlaceholderSprites.RoundedRect();
+            image.type = Image.Type.Sliced;
 
             var button = go.AddComponent<Button>();
             button.targetGraphic = image;
             button.onClick.AddListener(() => Take(node));
 
+            // Generous side padding: the rounded ends eat the corners, and
+            // text running into them looks like a mistake.
             var labelRect = MakeStretched(fillRect, "Label", Vector2.zero, Vector2.one);
-            labelRect.offsetMin = new Vector2(7f, 5f);
-            labelRect.offsetMax = new Vector2(-7f, -5f);
+            labelRect.offsetMin = new Vector2(14f, 4f);
+            labelRect.offsetMax = new Vector2(-14f, -4f);
             var label = AddText(labelRect, 12, TextAnchor.MiddleCenter);
 
             return new NodeView
@@ -522,16 +497,69 @@ namespace GorillaSurvivors.UI
             _root.SetActive(true);
             SizeContent();
 
-            // Open on a branch the player can actually spend in, so the
-            // screen doesn't land on a page where everything is locked.
-            for (int i = 0; i < _pages.Count; i++)
+            // Reopen on the branch the player was last spending in. Someone
+            // building down one limb goes back to it every round, and being
+            // dropped on a different page each time meant re-navigating
+            // before every single choice.
+            //
+            // The exception is a branch with nothing affordable left in it,
+            // which would open the screen on a page that can't be used.
+            if (_active < 0 || _active >= _pages.Count || !BranchHasAffordableNode(_pages[_active].Branch))
             {
-                if (!BranchHasAffordableNode(_pages[i].Branch)) continue;
-                _active = i;
-                break;
+                for (int i = 0; i < _pages.Count; i++)
+                {
+                    if (!BranchHasAffordableNode(_pages[i].Branch)) continue;
+                    _active = i;
+                    break;
+                }
             }
 
             ShowBranch(_active);
+            StartFadeIn();
+        }
+
+        // A moment of fade before anything can be clicked.
+        //
+        // The screen arrives the instant a round ends, under a cursor that
+        // was mid-fight and is very likely still clicking. Without this the
+        // first node under the mouse got bought by a leftover click, and the
+        // point was gone before the player had seen the page.
+        const float FadeInSeconds = 0.5f;
+        float _interactableAt;
+        CanvasGroup _fade;
+
+        void StartFadeIn()
+        {
+            if (_fade == null)
+            {
+                // Not `??`: that operator bypasses Unity's overloaded
+                // equality, so a missing component comes back as a non-null
+                // reference to nothing.
+                _fade = _root.GetComponent<CanvasGroup>();
+                if (_fade == null) _fade = _root.AddComponent<CanvasGroup>();
+            }
+            _interactableAt = Time.unscaledTime + FadeInSeconds;
+            _fade.alpha = 0f;
+            _fade.interactable = false;
+            _fade.blocksRaycasts = true;
+        }
+
+        void Update()
+        {
+            if (_fade == null || !_root.activeSelf) return;
+
+            float remaining = _interactableAt - Time.unscaledTime;
+            if (remaining <= 0f)
+            {
+                if (!_fade.interactable)
+                {
+                    _fade.alpha = 1f;
+                    _fade.interactable = true;
+                }
+                return;
+            }
+
+            _fade.alpha = 1f - Mathf.Clamp01(remaining / FadeInSeconds);
         }
 
         // The content is as tall as the window, or tall enough to give every
@@ -642,6 +670,14 @@ namespace GorillaSurvivors.UI
                 {
                     view.Image.color = MaxedFill;
                     view.Frame.color = new Color(0.34f, 0.56f, 0.36f, 1f);
+                }
+                else if (rank > 0)
+                {
+                    // Part-way in. Reads as the same green as a finished node
+                    // but lighter, so "started" and "done" are one glance
+                    // apart rather than needing the rank numbers read.
+                    view.Image.color = PartialFill;
+                    view.Frame.color = PartialFrame;
                 }
                 else if (affordable)
                 {
