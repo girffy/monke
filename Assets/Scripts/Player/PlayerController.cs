@@ -525,7 +525,12 @@ namespace GorillaSurvivors.Player
 
             if (_dashCharges >= MaxDashCharges) return;
 
-            if (DashAvailable)
+            // The COOLDOWN gates the refill, not DashAvailable — that asks
+            // whether a dash can be used right now, which is false in
+            // exactly the state this needs to run in (no charges left), so
+            // the stock never refilled and the first dash of a run was the
+            // only one.
+            if (Time.time >= _dashReadyTime)
             {
                 _dashCharges++;
                 if (_dashCharges < MaxDashCharges)
